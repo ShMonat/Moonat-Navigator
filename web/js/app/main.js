@@ -256,7 +256,7 @@ async function boot() {
     }
   });
 
-  // The map loads Leaflet from the CDN; the rest of the app works without it.
+  // The globe map loads three.js and its images; the rest of the app works without it.
   import("./map.js")
     .then((m) => m.initMap())
     .catch((err) => {

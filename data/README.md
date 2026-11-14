@@ -13,3 +13,9 @@ files (LDEM_16, 33 MB; LDEM_75S_240M, 29 MB) and byte-range windows (256 x 256 p
 rasters (SLDEM2015, LDEM_64, polar 20/30/60 m). In a git worktree the folder of the main checkout is used, so all
 worktrees share one cache; override with `MOONAT_DEM_DIR`. Bytes fetched are logged in `data/raw/dem/download_log.json`;
 the budget is 500 MB (`MOONAT_DEM_BUDGET_MB`).
+
+## Globe map textures (`data/raw/moonmap/`, location picker)
+`uv run python scripts/data/build_moonmap.py` downloads 128 NASA Moon Trek WMTS tiles of the LRO WAC global mosaic
+(zoom 3, about 4 MB, cached in `data/raw/moonmap/wac_z3/`) and reuses LDEM_16 and LDEM_75S_240M from `data/raw/dem/`
+(run `build_terrain.py` first if they are missing). It writes the globe textures (about 4.2 MB of JPEG) and
+`moonmap.json` to `web/data/moonmap/`.

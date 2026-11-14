@@ -9,13 +9,19 @@ Decisions in Shahar's domain are marked *(pending Shahar's review)*.
 1. **Ephemeris:** `skyfield` + JPL **DE421** + the lunar PA kernel `moon_pa_de421_1900-2050.bpc` → frame `MOON_ME_DE421`
    (consistent with LOLA). Validation: **JPL Horizons** topocentric lunar sites (a challenge resource).
 2. **App = static website on GitHub Pages** *(pending Shahar's review)*: plain HTML + ES modules, no build step, libraries
-   from CDN (three.js, Plotly, Leaflet). No server, no new accounts, instant for judges. Python runs **offline** to precompute
+   from CDN (three.js, Plotly). No server, no new accounts, instant for judges. Python runs **offline** to precompute
    data (ephemeris tables, horizon profiles, terrain patches) and to validate the physics. The browser does the light
    geometry (topocentric transform, visibility, metrics) from precomputed tables, so **any site and any time** works.
 3. **Terrain:** LOLA DEMs from PDS (and Moon Trek where useful). Only small windows around sites are downloaded
    (byte-range reads); total download budget ≈ 1 GB including packages. Precomputed high-quality horizon profiles and 3D terrain
    patches for catalog sites; a smooth horizon (clearly labelled) for custom sites until `dem-tiles` exists.
-4. **Map:** Leaflet with **Moon Trek** WMTS tiles (a challenge resource).
+4. **Map:** a three.js **Moon globe** picker (`web/js/globe/`, orthographic camera, presets Near side / Far side /
+   North pole / South pole, drag / wheel / pinch, click returns MOON_ME latitude and east longitude). Textures are
+   precomputed by `scripts/data/build_moonmap.py` into `web/data/moonmap/` (about 4.2 MB): the LRO WAC global mosaic
+   stitched from **Moon Trek** WMTS tiles (a challenge resource), with LOLA hillshade polar caps (to 68° from LDEM_16 and
+   LDEM_75S_240M, plus a 193 m/px south cap poleward of 83.5° S) so the poles look right top-down. Replaces the earlier
+   Leaflet map with live Moon Trek tiles, which was too small and could not show the poles *(UI change by Shay's agent,
+   pending Shahar's review)*.
 5. **Observer eye height:** 2 m. **Azimuth:** true azimuth everywhere (see docs/CONTRACTS.md §0).
 6. **UI:** two tabs, per the Main Tab verdict. **Compare** (scenario builder + Sun and Earth panels, overlaid) and **Sky**
    (the rendered view, one per scenario, drag to look around the hemisphere, timelapse for missions).
@@ -81,7 +87,7 @@ unless the PA→ME handling turns out awkward, in which case `spiceypy`.
 | South pole DEM | LOLA `LDEM_80S_20M` (20 m/px, polar stereographic) | high-res near field for polar sites |
 | Mid/low-latitude DEM | `SLDEM2015` (LOLA + Kaguya, ±60°, 512 px/deg ≈ 59 m) | Apollo and most historical sites |
 | Global coarse DEM | LOLA `LDEM_16`/`LDEM_64` (~1.9 km / ~0.47 km) | far-field horizon, any map click |
-| Moon map tiles | NASA Moon Trek WMTS or the USGS LROC WAC mosaic | for map-click input |
+| Moon map textures | NASA Moon Trek WMTS (LRO WAC global mosaic, zoom 3) + LOLA polar hillshade, precomputed into `web/data/moonmap/` | globe location picker |
 | Ephemerides and frames | NAIF: DE440/DE421, `moon_pa_de421_1900-2050.bpc`, `moon_080317.tf` | small |
 | Stars | Yale Bright Star Catalog or Hipparcos (via skyfield) | mag ≤ 6 is about 9k stars |
 | Constellation lines | d3-celestial data (BSD) or similar, **check the licence** | |

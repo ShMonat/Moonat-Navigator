@@ -167,7 +167,7 @@ await createSkyView(container /* HTMLElement */, {
 - Renders on demand (no continuous loop) so many views can coexist. Missing data degrades gracefully (no terrain patch →
   horizon silhouette only; no stars file → no stars).
 - **Import map** (owned by `web-app` in `web/index.html`): `"three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"`,
-  `"three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"`; Plotly `plotly.js-dist-min@2.35.2`; Leaflet `leaflet@1.9.4`.
+  `"three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"`; Plotly `plotly.js-dist-min@2.35.2`.
 - ENU → three.js mapping: three.x = east, three.y = up, three.z = −north (right-handed). Units: metres near the site.
 
 ## C9 `terrain-at` (producer: `terrain-everywhere`; consumers: `physics-js`, `sky-viewer`, `web-app`) — **proposed, not wired**

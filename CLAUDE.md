@@ -32,7 +32,7 @@ There are several agents on two laptops, and their humans barely talk. Shared st
 - Python 3.13, managed with **uv**. Never use bare `pip`, and never create other venvs.
   - Add a dependency: `uv add <pkg>`. For a dev-only dependency: `uv add --dev <pkg>`. Commit `pyproject.toml` and `uv.lock` together.
   - Run: `uv run python ...`, `uv run pytest`, `uv run ruff check --fix .`, `uv run ruff format .`
-- No MATLAB. **Front end: a static website in `web/`** (plain HTML + ES modules, no build step; three.js, Plotly and Leaflet
+- No MATLAB. **Front end: a static website in `web/`** (plain HTML + ES modules, no build step; three.js and Plotly
   from CDN with pinned versions), hosted on GitHub Pages. Python precomputes data into `web/data/` and validates the physics.
   JS tests: `node --test web/tests/`. Local preview: `uv run python -m http.server -d web 8000`.
 - **Binding data shapes: `docs/CONTRACTS.md`.** Kickoff decisions: `docs/ARCHITECTURE.md` §0.

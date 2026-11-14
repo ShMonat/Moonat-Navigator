@@ -7,7 +7,7 @@ even if free. **Agents append here in the same PR that introduces the dependency
 ## NASA / space agency data
 Challenge Resources tab (published 2026-11-13): Quickmap, Moon Trek, JPL Horizons, CSA Moon Exploration. We use the ones marked ★.
 - ★ JPL Horizons System (NASA/JPL) — reference positions of the Sun and Earth from lunar surface sites; validation of our ephemeris — https://ssd.jpl.nasa.gov/horizons/ — public
-- ★ Moon Trek (NASA) — lunar map tiles (LRO imagery) for the site-picker map — https://trek.nasa.gov/moon/ — public
+- ★ Moon Trek (NASA) — LRO WAC map tiles stitched into the base texture of the Moon globe site picker — https://trek.nasa.gov/moon/ — public
 - LROC Quickmap (ASU / NASA LRO) — cross-checking landing-site coordinates and terrain — https://quickmap.lroc.asu.edu/ — public
 - JPL Horizons API (NASA/JPL) — cached topocentric lunar-site tables used as test fixtures (tests/fixtures/horizons/) — https://ssd-api.jpl.nasa.gov/doc/horizons.html — public
 - JPL DE421 planetary ephemeris `de421.bsp` (NASA/JPL, via NAIF) — positions of the Sun, Earth, Moon and planets — https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/a_old_versions/de421.bsp — public
@@ -21,9 +21,8 @@ Challenge Resources tab (published 2026-11-13): Quickmap, Moon Trek, JPL Horizon
 - Matplotlib — validation figures — https://matplotlib.org/ — Matplotlib licence (PSF-based)
 
 ### Web app (agent `web-app`)
-- Leaflet 1.9.4 — interactive Moon map (site picker), loaded from jsDelivr — https://leafletjs.com — BSD-2-Clause
 - Plotly.js (plotly.js-dist-min 2.35.2) — Sun and Earth time-series charts, loaded from jsDelivr — https://plotly.com/javascript/ — MIT
-- three.js 0.160.0 — 3D sky view (import map shared with the sky viewer), loaded from jsDelivr — https://threejs.org — MIT
+- three.js 0.160.0 — 3D sky view and the Moon globe site picker (import map shared with the sky viewer), loaded from jsDelivr — https://threejs.org — MIT
 - jsDelivr CDN — serves the pinned library versions above — https://www.jsdelivr.com — free public CDN
 - Colour-blind-safe categorical palette (reference palette of the Claude Code "dataviz" skill, validated for colour-vision deficiency in light and dark themes) — scenario colours — https://claude.com/claude-code — used with Claude Code
 - GitHub Pages and GitHub Actions (configure-pages v5, upload-pages-artifact v3, deploy-pages v4) — hosting the public site — https://pages.github.com — GitHub terms
@@ -35,6 +34,8 @@ Challenge Resources tab (published 2026-11-13): Quickmap, Moon Trek, JPL Horizon
 - Vogel, H. (1979), "A better way to construct the sunflower head", Math. Biosci. 44, 179–189 (golden-angle point pattern) — even sampling of the Sun and Earth disks for the visible fraction — https://doi.org/10.1016/0025-5564(79)90080-4 — method only
 - Linear solar limb-darkening law I(μ) = 1 − u(1 − μ), u ≈ 0.6 in the visible (e.g. Cox, Allen's Astrophysical Quantities, 4th ed., §14.7) — flux fraction of a partly hidden Sun — method only
 - IAU 2015 Resolution B3 (total solar irradiance 1361 W/m², Earth equatorial radius 6 378.137 km) — solar flux and the Earth's angular size — https://www.iau.org/static/resolutions/IAU2015_English.pdf — public
+- Snyder, J. P. (1987), "Map Projections — A Working Manual", USGS Professional Paper 1395, polar stereographic projection (sphere) — the polar caps of the globe picker (scripts/data/build_moonmap.py, web/js/globe/) — https://doi.org/10.3133/pp1395 — public
+- Horn, B. K. P. (1981), "Hill shading and the reflectance map", Proc. IEEE 69(1), 14–47 — Lambertian hillshade of the LOLA polar caps — https://doi.org/10.1109/PROC.1981.11918 — method only
 
 ### Eclipse seen from the Moon (agent `eclipse`)
 - Espenak, F. (NASA GSFC), "Total Lunar Eclipse of 2025 Mar 14" — contact times P1…P4, umbral magnitude, ΔT, Danjon rule; validation of the eclipse computation — https://eclipse.gsfc.nasa.gov/LEplot/LEplot2001/LE2025Mar14T.pdf — public (NASA)
@@ -47,10 +48,12 @@ Challenge Resources tab (published 2026-11-13): Quickmap, Moon Trek, JPL Horizon
 - Gauss–Legendre quadrature (Newton iteration on Legendre polynomials; e.g. Press et al., Numerical Recipes, §4.6) — the ring integral of the eclipsed solar flux — method only
 
 ## Images, textures and other media
+- LRO WAC global mosaic 303 ppd v02 (NASA/GSFC/Arizona State University), via the NASA Moon Trek WMTS, 128 tiles at zoom 3 stitched to 4096 x 2048 px (plus a 1024 x 512 preview) — base texture of the Moon globe site picker (web/data/moonmap/wac_global*.jpg) — https://trek.nasa.gov/tiles/Moon/EQ/LRO_WAC_Mosaic_Global_303ppd_v02/1.0.0/WMTSCapabilities.xml — public (NASA)
+- LOLA LDEM_16 and LDEM_75S_240M (NASA LRO LOLA, PDS) rendered as hillshade — polar-cap textures of the globe (web/data/moonmap/cap_*.jpg; 1.3 km/px caps to 68°, a 193 m/px south cap poleward of 83.5° S) — https://pds-geosciences.wustl.edu/missions/lro/lola.htm — public (NASA PDS)
 
 ## Tools
 - Claude Code (Anthropic) — AI coding agent used to write the code and docs — https://claude.com/claude-code — see docs/AI_USE.md
-- Playwright for Python (Microsoft) with the installed Microsoft Edge — scripted app screenshots in docs/figures/app_*.png, and the demo video recorder scripts/video/record_demo.py (dev dependency) — https://playwright.dev/python/ — Apache-2.0
+- Playwright for Python (Microsoft) with the installed Microsoft Edge — scripted app screenshots in docs/figures/app_*.png and docs/figures/globe_*.png, and the demo video recorder scripts/video/record_demo.py (dev dependency) — https://playwright.dev/python/ — Apache-2.0
 - imageio-ffmpeg — bundled FFmpeg binary used to encode the demo video — https://github.com/imageio/imageio-ffmpeg — BSD-2-Clause (the bundled FFmpeg build with libx264 is GPL)
 - FFmpeg with libx264 — H.264 encoding of the demo video (outputs/video/, via imageio-ffmpeg) — https://ffmpeg.org/ , https://www.videolan.org/developers/x264.html — LGPL/GPL
 

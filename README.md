@@ -77,7 +77,7 @@ uv run python -m http.server -d web 8123      # open http://localhost:8123
 uv run pytest                                  # Python tests
 node --test web/tests/                         # JavaScript tests (Node 20+)
 ```
-The web app has no build step. Libraries (three.js, Plotly, Leaflet) load from a CDN.
+The web app has no build step. Libraries (three.js, Plotly) load from a CDN.
 
 ## Repo map
 ```

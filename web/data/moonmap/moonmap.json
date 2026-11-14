@@ -1,0 +1,68 @@
+{
+ "_generated_by": "AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.",
+ "format": "moonat-moonmap/1",
+ "frame": "MOON_ME (selenographic latitude, east-positive longitude)",
+ "base": {
+  "url": "wac_global.jpg",
+  "preview_url": "wac_global_1k.jpg",
+  "projection": "equirectangular",
+  "width": 4096,
+  "height": 2048,
+  "lon_left_deg": -180.0,
+  "lat_top_deg": 90.0,
+  "source": "LRO WAC global mosaic 303 ppd v02, NASA Moon Trek WMTS, zoom 3 tiles stitched",
+  "credit": "NASA/GSFC/Arizona State University (LRO WAC), via NASA Moon Trek"
+ },
+ "caps": [
+  {
+   "id": "north",
+   "url": "cap_north.jpg",
+   "pole": 1,
+   "psi_max_deg": 22.0,
+   "fade_psi_deg": [
+    20.0,
+    16.0
+   ],
+   "size": 1024,
+   "source": "LOLA LDEM_16 hillshade"
+  },
+  {
+   "id": "south",
+   "url": "cap_south.jpg",
+   "pole": -1,
+   "psi_max_deg": 22.0,
+   "fade_psi_deg": [
+    20.0,
+    16.0
+   ],
+   "size": 1024,
+   "source": "LOLA LDEM_16 and LDEM_75S_240M hillshade"
+  },
+  {
+   "id": "south_inner",
+   "url": "cap_south_inner.jpg",
+   "pole": -1,
+   "psi_max_deg": 6.5,
+   "fade_psi_deg": [
+    6.0,
+    5.0
+   ],
+   "size": 2048,
+   "source": "LOLA LDEM_75S_240M hillshade"
+  }
+ ],
+ "cap_projection": "polar stereographic on the unit sphere: k = 1/(1 + s*uz); X = k*uy; Y = -s*k*ux; u_tex = 0.5 + X/(2*tan(psi_max/2)); v_tex = 0.5 + Y/(2*tan(psi_max/2)); image row 0 = v_tex 1 (top)",
+ "hillshade": {
+  "light_azimuth_image_deg": 315.0,
+  "light_elevation_deg": 40.0,
+  "ambient": 0.18
+ },
+ "credit": "Imagery: NASA/GSFC/Arizona State University (LRO WAC) via NASA Moon Trek. Polar relief: NASA LRO LOLA (PDS).",
+ "bytes": {
+  "wac_global.jpg": 2652343,
+  "wac_global_1k.jpg": 147207,
+  "cap_north.jpg": 314639,
+  "cap_south.jpg": 320597,
+  "cap_south_inner.jpg": 720424
+ }
+}

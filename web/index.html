@@ -12,14 +12,13 @@
     // Apply the saved theme before first paint, to avoid a flash.
     try { const t = localStorage.getItem("moonat-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) { /* storage blocked */ }
   </script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="css/app.css">
+  <link rel="stylesheet" href="css/globe.css">
   <script type="importmap">
   {
     "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
-      "leaflet": "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet-src.esm.js"
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
     }
   }
   </script>
@@ -53,8 +52,8 @@
   <main class="layout">
     <aside class="side" aria-label="Scenarios">
       <section class="block map-block" id="map-block">
-        <div id="map" class="map" role="application" aria-label="Moon map: click to set the location of the selected scenario"></div>
-        <p class="map-hint" id="map-hint">Click the map to place the selected scenario.</p>
+        <div id="map" class="map"></div>
+        <p class="map-hint" id="map-hint"><span class="hint-mouse">Click the Moon to place the selected scenario. Drag to turn it, scroll to zoom.</span><span class="hint-touch">Tap the Moon to place the selected scenario. Drag to turn it, pinch to zoom.</span></p>
       </section>
 
       <section class="block scen-block" id="scen-block">
@@ -146,7 +145,7 @@
   </main>
 
   <footer class="foot">
-    <p>Ephemeris: JPL DE421 (validated against JPL Horizons) · Terrain: NASA LRO LOLA · Map: NASA Moon Trek (LRO WAC mosaic) · Earth: NASA Blue Marble · Built for NASA Space Apps 2026.
+    <p>Ephemeris: JPL DE421 (validated against JPL Horizons) · Terrain: NASA LRO LOLA · Map: NASA Moon Trek (LRO WAC mosaic) and LOLA polar relief · Earth: NASA Blue Marble · Built for NASA Space Apps 2026.
       Made with the help of AI (Claude Code). <button class="link-btn" data-open-about>How it works</button></p>
   </footer>
 
@@ -186,7 +185,8 @@
         to better than one arcsecond.</li>
       <li><strong>Terrain:</strong> NASA Lunar Reconnaissance Orbiter laser altimeter (LOLA) elevation models, from the
         <a href="https://pds-geosciences.wustl.edu/missions/lro/lola.htm" target="_blank" rel="noopener">NASA Planetary Data System</a>.</li>
-      <li><strong>Map:</strong> <a href="https://trek.nasa.gov/moon/" target="_blank" rel="noopener">NASA Moon Trek</a>, LRO Wide Angle Camera global mosaic.</li>
+      <li><strong>Map:</strong> <a href="https://trek.nasa.gov/moon/" target="_blank" rel="noopener">NASA Moon Trek</a>, LRO Wide Angle Camera global mosaic.
+        Near the poles the globe shows shaded relief made from LOLA elevation models (240 m per pixel around the south pole).</li>
       <li><strong>Earth:</strong> <a href="https://visibleearth.nasa.gov/images/57752/" target="_blank" rel="noopener">NASA Blue Marble</a> and
         <a href="https://visibleearth.nasa.gov/images/55167/" target="_blank" rel="noopener">City Lights</a> images, turned with the real rotation of the Earth.</li>
       <li><strong>Stars:</strong> Yale Bright Star Catalogue (stars to magnitude 6); constellation lines from d3-celestial.</li>

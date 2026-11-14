@@ -140,24 +140,9 @@ button { cursor: pointer; }
 .chip:hover { background: var(--accent-soft); border-color: var(--accent); }
 .chip.active { background: var(--accent-soft); border-color: var(--accent); }
 
-/* Map */
+/* Map: the Moon globe picker (styles in globe.css) */
 .map-block { position: relative; }
-.map {
-  height: 230px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border);
-  background: #000; cursor: crosshair;
-}
 .map-hint { margin: 6px 2px 0; font-size: 12px; color: var(--muted); }
-.leaflet-container { background: #000; font: inherit; }
-.leaflet-container.leaflet-grab, .leaflet-interactive { cursor: crosshair; }
-.leaflet-control-attribution { font-size: 10px; }
-.leaflet-bar a { background: var(--surface); color: var(--text); border-color: var(--border); }
-.leaflet-bar a:hover { background: var(--surface-2); }
-.map-coords {
-  background: rgba(0, 0, 0, 0.6); color: #eee; padding: 2px 7px; border-radius: 6px; font-size: 11px;
-  font-variant-numeric: tabular-nums; pointer-events: none;
-}
-.leaflet-tooltip { font-size: 12px; }
-.site-dot { transition: r 0.1s; }
 
 /* Scenario cards */
 .cards { display: flex; flex-direction: column; gap: 10px; }
@@ -487,7 +472,6 @@ body.sky-focus { overflow: hidden; }
   .sky-act { padding: 3px 12px; }
   .seg button { padding: 5px 14px; }
   .picker-item { padding: 11px 10px; }
-  .map-hint::after { content: " Use two fingers to move the map."; }
 }
 @media (max-width: 520px) {
   .topbar { grid-template-columns: 1fr auto; padding: 8px 12px; }

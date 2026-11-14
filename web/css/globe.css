@@ -1,0 +1,157 @@
+/* AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team. */
+/* Moon globe location picker (web/js/globe/). The globe always sits on a dark "space" panel, so its labels and
+   controls use fixed light-on-dark colours in both themes; only the selected preset uses the theme accent. */
+
+.globe-host { position: relative; }
+.globe {
+  --g-ink: #ecebe5;
+  --g-ink-2: rgba(236, 235, 229, 0.72);
+  --g-glass: rgba(10, 12, 18, 0.62);
+  --g-glass-hover: rgba(34, 39, 52, 0.85);
+  --g-line: rgba(255, 255, 255, 0.16);
+  position: relative; width: 100%;
+  aspect-ratio: 1 / 1.1;
+  min-height: 320px; max-height: calc(100vh - 120px);
+  border-radius: 14px; overflow: hidden; isolation: isolate;
+  border: 1px solid var(--border);
+  background:
+    radial-gradient(closest-side at 50% 50%, rgba(120, 140, 190, 0.16), rgba(120, 140, 190, 0.05) 78%, transparent 100%),
+    radial-gradient(120% 90% at 50% 40%, #121621 0%, #07080c 70%);
+  color: var(--g-ink);
+  font-size: 12px;
+  user-select: none; -webkit-user-select: none;
+}
+.globe-stage {
+  position: absolute; inset: 0;
+  touch-action: none; cursor: crosshair; outline: none;
+}
+.globe-stage:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+.globe-stage.dragging { cursor: grabbing; }
+.globe-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.globe-overlay { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.globe-loading {
+  position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none;
+  color: var(--g-ink-2); font-size: 13px;
+}
+
+/* Graticule labels: positioned by translate(x, y) from script; `translate` anchors the text to the point. */
+.globe-label {
+  position: absolute; left: 0; top: 0; white-space: nowrap; pointer-events: none;
+  font: 600 10.5px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; letter-spacing: 0.01em;
+  color: rgba(255, 255, 255, 0.86);
+  text-shadow: 0 0 3px #000, 0 0 2px #000, 0 0 1px #000;
+  font-variant-numeric: tabular-nums;
+}
+.globe-label.lat { translate: 4px calc(-100% - 3px); }
+.globe-label.lon { translate: -50% calc(-100% - 4px); }
+.globe-label.side {
+  translate: 0 -50%; color: #9fd0ff; text-transform: uppercase; letter-spacing: 0.09em; font-size: 9.5px; font-weight: 700;
+}
+.globe-label.side[data-align="end"] { translate: -100% -50%; }
+.globe-label.side[data-align="center"] { translate: -50% -50%; }
+
+/* Catalog sites */
+.globe-site {
+  position: absolute; left: 0; top: 0; width: 8px; height: 8px; translate: -50% -50%;
+  border-radius: 50%; background: #9fc1ff; border: 1.5px solid rgba(0, 0, 0, 0.7);
+  pointer-events: auto; cursor: pointer;
+}
+/* (No `scale` on markers: it would also scale the translate(x, y) set from script.) */
+.globe-site.k-mission { background: #f4f1e7; }
+.globe-site::before { content: ""; position: absolute; inset: -5px; border-radius: 50%; }
+.globe-site:hover { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85), 0 0 8px 2px rgba(255, 255, 255, 0.45); }
+@media (pointer: coarse) {
+  .globe-site::before { inset: -9px; }
+}
+
+/* Scenario pins: anchored at the tip */
+.globe-pin {
+  position: absolute; left: 0; top: 0; width: 22px; height: 29px; translate: -50% -100%;
+  pointer-events: auto; cursor: default; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
+}
+.globe-pin svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.globe-pin path { fill: var(--c); stroke: #fff; stroke-width: 1.7; }
+.globe-pin circle { fill: #fff; }
+.globe-pin.active { width: 28px; height: 37px; }
+.globe-pin.active path { stroke-width: 2.2; }
+
+.globe-tip {
+  position: absolute; left: 0; top: 0; z-index: 5; max-width: 240px; pointer-events: none;
+  padding: 5px 9px; border-radius: 8px; font-size: 12px; line-height: 1.35;
+  background: rgba(12, 14, 20, 0.94); color: #f1efe8; border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+.globe-tip small { color: rgba(241, 239, 232, 0.72); font-size: 11px; }
+
+/* Controls */
+.globe-presets {
+  position: absolute; top: 10px; left: 10px; right: 10px; z-index: 3;
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; pointer-events: none;
+}
+.globe-preset {
+  pointer-events: auto; padding: 5px 11px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  background: var(--g-glass); color: var(--g-ink); border: 1px solid var(--g-line);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.globe-preset:hover { background: var(--g-glass-hover); }
+.globe-preset[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.globe-tools {
+  position: absolute; right: 10px; bottom: 28px; z-index: 3; display: flex; flex-direction: column; gap: 6px;
+}
+.globe-btn {
+  display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border-radius: 9px;
+  background: var(--g-glass); color: var(--g-ink); border: 1px solid var(--g-line);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.globe-btn:hover { background: var(--g-glass-hover); }
+.globe-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.globe-expand { margin-bottom: 4px; }
+.globe-readout {
+  position: absolute; left: 10px; bottom: 28px; z-index: 3; pointer-events: none;
+  padding: 3px 8px; border-radius: 7px; background: var(--g-glass); color: var(--g-ink);
+  font-size: 12px; font-variant-numeric: tabular-nums;
+}
+.globe-credit {
+  position: absolute; left: 10px; right: 10px; bottom: 6px; z-index: 3;
+  font-size: 10px; line-height: 1.2; color: rgba(236, 235, 229, 0.55); text-align: right;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.globe-credit a { color: inherit; text-underline-offset: 2px; }
+
+/* Whole-window mode */
+.globe.globe-full {
+  position: fixed; inset: 0; z-index: 2500; width: auto; height: auto; max-height: none; min-height: 0;
+  aspect-ratio: auto; border: 0; border-radius: 0;
+}
+.globe.globe-full .globe-presets { top: 14px; }
+.globe.globe-full .globe-preset { padding: 7px 14px; font-size: 13px; }
+html.globe-locked, html.globe-locked body { overflow: hidden; }
+
+/* Map hint: mouse or touch wording */
+.map-hint .hint-touch { display: none; }
+@media (pointer: coarse) {
+  .map-hint .hint-mouse { display: none; }
+  .map-hint .hint-touch { display: inline; }
+  .globe-btn { width: 40px; height: 40px; }
+  .globe-preset { min-height: 34px; }
+}
+
+/* Wide screens: a wider side column so the globe can be large. */
+@media (min-width: 1400px) {
+  .layout { grid-template-columns: minmax(380px, 440px) minmax(0, 1fr); }
+}
+@media (min-width: 1600px) {
+  .layout { grid-template-columns: minmax(400px, 500px) minmax(0, 1fr); }
+}
+@media (max-width: 860px) {
+  .globe { max-height: none; }
+}
+@media (max-width: 520px) {
+  .globe { aspect-ratio: 1 / 1.16; }
+  .globe-preset { padding: 5px 9px; font-size: 11.5px; }
+  /* A row in the bottom-right corner, clear of most of the disc; the credit may take two lines. */
+  .globe-tools { flex-direction: row; bottom: 34px; right: 8px; gap: 5px; }
+  .globe-credit { white-space: normal; text-align: center; bottom: 4px; }
+  .globe-expand { margin: 0 4px 0 0; }
+  .globe-btn { width: 36px; height: 36px; }
+}
