@@ -143,6 +143,7 @@ await createSkyView(container /* HTMLElement */, {
   earthTextureUrl = "assets/earth_daymap.jpg",
   fovDeg = 70,                // horizontal field of view; the aspect ratio follows the container (default 16:9 box)
 }) -> { update(skyState /* C6 */), lookAt(az_deg, el_deg), lookAtBody("earth" | "sun"), setFov(deg), resize(), dispose() }
+// extras below: setTerrain, setHudLevel, setOption/getOptions, setPixelBudget, setTallFrames, setTrack/getTrack
 ```
 - **Opening view:** the first `update()` always shows both the horizon and the Earth (Shay's vision: the view opens toward
   the Earth). Yaw = the Earth's azimuth. First the "photo" rule: the horizon line sits 20% of the frame height above the
@@ -196,6 +197,25 @@ await createSkyView(container /* HTMLElement */, {
     shorthands. Option `onOptions(options)` is called whenever an option changes (HUD button or `setOption`), so a
     menu can stay in step. `view.info.hasConstellations` says whether the constellations option is worth offering.
   - The 2D fallback (`web/js/app/sky_fallback.js`, no WebGL) does not have these: call them with `?.`.
+- **Tracking** (for the timelapse; maths in `web/js/sky/track.js`, tests `web/tests/sky_track.test.mjs`):
+  `setTrack(target, { resume = false } = {})` → `getTrack()`. `target`: `"sun" | "earth"` (every `update()` frames that
+  body by the `lookAtBody` rule above, tall frames included), `{ az_deg, el_deg }` (deg, the local horizon frame of the
+  view's site: the camera centre aims there and keeps its field of view; the app may call it every frame, e.g. a rover's
+  direction of travel), or `null` (off; the camera stays where it is). The camera eases toward each new target
+  (exponential, τ = 350 ms, frame-rate independent) after a feed-forward of the body's own motion, so a fast body (the
+  Sun circling the pole at 1 month/s) is not left behind while a change of framing (another body, the body setting
+  behind the skyline, a new frame shape) glides instead of jumping; a direction that turns ≤ 0.5° per call is followed
+  without lag, a sharper turn eases. The user can still zoom: the field of view is then kept, and the aim follows the
+  same rules at that field (`aimAtFov`). A drag or an arrow key pauses tracking until `setTrack` is called again (a
+  direction updated every frame keeps the pause unless `{ resume: true }`); a click on the tracked body's edge arrow
+  resumes it, one on the other body's arrow pauses it and turns there. A hidden body is aimed at its true azimuth; the
+  dashed outline or the edge arrow shows it. `getTrack()` and option `onTrack(info)` (called on every change, a drag's
+  pause included) give `{ mode: "body" | "direction" | null, body, paused }`. The 2D fallback has a simple version (no
+  easing); call with `?.`. In the app, the timelapse bar's "🎯 Track" button and a rover route's "Look ahead" share one
+  mode (`web/js/app/sky_panel.js`: `setTrackMode("body" | "ahead" | null)`, `getTrackMode()`,
+  `onTrackModeChange(cb)`, `setLookAheadSource(fn(item, tMs, ride) → { az_deg, el_deg } | null)`): the last one
+  chosen wins, the button shows which one is on ("🎯 Track Sun", "🚙 Look ahead", "· paused"), and pressing it while
+  paused resumes, while on stops.
 - **Eclipses** (C6 `sun.eclipse_frac` > 0): render order Earth (opaque, renderOrder −1, distance 20 000) → stars →
   Sun quad (additive, distance 30 000, depth-tested, so the Earth hides the part of the disk and glow behind it) → an
   eclipse overlay at the Earth (additive, no depth test, renderOrder 6). The glare scales with the visible flux and is

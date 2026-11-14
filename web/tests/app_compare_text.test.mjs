@@ -61,3 +61,14 @@ test("rankRows, sortRows, bestIds, rankSentence: ties on sunlight fall back to S
   const far = (id) => ({ s: { id }, label: id, color: "#000", series: { sun_flux_frac: [0, 1], sun_vis: [0, 1], sun_el: [-1, 2], earth_el: [-48, -47], earth_phase: [0.7, 0.71], earth_vis: [0, 0] } });
   assert.match(rankSentence(rankRows([far("a"), far("b")])), /Earth never rises at any of them\./);
 });
+
+test("eclipseText: a stay of years sums its eclipses up in one line", () => {
+  const ecl = (max, frac, tot = null) => ({ start_ms: T(max) - 2.5 * 3600e3, end_ms: T(max) + 2.5 * 3600e3, max_ms: T(max), max_frac: frac,
+    total_start_ms: tot ? T(max) - tot / 2 : null, total_end_ms: tot ? T(max) + tot / 2 : null });
+  const list = [ecl("2030-06-15T19:00:00Z", 1, 100 * 60e3), ecl("2031-06-05T12:00:00Z", 0.04), ecl("2031-10-30T07:00:00Z", 0.7),
+    ecl("2032-04-25T15:00:00Z", 1, 66 * 60e3)];
+  const s = eclipseText(list, T("2030-01-01T00:00:00Z"), T("2035-01-01T00:00:00Z"));
+  assert.equal(s, "<strong>4 eclipses of the Sun by the Earth</strong> (2 total, the longest totality 1 h 40 min), the first on 15 Jun 2030");
+  const partial = eclipseText(list.slice(1, 3).concat([ecl("2033-01-01T00:00:00Z", 0.5)]), 0, 1);
+  assert.match(partial, /3 eclipses .*\(all partial\)/);
+});

@@ -85,6 +85,7 @@
   <link rel="modulepreload" href="js/app/derive.js">
   <link rel="modulepreload" href="js/app/icons.js">
   <link rel="modulepreload" href="js/app/sky_panel.js">
+  <link rel="modulepreload" href="js/app/playback.js">
   <link rel="modulepreload" href="js/app/sky_adapter.js">
   <link rel="modulepreload" href="js/app/gestures.js">
   <link rel="modulepreload" href="js/app/events.js">
@@ -97,7 +98,7 @@
       try {
         var PLOTLY = "https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"; // = PLOTLY_URL in js/app/compare.js
         var SKY_MODULES = ["https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "js/sky/index.js", "js/sky/math.js",
-          "js/sky/terrain.js", "js/sky/shaders.js", "js/sky/sky.js", "js/sky/hud.js", "js/sky/words.js"];
+          "js/sky/terrain.js", "js/sky/shaders.js", "js/sky/sky.js", "js/sky/hud.js", "js/sky/words.js", "js/sky/track.js"];
         var SKY_DATA = ["data/stars/stars.json", "data/stars/constellations.json"];
         var SKY_IMAGES = ["assets/earth_daymap.jpg", "assets/earth_night.jpg"];
         var FIRST_VISIT = ["data/ephem/1969.bin", "data/horizons/apollo11.json", "data/terrain/apollo11.bin"];
@@ -235,13 +236,21 @@
           <input type="range" id="sky-slider" min="0" max="1000" value="0" step="1" aria-label="Time since mission start">
           <output id="sky-clock" for="sky-slider">Start</output>
           <label class="speed"><span class="speed-word">Speed</span>
-            <select id="sky-speed" aria-label="Timelapse speed">
+            <!-- = SPEEDS in js/app/playback.js (web/tests/app_playback.test.mjs checks it); ms of scenario time per second -->
+            <select id="sky-speed" aria-label="Timelapse speed (scenario time per second)">
+              <option value="60000">1 min / s</option>
               <option value="600000">10 min / s</option>
               <option value="3600000" selected>1 h / s</option>
               <option value="21600000">6 h / s</option>
               <option value="86400000">1 day / s</option>
+              <option value="604800000">1 week / s</option>
+              <option value="2551442890" title="One lunar day and night (synodic month, 29.53 days) per second">1 month / s</option>
+              <option value="7654328669" title="Three synodic months (88.6 days) per second">3 months / s</option>
+              <option value="31557600000" title="365.25 days per second">1 year / s</option>
             </select>
           </label>
+          <button type="button" class="track-btn" id="btn-track" aria-pressed="false"
+            title="Track: keep the selected body framed in every view while the timelapse plays"><span class="trk-ico" aria-hidden="true">🎯</span><span class="trk-txt">Track</span><span class="trk-body"></span><span class="trk-state"></span></button>
         </div>
         <p class="event-hint" id="event-hint" hidden></p>
       </section>

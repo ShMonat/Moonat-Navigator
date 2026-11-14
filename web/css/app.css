@@ -461,9 +461,20 @@ button { cursor: pointer; }
 #sky-clock { font-variant-numeric: tabular-nums; min-width: 92px; font-weight: 600; white-space: nowrap; }
 .speed { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
 .speed select { padding: 4px 6px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-2); }
+/* "🎯 Track" (sky_panel.js): off, on (filled), paused by a drag (dashed), or "🚙 Look ahead" for rover traverses. */
+.track-btn {
+  display: inline-flex; align-items: center; gap: 5px; flex: none; white-space: nowrap;
+  border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--text-2);
+  border-radius: 8px; padding: 4px 10px; font-size: 13px; line-height: 1.3;
+}
+.track-btn:hover { color: var(--text); border-color: var(--accent); }
+.track-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.track-btn.paused { background: var(--accent-soft); border: 1px dashed var(--accent); color: var(--text); font-weight: 600; }
+.track-btn .trk-state:not(:empty)::before { content: "· "; font-weight: 400; }
+.track-btn .trk-state:not(:empty) { margin-left: 2px; font-weight: 500; }
 /* A single instant has no timelapse: the bar only says how to get one. */
 .sky-controls.instant { background: transparent; box-shadow: none; border-style: dashed; position: static; }
-.sky-controls.instant #btn-play, .sky-controls.instant #sky-slider, .sky-controls.instant .speed { display: none; }
+.sky-controls.instant #btn-play, .sky-controls.instant #sky-slider, .sky-controls.instant .speed, .sky-controls.instant .track-btn { display: none; }
 .sky-controls.instant #sky-clock { font-weight: 500; color: var(--muted); font-size: 13px; white-space: normal; }
 
 /* "🌑 An eclipse is visible from here …: Show me" (main.js syncHint) */
@@ -666,8 +677,19 @@ body.sky-focus { overflow: hidden; }
   .body-sub { flex-basis: 100%; }
   .chart-tools { justify-content: flex-start; }
   .xaxis-note { text-align: left; }
-  .sky-controls { gap: 8px; padding: 6px 8px; }
-  #sky-clock { min-width: 0; font-size: 13px; }
+  /* Timelapse bar on a phone: play and the slider on the first row; the time, the speed and Track on the second. */
+  .sky-controls {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 4px 8px; padding: 6px 8px;
+    grid-template-areas: "play slider slider slider" "clock clock speed track";
+  }
+  .sky-controls.instant { display: flex; }
+  #btn-play { grid-area: play; }
+  #sky-slider { grid-area: slider; min-width: 0; }
+  #sky-clock { grid-area: clock; min-width: 0; font-size: 13px; overflow: hidden; text-overflow: ellipsis; }
+  .sky-controls .speed { grid-area: speed; }
+  .speed select { font-size: 13px; max-width: 118px; }
+  .track-btn { grid-area: track; padding: 4px 8px; }
+  .track-btn .trk-body { display: none; }
   .clk-word { display: none; }
   .clk-num::before { content: "T+"; }
   .chips { gap: 8px; }
@@ -681,7 +703,7 @@ body.sky-focus { overflow: hidden; }
 }
 /* Touch screens: every control is at least 40 px high. */
 @media (pointer: coarse) {
-  .ghost, .icon-btn, .chip, .add-btn, .sky-act, .seg button, .sky-opt, .suggest-item { min-height: 40px; }
+  .ghost, .icon-btn, .chip, .add-btn, .sky-act, .seg button, .sky-opt, .suggest-item, .track-btn { min-height: 40px; }
   .icon-btn { width: 40px; height: 40px; }
   .scen-head .icon-btn { width: 40px; height: 40px; }
   .field input, .picker input, .scen-label, .speed select { min-height: 40px; }

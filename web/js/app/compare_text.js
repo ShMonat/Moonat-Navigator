@@ -121,6 +121,18 @@ export function earthElCaption(items) {
 }
 
 /**
+ * One line for the many eclipses of a long stay (more than two), e.g. "8 eclipses of the Sun by the Earth (5 total,
+ * the longest totality 1 h 46 min), the first on 15 Jun 2030". HTML.
+ */
+export function eclipseSummary(eclipses) {
+  const total = eclipses.filter((e) => e.max_frac >= 1);
+  const longest = Math.max(0, ...total.filter((e) => e.total_start_ms != null && e.total_end_ms != null).map((e) => e.total_end_ms - e.total_start_ms));
+  const first = formatUtc(eclipses[0].max_ms).split(",")[0];
+  const kinds = total.length ? `${total.length} total${longest > 0 ? `, the longest totality ${formatDuration(longest)}` : ""}` : "all partial";
+  return `<strong>${eclipses.length} eclipses of the Sun by the Earth</strong> (${kinds}), the first on ${first}`;
+}
+
+/**
  * Card text for the eclipses of the Sun by the Earth in a mission window (C6 series().eclipses), e.g.
  * "Earth eclipses the Sun: total for 2 h 17 min (06:17–08:34 UTC), partly covered 05:01–09:51 UTC".
  * Totality = the site in the Earth's umbra (eclipse_frac = 1); the partial span = first to last contact at the site
@@ -129,6 +141,7 @@ export function earthElCaption(items) {
  */
 export function eclipseText(eclipses, t0, t1) {
   if (!eclipses || !eclipses.length) return "";
+  if (eclipses.length > 2) return eclipseSummary(eclipses);
   const sameDay = new Date(t0).toISOString().slice(0, 10) === new Date(t1).toISOString().slice(0, 10);
   const clock = (ms) => {
     const s = formatUtc(ms); // "14 Mar 2025, 06:17 UTC"

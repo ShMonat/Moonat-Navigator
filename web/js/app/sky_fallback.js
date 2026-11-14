@@ -6,7 +6,7 @@
 const R2D = 180 / Math.PI;
 const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 
-export async function createSkyView(container, { site, fovDeg = 60 } = {}) {
+export async function createSkyView(container, { site, fovDeg = 60, onTrack = null } = {}) {
   const canvas = document.createElement("canvas");
   container.append(canvas);
   const ctx = canvas.getContext("2d");
@@ -17,6 +17,14 @@ export async function createSkyView(container, { site, fovDeg = 60 } = {}) {
   let state = null;
   let first = true;
   let raf = 0;
+  // Tracking (C8 extra setTrack, simplified): { body } or { az, el }, re-aimed at every update without easing; a drag pauses it.
+  let track = null;
+  const trackInfo = () => (track ? { mode: track.body ? "body" : "direction", body: track.body || null, paused: track.paused } : { mode: null, body: null, paused: false });
+  function aimTrack() {
+    if (!track || track.paused) return;
+    if (track.body && state) frame(state[track.body].az_deg, Math.max(state[track.body].el_deg, 5));
+    else if (!track.body) frame(track.az, track.el);
+  }
 
   const ro = new ResizeObserver(() => resize());
   ro.observe(container);
@@ -255,6 +263,10 @@ export async function createSkyView(container, { site, fovDeg = 60 } = {}) {
   });
   canvas.addEventListener("pointermove", (e) => {
     if (!drag) return;
+    if (track && !track.paused && (e.clientX !== drag.x || e.clientY !== drag.y)) {
+      track.paused = true;
+      if (onTrack) onTrack(trackInfo());
+    }
     const k = size().w / fov;
     az0 = drag.az - (e.clientX - drag.x) / k;
     el0 = drag.el + (e.clientY - drag.y) / k;
@@ -280,8 +292,22 @@ export async function createSkyView(container, { site, fovDeg = 60 } = {}) {
         first = false;
         frame(state.earth.az_deg, Math.max(state.earth.el_deg, 5));
       }
+      aimTrack();
       schedule();
     },
+    /** "sun" | "earth" | { az_deg, el_deg } | null, as the 3D view's setTrack (no easing here). */
+    setTrack(target, { resume = false } = {}) {
+      const before = JSON.stringify(trackInfo());
+      if (target === "sun" || target === "earth") track = { body: target, paused: false };
+      else if (target && Number.isFinite(target.az_deg) && Number.isFinite(target.el_deg)) {
+        const paused = !!(track && !track.body && track.paused && !resume);
+        track = { az: target.az_deg, el: target.el_deg, paused };
+      } else track = null;
+      aimTrack();
+      if (onTrack && JSON.stringify(trackInfo()) !== before) onTrack(trackInfo());
+      return trackInfo();
+    },
+    getTrack: trackInfo,
     lookAt(az, el) {
       frame(az, el);
     },

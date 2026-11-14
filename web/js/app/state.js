@@ -22,10 +22,13 @@ export const PALETTE = {
 
 export const HOUR_MS = 3600e3;
 export const DAY_MS = 86400e3;
-/** Longest span we compute at once. Longer spans are refused politely. */
-export const MAX_SPAN_MS = 120 * DAY_MS;
-// Above this span the card notes that the series takes a moment (a series always has about 1000 samples, see chooseStep).
-export const SLOW_SPAN_MS = 75 * DAY_MS;
+/**
+ * Longest span we compute at once (30 years: more than the longest run of ephemeris years, 2013–2040). The real limit
+ * is the ephemeris coverage: validateScenario refuses a span that crosses a gap in it (1977–2012).
+ */
+export const MAX_SPAN_MS = 30 * 365.25 * DAY_MS;
+// Above this span the card notes that the series takes a moment: the ephemeris loads one year (0.4 MB) at a time.
+export const SLOW_SPAN_MS = 3 * 365.25 * DAY_MS;
 
 /** Hex colour for a palette slot in a theme. Slots beyond the palette wrap (the UI adds dashes then). */
 export function colorHex(slot, theme = "dark") {
@@ -144,7 +147,10 @@ export function formatUtc(ms, { seconds = false } = {}) {
   return `${d.getUTCDate()} ${mon} ${d.getUTCFullYear()}, ${t} UTC`;
 }
 
-/** Duration in ms -> short human text: "45 min", "3 h 20 min", "2 d 5 h", "18 d". */
+/**
+ * Duration in ms -> short human text: "45 min", "3 h 20 min", "2 d 5 h", "18 d", and from a year on "1 y 120 d",
+ * "5 y" (years of 365.25 days, so 2030-01-01 to 2035-01-01 reads "5 y").
+ */
 export function formatDuration(ms) {
   if (!Number.isFinite(ms)) return "";
   const neg = ms < 0;
@@ -154,7 +160,12 @@ export function formatDuration(ms) {
   const h = Math.floor(m / 60);
   m -= h * 60;
   let out;
-  if (d >= 10) out = `${d + (h >= 12 ? 1 : 0)} d`;
+  const days = d + (h >= 12 ? 1 : 0);
+  const y = Math.floor((days + 1) / 365.25);
+  if (y >= 1) {
+    const rest = days - Math.round(y * 365.25);
+    out = rest > 0 ? `${y} y ${rest} d` : `${y} y`;
+  } else if (d >= 10) out = `${days} d`;
   else if (d > 0) out = h ? `${d} d ${h} h` : `${d} d`;
   else if (h > 0) out = m ? `${h} h ${m} min` : `${h} h`;
   else out = `${m} min`;
@@ -228,9 +239,13 @@ export function validateScenario(s, coverage = null) {
     }
   }
   if (Number.isFinite(t0) && Number.isFinite(t1) && !errors.t_start_utc && !errors.t_end_utc) {
+    const runEnd = coverage && coverage.length ? coverageEnd(t0, coverage) : null;
     if (t1 <= t0) errors.t_end_utc = "The end time must be after the start time.";
-    else if (t1 - t0 > MAX_SPAN_MS) errors.t_end_utc = `Please keep a mission under ${Math.round(MAX_SPAN_MS / DAY_MS)} days.`;
-    else if (t1 - t0 > SLOW_SPAN_MS) warnings.push("Long spans take a moment to compute.");
+    else if (runEnd !== null && t1 >= runEnd) {
+      const last = new Date(runEnd).getUTCFullYear() - 1, next = Math.min(...coverage.filter((y) => y > last));
+      errors.t_end_utc = `A mission cannot run across the gap in Moonat's sky tables (${last + 1}–${next - 1}): they cover ${describeYears(coverage)}.`;
+    } else if (t1 - t0 > MAX_SPAN_MS) errors.t_end_utc = `Please keep a mission under ${Math.round(MAX_SPAN_MS / (365.25 * DAY_MS))} years.`;
+    else if (t1 - t0 > SLOW_SPAN_MS) warnings.push("Long spans take a few seconds: the sky tables load one year at a time.");
   }
   const complete = hasLoc && Number.isFinite(t0);
   return { ok: complete && Object.keys(errors).length === 0, complete, errors, warnings };
@@ -269,10 +284,22 @@ export function scenarioTimes(s) {
   return { t0, t1: Number.isFinite(t1) ? t1 : null, span: Number.isFinite(t1) ? t1 - t0 : 0 };
 }
 
-/** Sample step (ms) for a span: about 1000 samples, at least 5 min, rounded to whole minutes. */
+/**
+ * Series step (ms) for a mission span (ms), from the span alone:
+ *   up to 3.5 days: 5 min (≤ 1008 samples) · up to 10 days: 10 min · up to 60 days: 20 min (≤ 4320) ·
+ *   up to 2 years: 1 h (≤ 17 532) · up to 8 years: 2 h (≤ 35 064) · beyond: 3 h (28 years: 81 800 samples).
+ * Checked against a 10 min reference at the Shackleton rim (web/tests/app_playback.test.mjs; 5 years: 89.74 % sunlit
+ * at 10 min, 89.78 % at 2 h, longest darkness 230.2 h and 230.0 h): only dark spells shorter than the step can be
+ * missed, and eclipses are found between samples anyway (C6) and drawn from their own detail (playback.js).
+ */
 export function chooseStep(spanMs) {
-  const raw = Math.max(5 * 60e3, spanMs / 1000);
-  return Math.ceil(raw / 60e3) * 60e3;
+  const MIN = 60e3, YEAR = 365.25 * DAY_MS;
+  if (!(spanMs > 3.5 * DAY_MS)) return 5 * MIN;
+  if (spanMs <= 10 * DAY_MS) return 10 * MIN;
+  if (spanMs <= 60 * DAY_MS) return 20 * MIN;
+  if (spanMs <= 2 * YEAR) return HOUR_MS;
+  if (spanMs <= 8 * YEAR) return 2 * HOUR_MS;
+  return 3 * HOUR_MS;
 }
 
 /** Signature of everything that changes the physics result of a scenario (not label or colour). */

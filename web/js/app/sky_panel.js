@@ -1,8 +1,9 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
 // The sky panel: one sky view per scenario in a grid, the timelapse bar under it (a shared time slider: time since each
-// scenario's start, so missions are synchronised; play/pause with a speed selector), and the body every view is aimed
-// at (the page's "☀ Sun | 🌍 Earth" switch, main.js). Each view's card has Focus, Full screen and a "⋯" menu of the
-// rarely used view options (Close-up, Constellations, Exposure). Views are created lazily, when they scroll into view.
+// scenario's start, so missions are synchronised; play/pause with a speed selector; "🎯 Track", which keeps the
+// selected body framed in every view while the time runs), and the body every view is aimed at (the page's
+// "☀ Sun | 🌍 Earth" switch, main.js). Each view's card has Focus, Full screen and a "⋯" menu of the rarely used view
+// options (Close-up, Constellations, Exposure). Views are created lazily, when they scroll into view.
 
 import { formatDuration, formatUtc } from "./state.js";
 import { horizonElAt } from "./derive.js";
@@ -12,6 +13,7 @@ import { makeSkyView, terrainPatchUrl, skyPatch } from "./sky_adapter.js";
 import { terrainStatusText } from "./terrain_live.js";
 import { bindPinchZoom, bindAxisLock } from "./gestures.js";
 import { rideAt, ridePatch, rideNote, frameTurnDeg } from "../rover/sky_ride.js";
+import { autoSpeed } from "./playback.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -74,11 +76,6 @@ export function skyTime() {
   return { offsetMs: maxSpan > 0 ? offsetMs : 0, maxSpan };
 }
 
-/** Playback speeds offered (ms of scenario time per real second), as in the #sky-speed options. */
-const SPEEDS = [600000, 3600000, 21600000, 86400000];
-/** A timelapse should last at most about this long (s) at the automatic speed. */
-const TARGET_PLAY_S = 90;
-
 /** opts.onTime(offsetMs): called whenever the time shown changes (slider, playback, a new set, jumpTo). */
 export function initSky({ onTime } = {}) {
   if (onTime) onTimeChange = onTime;
@@ -108,17 +105,143 @@ export function initSky({ onTime } = {}) {
   });
   $("btn-play").addEventListener("click", () => (playing ? stop() : play()));
   $("sky-speed").addEventListener("change", () => (speedTouched = true));
+  $("btn-track").addEventListener("click", onTrackButton);
+  syncTrackBtn();
   initFocusKeys();
   initOptionMenus();
 }
 
 /**
  * Aim every view at a body ("sun" | "earth"), now and for views created later. aim = false only records the body
- * (a story or a link about to load new views, which aim themselves when they are built).
+ * (a story or a link about to load new views, which aim themselves when they are built). While Track is on, the views
+ * follow the new body (a pause made by a drag ends); a rover view looking ahead keeps looking ahead.
  */
 export function setSkyBody(body, { aim = true } = {}) {
   aimBody = body === "sun" ? "sun" : "earth";
-  if (aim) for (const rec of cards.values()) lookOne(rec, aimBody);
+  if (aim) {
+    for (const rec of cards.values()) {
+      if (trackMode === "body") {
+        rec.camTouched = false;
+        rec.trackPaused = false;
+        applyTrack(rec, true);
+      } else if (!(trackMode === "ahead" && rec.it.route && lookAheadFn)) lookOne(rec, aimBody);
+    }
+  }
+  syncTrackBtn();
+}
+
+// ---------------------------------------------------------------------------------------------
+// Track: every view follows the body of the Sun | Earth switch while the time changes (C8 extra setTrack), or, in a
+// rover traverse, the direction of travel ("ahead": the route card turns it on with setTrackMode and gives the
+// direction with setLookAheadSource). The last one chosen wins, and the "🎯 Track" button shows which one is on. A drag
+// in a view pauses tracking there until the button is pressed again.
+
+let trackMode = null; // null | "body" | "ahead"
+let lookAheadFn = null; // (item, tMs, ride) -> { az_deg, el_deg } | null
+const trackListeners = new Set();
+
+/**
+ * Turn tracking on or off for every view: "body" (the Sun | Earth switch's body), "ahead" (rover traverses face their
+ * direction of travel; other views are left free) or null. Choosing a mode replaces the other one and ends any pause.
+ * Listeners (onTrackModeChange) hear every change, so a route card's "Look ahead" option and the timelapse bar's
+ * button stay in step.
+ */
+export function setTrackMode(mode) {
+  const m = mode === "body" || mode === "ahead" ? mode : null;
+  const changed = m !== trackMode;
+  trackMode = m;
+  for (const rec of cards.values()) {
+    rec.trackPaused = false;
+    if (m === "body") rec.camTouched = false;
+    applyTrack(rec, true);
+  }
+  syncTrackBtn();
+  if (changed) for (const cb of trackListeners) cb(trackMode);
+}
+
+/** The track mode now: null | "body" | "ahead". */
+export function getTrackMode() {
+  return trackMode;
+}
+
+/** Call cb(mode) whenever the track mode changes (the button, setTrackMode, or a new set of scenarios). Returns an unsubscribe. */
+export function onTrackModeChange(cb) {
+  trackListeners.add(cb);
+  return () => trackListeners.delete(cb);
+}
+
+/**
+ * The direction a rover view looks in "ahead" mode: fn(item, tMs, ride) -> { az_deg, el_deg } (deg, the local horizon
+ * frame of the view's current site: ride.site of web/js/rover/sky_ride.js rideAt) or null. Called for every frame of a
+ * traverse's view; the view eases toward it (C8 setTrack). Pass null to remove it.
+ */
+export function setLookAheadSource(fn) {
+  lookAheadFn = typeof fn === "function" ? fn : null;
+  if (trackMode === "ahead") for (const rec of cards.values()) applyTrack(rec);
+}
+
+function lookAheadDir(rec, ride = null) {
+  if (!lookAheadFn || !rec.it.route) return null;
+  try {
+    const t = timeFor(rec.it);
+    return lookAheadFn(rec.it, t, ride ?? rideAt(rec.it, t)) || null;
+  } catch (err) {
+    console.warn("[moonat] look-ahead direction failed", err);
+    return null;
+  }
+}
+
+/** Give one view the current track mode (C8 setTrack; the 2D fallback has a simple one). resume: end a drag's pause. */
+function applyTrack(rec, resume = false, ride = null) {
+  const v = rec.view;
+  if (!v?.setTrack) return;
+  if (trackMode === "body") {
+    if (resume || !rec.trackPaused) v.setTrack(aimBody);
+  } else if (trackMode === "ahead") v.setTrack(lookAheadDir(rec, ride), { resume });
+  else v.setTrack(null);
+}
+
+/** A view reports its tracking state ({ mode, body, paused }): a drag paused it, or it started or stopped. */
+function onViewTrack(rec, info) {
+  rec.trackPaused = !!(info && info.mode && info.paused);
+  syncTrackBtn();
+}
+
+function onTrackButton() {
+  // Paused by a drag: press to follow again. On: press to stop. Off: press to track the selected body.
+  const paused = [...cards.values()].filter((r) => r.view && r.trackPaused);
+  if (trackMode && paused.length) {
+    for (const rec of paused) {
+      rec.trackPaused = false;
+      if (trackMode === "body") rec.camTouched = false;
+      applyTrack(rec, true);
+    }
+    syncTrackBtn();
+    return;
+  }
+  setTrackMode(trackMode ? null : "body");
+}
+
+/** The button's words and state: "🎯 Track", "🎯 Track Sun" (on), "… · paused", or "🚙 Look ahead". */
+function syncTrackBtn() {
+  const b = $("btn-track");
+  if (!b) return;
+  const paused = !!trackMode && [...cards.values()].some((r) => r.view && r.trackPaused);
+  const ahead = trackMode === "ahead";
+  const name = aimBody === "sun" ? "Sun" : "Earth";
+  b.setAttribute("aria-pressed", !trackMode ? "false" : paused ? "mixed" : "true");
+  b.classList.toggle("paused", paused);
+  b.querySelector(".trk-ico").textContent = ahead ? "🚙" : "🎯";
+  b.querySelector(".trk-txt").textContent = ahead ? "Look ahead" : "Track";
+  b.querySelector(".trk-body").textContent = trackMode === "body" ? ` ${name}` : "";
+  b.querySelector(".trk-state").textContent = paused ? "paused" : "";
+  b.title = !trackMode
+    ? `Track: keep the ${name} framed in every view while the timelapse plays (the ☀ Sun | 🌍 Earth switch chooses the body)`
+    : paused
+      ? `Paused: you turned a view. Press to follow ${ahead ? "the direction of travel" : `the ${name}`} again.`
+      : ahead
+        ? "Look ahead: the rover's view faces the direction of travel. Press to stop."
+        : `Tracking the ${name}: every view follows it as the time runs. You can still zoom; a drag pauses tracking. Press to stop.`;
 }
 
 /** Show the moment `ms` after the scenarios' start (e.g. "show me" an eclipse), paused. */
@@ -191,12 +314,10 @@ export function setSkyItems(newItems) {
   $("sky-speed").disabled = !hasMission;
   if (!hasMission) stop();
   if (hasMission && !speedTouched) $("sky-speed").value = String(autoSpeed(maxSpan));
+  // "Look ahead" needs a rover traverse on screen.
+  if (trackMode === "ahead" && !items.some((it) => it.route)) setTrackMode(null);
+  syncTrackBtn();
   refresh();
-}
-
-/** Slowest offered speed that plays the longest scenario in TARGET_PLAY_S seconds or less. */
-function autoSpeed(spanMs) {
-  return SPEEDS.find((v) => spanMs / v <= TARGET_PLAY_S) ?? SPEEDS[SPEEDS.length - 1];
 }
 
 const LOADING_HTML = '<div class="sky-loading">Loading sky…</div><div class="sky-hint" hidden>Ctrl + scroll to zoom</div>';
@@ -472,6 +593,7 @@ async function createView(rec) {
         rec.notes = notes;
         footNote(rec);
       },
+      onTrack: (info) => onViewTrack(rec, info),
     });
     if (!cards.has(rec.key)) {
       view.dispose(); // the scenario was removed while the view was loading
@@ -486,6 +608,9 @@ async function createView(rec) {
     rec.lastT = null;
     await updateCard(rec);
     lookOne(rec, aimBody);
+    // Track on: the new view follows from its first frame (a view rebuilt after scrolling away starts again unpaused).
+    rec.trackPaused = false;
+    if (trackMode) applyTrack(rec, true);
     // A shared link's camera (az, el, field of view) for the first view.
     const cam = pendingCamera;
     if (cam && items.length && rec.it === items[0] && rec.view.lookAt && rec.view.setFov) {
@@ -537,6 +662,8 @@ async function updateCard(rec) {
     rec.rideStation = ride.stationK;
     rec.view.setTerrain({ horizon: ride.horizon, patch: ridePatch(it, ride) });
   }
+  // Look ahead (rover traverses): a new direction of travel for every frame; the view eases toward it.
+  if (trackMode === "ahead" && it.route && rec.view) applyTrack(rec, false, ride);
   if (ride) rec.rideSite = ride.site;
   const foot = rec.root.querySelector(".sky-card-foot");
   // Plain words with the numbers (web/js/sky/words.js): "hidden behind terrain" when the skyline hides a body that is

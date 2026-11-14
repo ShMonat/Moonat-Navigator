@@ -174,9 +174,44 @@ test("URL hash round-trips scenarios, tab and x-axis (unicode labels too)", () =
   assert.equal(decodeHash(""), null);
 });
 
-test("chooseStep keeps about 1000 samples, at least 5 minutes", () => {
-  assert.equal(chooseStep(3600e3), 5 * 60e3);
-  assert.equal(chooseStep(29.5 * 86400e3), Math.ceil(29.5 * 86400e3 / 1000 / 60e3) * 60e3);
+test("chooseStep: 5 min for days, 20 min for a month, 1 h up to 2 years, 2–3 h for longer missions", () => {
+  const D = 86400e3, MIN = 60e3, Y = 365.25 * D;
+  assert.equal(chooseStep(3600e3), 5 * MIN);
+  assert.equal(chooseStep(21.6 * 3600e3), 5 * MIN, "Apollo 11");
+  assert.equal(chooseStep(3.5 * D), 5 * MIN);
+  assert.equal(chooseStep(14 * D), 20 * MIN);
+  assert.equal(chooseStep(7 * D), 10 * MIN);
+  assert.equal(chooseStep(29.5 * D), 20 * MIN);
+  assert.equal(chooseStep(62 * D), 3600e3, "the pole story");
+  assert.equal(chooseStep(Y), 3600e3);
+  assert.equal(chooseStep(5 * Y), 2 * 3600e3);
+  assert.equal(chooseStep(10 * Y), 3 * 3600e3);
+  // Never more than about 82 000 samples, even for the 28-year run of tables (2013–2040).
+  assert.ok(28 * Y / chooseStep(28 * Y) < 82000);
+});
+
+test("formatDuration counts years for long missions", () => {
+  const D = 86400e3;
+  assert.equal(formatDuration(Date.UTC(2035, 0, 1) - Date.UTC(2030, 0, 1)), "5 y");
+  assert.equal(formatDuration(365 * D), "1 y");
+  assert.equal(formatDuration(364 * D), "364 d");
+  assert.equal(formatDuration(Date.UTC(2031, 4, 1) - Date.UTC(2030, 0, 1)), "1 y 120 d");
+});
+
+test("validateScenario: multi-year missions up to the ephemeris coverage, not across its gap", () => {
+  const years = [...Array(11).keys()].map((i) => 1966 + i).concat([...Array(28).keys()].map((i) => 2013 + i));
+  const five = makeScenario({ lat_deg: -89.44, lon_deg: -137.19, t_start_utc: "2030-01-01T00:00:00Z", t_end_utc: "2035-01-01T00:00:00Z" });
+  const v5 = validateScenario(five, years);
+  assert.ok(v5.ok, JSON.stringify(v5.errors));
+  assert.match(v5.warnings.join(" "), /few seconds/);
+  const all = makeScenario({ lat_deg: 0, lon_deg: 0, t_start_utc: "2013-01-01T00:00:00Z", t_end_utc: "2040-12-31T00:00:00Z" });
+  assert.ok(validateScenario(all, years).ok, "the whole 2013–2040 run");
+  const apollo = makeScenario({ lat_deg: 0, lon_deg: 0, t_start_utc: "1966-01-01T00:00:00Z", t_end_utc: "1976-12-31T00:00:00Z" });
+  assert.ok(validateScenario(apollo, years).ok, "the whole 1966–1976 run");
+  const gap = makeScenario({ lat_deg: 0, lon_deg: 0, t_start_utc: "1972-12-01T00:00:00Z", t_end_utc: "2014-01-01T00:00:00Z" });
+  assert.match(validateScenario(gap, years).errors.t_end_utc, /gap .*1977–2012/);
+  // Without a coverage list (before the tables load) a span is checked against 30 years only.
+  assert.ok(validateScenario(five).ok);
 });
 
 test("scenarioTimes and physicsKey", () => {

@@ -8,6 +8,7 @@
 //   view.lookAt(az_deg, el_deg); view.setFov(deg); view.resize(); view.dispose();
 //   view.setTerrain({ horizon, patch })   // extra: swap in new terrain (e.g. live terrain of a custom point)
 //   view.setHudLevel('minimal' | 'full'); view.setOption(name, value); view.getOptions()   // extras for a page menu
+//   view.setTrack('sun' | 'earth' | { az_deg, el_deg } | null)   // extra: follow a body or a direction as time runs
 // The C4 patch can also be passed in memory: createSkyView(container, { site, terrainPatch: { meta, data } }).
 // Body markers (math.js bodyMarker): a hidden Sun or Earth in the frame gets a dashed outline, one out of the frame an edge arrow.
 //
@@ -24,6 +25,7 @@ import { buildTerrain } from './terrain.js';
 import { buildSky, eclipseLook } from './sky.js';
 import { createHud } from './hud.js';
 import { hiddenReason, hiddenPhrase, degText, earthNeverRises, eclipsePctText, EARTH_DEEP_BELOW_DEG, RING_NOTE } from './words.js';
+import { azDelta, wrapAz, feedForward, easeToward, aimAtFov, parseTrackTarget } from './track.js';
 
 const FOV_MIN = 15, FOV_MAX = 100, EL_MIN = -60, EL_MAX = 90;
 // Photo framing: the widest "comfortable" horizontal FOV (deg), and the narrowest tall frame (width / height).
@@ -116,6 +118,7 @@ export async function createSkyView(container, {
   hudLevel: initialHudLevel = 'full',   // "full" readout, or "minimal": the time and at most one status line
   buttons: initialButtons = true,       // the HUD's own option buttons (exposure, close-up, constellations)
   onOptions = null,              // (options) => void, called when a view option changes (HUD button or setOption)
+  onTrack = null,                // ({ mode, body, paused }) => void, called when tracking starts, stops or is paused by a drag
 } = {}) {
   const eyeH = site?.observer_height_m ?? 2;
   const [starsJson, constellationsJson, earthTexture, nightTexture, patch0] = await Promise.all([
@@ -175,6 +178,12 @@ export async function createSkyView(container, {
   const DEFAULT_PIXELS = 2.2e6;
   let pixelBudget = DEFAULT_PIXELS;
   let tallFrames = false, frameAspect = null;
+  const clampEl = (e) => Math.min(EL_MAX, Math.max(EL_MIN, e));
+  const clampFov = (f) => Math.min(FOV_MAX, Math.max(FOV_MIN, f));
+  // Tracking (setTrack): null (off), or { kind: "body", body } | { kind: "dir", az, el } with paused (a manual turn
+  // stops it until setTrack is called again), zoomHfov (a field of view the user chose while following a body), target
+  // (the camera the rule wants now, track.js) and lastStep (time of the last easing step; 0 when settled).
+  let track = null;
 
   function project(enu) {
     const v = new THREE.Vector3(...enuToThree(enu)).multiplyScalar(1000).project(camera);
@@ -187,7 +196,12 @@ export async function createSkyView(container, {
 
   let hudLevel = initialHudLevel === 'minimal' ? 'minimal' : 'full', buttonsOn = !!initialButtons;
   const hud = createHud(frameEl, {
-    onLookAt: (name) => lookAtBody(name),
+    // A click on a body's edge arrow: the tracked body resumes tracking; the other body pauses it and turns there.
+    onLookAt: (name) => {
+      if (track?.kind === 'body' && track.body === name) return resumeTrack();
+      pauseTrack();
+      lookAtBody(name);
+    },
     hasConstellations: sky.hasConstellations, constellationsOn,
     onToggleConstellations: (on) => setOption('constellations', on),
     closeUpOn, onToggleCloseUp: (on) => setOption('closeUp', on),
@@ -263,8 +277,20 @@ export async function createSkyView(container, {
   }
 
   function renderNow() {
+    if (frame) cancelAnimationFrame(frame);   // a direct call replaces the frame already requested
     frame = 0;
     if (disposed) return;
+    // Tracking: one easing step toward the target (track.js), and another frame until the camera is there.
+    let gliding = false;
+    if (track && !track.paused && track.target) {
+      const now = performance.now();
+      const r = easeToward(view, track.target, track.lastStep ? Math.min(200, now - track.lastStep) : 16);
+      view.az = r.az;
+      view.el = clampEl(r.el);
+      view.hfov = clampFov(r.hfov);
+      track.lastStep = r.settled ? 0 : now;
+      gliding = !r.settled;
+    }
     camera.aspect = width / height;
     camera.fov = verticalFovDeg(view.hfov, camera.aspect);
     camera.rotation.set(view.el * DEG, -view.az * DEG, 0);
@@ -346,6 +372,7 @@ export async function createSkyView(container, {
     hud.update(state, view, project, marks, notes.length ? [notes.slice(0, 2).map((n) => n.text).join(' · ')] : [], insetRects, badgeHtml, bodies);
     const key = notes.map((n) => n.id).join('|');
     if (onNotes && key !== lastNotesKey) { lastNotesKey = key; onNotes(notes); }
+    if (gliding) requestRender();
   }
 
   /**
@@ -522,8 +549,13 @@ export async function createSkyView(container, {
 
   function resize() {
     layout();
-    const fit = pendingFit || autoFit;
-    if (fit && width >= 50 && height >= 50) lookAtBody(fit.name, fit.mode);
+    if (track && !track.paused && state && width >= 50 && height >= 50) {
+      // Tracking: a view that was never framed (hidden container) starts on the target; a framed one glides to it.
+      if (pendingFit) { pendingFit = null; snapToTrack(); } else retarget();
+    } else {
+      const fit = pendingFit || autoFit;
+      if (fit && width >= 50 && height >= 50) lookAtBody(fit.name, fit.mode);
+    }
     if (state) renderNow(); else requestRender();
   }
 
@@ -540,37 +572,159 @@ export async function createSkyView(container, {
    * Mode "photo" with tall frames: the frame narrows until the photo rule fits.
    */
   function lookAtBody(name, mode = 'body') {
-    const b = state?.[name];
-    if (!b) return;
+    if (!state?.[name]) return;
     if (width < 50 || height < 50) {   // no real size yet (hidden container): fit when it gets one
       pendingFit = { name, mode };
       return;
     }
     pendingFit = null;
+    const f = framing(name, mode);
+    setFrameAspect(f.aspect);
+    view.az = f.az;
+    view.el = f.el;
+    view.hfov = f.hfov;
+    autoFit = { name, mode };
+    if (track) track.target = null;   // a tracking camera eases on from here, with nothing fed forward
+    requestRender();
+  }
+
+  /**
+   * The lookAtBody framing of a body for the current container, without moving the camera: { az, el, hfov (deg),
+   * aspect (width / height of a tall frame, or null for the full container) }, or null without a sky state.
+   */
+  function framing(name, mode = 'body') {
+    const b = state?.[name];
+    if (!b) return null;
     const args = { bodyElDeg: b.el_deg, bodyRadiusDeg: b.ang_radius_deg, horizonElDeg: horizonElAt(horizon, b.az_deg) };
     const photo = (aspect) => fitPhotoView({ ...args, aspect, hfovDeg: defaultHfov, maxHfovDeg: COMFORT_HFOV });
     const body = (aspect) => fitBodyView({ ...args, aspect, defaultHfovDeg: defaultHfov, maxHfovDeg: FOV_MAX });
-    const full = Math.max(1, container.clientWidth) / Math.max(1, container.clientHeight);
-    let fit = photo(full);
+    const cw = Math.max(1, container.clientWidth), ch = Math.max(1, container.clientHeight), full = cw / ch;
+    const frameOf = (a) => Math.min(cw, Math.max(1, Math.floor(ch * a))) / ch;   // as layout() sizes a tall frame
+    let fit = photo(full), aspect = null;
     const tooHigh = !fit.body_in_frame && args.bodyElDeg + args.bodyRadiusDeg > args.horizonElDeg;
     if (tallFrames && tooHigh && mode === 'body') {
       const wide = body(full);
       const a = wide.both_fit ? null : Math.max(TALL_MIN_ASPECT, bodyFitAspect({ ...args, maxHfovDeg: FOV_MAX }));
-      setFrameAspect(a !== null && a < full ? a : null);
-      fit = frameAspect ? body(width / height) : wide;
+      aspect = a !== null && a < full ? a : null;
+      fit = aspect ? body(frameOf(aspect)) : wide;
     } else {
-      setFrameAspect(tallFrames && tooHigh && fit.aspect_max < full ? Math.max(TALL_MIN_ASPECT, fit.aspect_max) : null);
-      if (frameAspect) fit = photo(width / height);
-      if (!fit.body_in_frame && mode === 'body') fit = body(width / height);
+      aspect = tallFrames && tooHigh && fit.aspect_max < full ? Math.max(TALL_MIN_ASPECT, fit.aspect_max) : null;
+      if (aspect) fit = photo(frameOf(aspect));
+      if (!fit.body_in_frame && mode === 'body') fit = body(aspect ? frameOf(aspect) : full);
     }
-    view.az = ((b.az_deg % 360) + 360) % 360;
-    view.el = Math.min(EL_MAX, Math.max(EL_MIN, fit.el_deg));
-    view.hfov = Math.min(FOV_MAX, Math.max(FOV_MIN, fit.hfov_deg));
-    autoFit = { name, mode };
+    return { az: wrapAz(b.az_deg), el: clampEl(fit.el_deg), hfov: clampFov(fit.hfov_deg), aspect };
+  }
+
+  // --- Tracking (C8 extra setTrack): the camera follows a body or a direction while the time changes -------------
+  function trackInfo() {
+    if (!track) return { mode: null, body: null, paused: false };
+    return { mode: track.kind === 'body' ? 'body' : 'direction', body: track.kind === 'body' ? track.body : null, paused: track.paused };
+  }
+  function notifyTrack() {
+    if (onTrack) onTrack(trackInfo());
+  }
+
+  /** The camera the tracking rule wants now ({ az, el, hfov, aspect }), or null (no sky state or no size yet). */
+  function trackTarget() {
+    if (!track || width < 50 || height < 50) return null;
+    if (track.kind === 'dir') return { az: track.az, el: clampEl(track.el), hfov: view.hfov, aspect: frameAspect };
+    const b = state?.[track.body];
+    if (!b) return null;
+    if (!track.zoomHfov) return framing(track.body, 'body');
+    // The user zoomed while tracking: keep that field and aim with the same rules (track.js aimAtFov).
+    const el = aimAtFov({
+      bodyElDeg: b.el_deg, bodyRadiusDeg: b.ang_radius_deg, horizonElDeg: horizonElAt(horizon, b.az_deg),
+      aspect: width / height, hfovDeg: track.zoomHfov,
+    });
+    return { az: wrapAz(b.az_deg), el: clampEl(el), hfov: track.zoomHfov, aspect: frameAspect };
+  }
+
+  /**
+   * A new target for the tracking camera. bodyMove ({ az, el }, deg): the tracked body's own motion since the previous
+   * target, fed forward at once (track.js feedForward); the rest eases in renderNow.
+   */
+  function retarget(bodyMove = null) {
+    if (!track || track.paused) return;
+    const t = trackTarget();
+    if (!t) return;
+    // A new frame shape only for a clear change: a tall frame that narrows a little at each step would re-layout often.
+    const a = t.aspect ?? null;
+    if ((a === null) !== (frameAspect === null) || (a !== null && Math.abs(a / frameAspect - 1) > 0.03)) setFrameAspect(a);
+    if (bodyMove && track.target) {
+      const v = feedForward(view, track.target, t, bodyMove);
+      view.az = v.az;
+      view.el = clampEl(v.el);
+      view.hfov = clampFov(v.hfov);
+    }
+    track.target = t;
+    autoFit = null;
     requestRender();
   }
 
+  /** Put the camera on the tracking target at once (a view that opens while tracking is on). */
+  function snapToTrack() {
+    const t = trackTarget();
+    if (!t) return false;
+    setFrameAspect(t.aspect ?? null);
+    view.az = t.az;
+    view.el = t.el;
+    view.hfov = t.hfov;
+    track.target = t;
+    track.lastStep = 0;
+    autoFit = null;
+    requestRender();
+    return true;
+  }
+
+  /** A manual turn (drag, arrow keys, the other body's edge arrow) pauses tracking until setTrack is called again. */
+  function pauseTrack() {
+    if (!track || track.paused) return;
+    track.paused = true;
+    track.target = null;
+    track.lastStep = 0;
+    notifyTrack();
+  }
+  function resumeTrack() {
+    if (!track) return;
+    const was = track.paused;
+    track.paused = false;
+    track.zoomHfov = null;
+    track.target = null;
+    retarget();
+    if (was) notifyTrack();
+  }
+
+  /**
+   * Follow a body or a direction as the time changes (C8 extra; docs/CONTRACTS.md):
+   *   "sun" | "earth": every update() frames that body by the lookAtBody rule, easing there (track.js); the user can
+   *     still zoom (the field is then kept, and the aim follows the same rules at that field);
+   *   { az_deg, el_deg } (deg, local horizon frame of the view's site): the camera centre eases toward that direction
+   *     and keeps its field of view; the app may call it every frame with a new direction;
+   *   null: tracking off (the camera stays where it is).
+   * A manual drag or arrow key pauses tracking (onTrack reports it) until setTrack is called again. A direction updated
+   * every frame keeps a pause; pass { resume: true } to end it. Returns { mode: "body" | "direction" | null, body, paused }.
+   */
+  function setTrack(target, { resume = false } = {}) {
+    const t = parseTrackTarget(target);
+    const before = JSON.stringify(trackInfo());
+    let move = null;
+    if (!t) track = null;
+    else if (t.kind === 'dir' && track?.kind === 'dir') {
+      track.az = t.az;
+      track.el = t.el;
+      if (resume && track.paused) { track.paused = false; track.target = null; }
+      // A direction that turns a little at each update (≤ 0.5°) is followed without lag; a sharp turn eases.
+      move = { az: 0, el: 0 };
+    } else {
+      track = { ...t, paused: false, zoomHfov: null, target: null, lastStep: 0 };
+    }
+    if (track && !track.paused && state) retarget(move);
+    if (JSON.stringify(trackInfo()) !== before) notifyTrack();
+    return trackInfo();
+  }
+
   function lookAt(azDeg, elDeg) {
+    if (track) track.target = null;   // the app turned the camera (e.g. a rover's new local frame): no feed-forward next
     // A request that aims at the Earth or the Sun (as the app's "Look at ..." buttons do) gets the framing rule.
     for (const name of ['earth', 'sun']) {
       const b = state?.[name];
@@ -588,12 +742,18 @@ export async function createSkyView(container, {
     requestRender();
   }
   function setFov(deg) {
-    view.hfov = Math.min(FOV_MAX, Math.max(FOV_MIN, deg));
+    view.hfov = clampFov(deg);
     autoFit = null;
+    // Zooming while a body is tracked keeps tracking, at the new field of view.
+    if (track?.kind === 'body' && !track.paused) {
+      track.zoomHfov = view.hfov;
+      retarget();
+    }
     requestRender();
   }
 
   function update(s) {
+    const prev = state;
     state = s;
     sky.update(s);
     const u = terrain.uniforms;
@@ -623,7 +783,12 @@ export async function createSkyView(container, {
     shadowDirty = true;
     if (firstUpdate) {
       firstUpdate = false;
-      lookAtBody('earth', 'body');   // the opening view always shows the Earth and the horizon (C8)
+      // The opening view always shows the Earth and the horizon (C8), unless tracking already asks for a body.
+      if (!(track && !track.paused && snapToTrack())) lookAtBody('earth', 'body');
+    } else if (track && !track.paused) {
+      const name = track.kind === 'body' ? track.body : null;
+      const a = name && prev?.[name], b = name && s[name];
+      retarget(a && b ? { az: azDelta(a.az_deg, b.az_deg), el: b.el_deg - a.el_deg } : null);
     }
     renderNow();
   }
@@ -636,6 +801,7 @@ export async function createSkyView(container, {
     if (!drag) return;
     const k = view.hfov / width;
     if (e.clientX === drag.x && e.clientY === drag.y) return;
+    pauseTrack();
     turnTo(view.az - (e.clientX - drag.x) * k / Math.max(0.3, Math.cos(view.el * DEG)), view.el + (e.clientY - drag.y) * k);
     drag = { x: e.clientX, y: e.clientY };
   };
@@ -651,6 +817,7 @@ export async function createSkyView(container, {
   const onKey = (e) => {
     if (e.altKey || e.ctrlKey || e.metaKey || e.target !== container) return;
     const step = Math.max(0.5, view.hfov / 12), k = e.key;
+    if (k.startsWith('Arrow')) pauseTrack();
     if (k === 'ArrowLeft' || k === 'ArrowRight') turnTo(view.az + ((k === 'ArrowRight' ? 1 : -1) * step) / Math.max(0.3, Math.cos(view.el * DEG)), view.el);
     else if (k === 'ArrowUp' || k === 'ArrowDown') turnTo(view.az, view.el + (k === 'ArrowUp' ? step : -step));
     else if (k === '+' || k === '=') setFov(view.hfov / 1.25);
@@ -665,6 +832,7 @@ export async function createSkyView(container, {
 
   function dispose() {
     disposed = true;
+    track = null;
     if (frame) cancelAnimationFrame(frame);
     ro?.disconnect();
     container.removeEventListener('keydown', onKey);
@@ -706,13 +874,16 @@ export async function createSkyView(container, {
     info.horizonSource = newHorizon ? 'site' : patch ? 'patch' : horizon.smooth ? 'smooth' : info.horizonSource;
     shadowDirty = true;
     if (state) {
-      update(state);   // terrain uniforms (Sun, earthshine) and the Sun's share above the new skyline
-      if (autoFit) lookAtBody(autoFit.name, autoFit.mode);
+      update(state);   // terrain uniforms (Sun, earthshine) and the Sun's share above the new skyline (and a new track target)
+      if (autoFit && !(track && !track.paused)) lookAtBody(autoFit.name, autoFit.mode);
     } else requestRender();
   }
 
   return {
     update, lookAt, lookAtBody, setFov, resize, dispose, setTerrain,
+    /** Follow "sun" | "earth" | { az_deg, el_deg } as the time changes, or null (see setTrack above; C8 extras). */
+    setTrack,
+    getTrack: trackInfo,
     // Extras beyond C8, for the app and for debugging:
     /** "full" (the default readout) or "minimal": the time and at most one status line; the sky's labels stay. */
     setHudLevel: (level) => setOption('hudLevel', level),
@@ -731,7 +902,8 @@ export async function createSkyView(container, {
     setTallFrames: (on) => {
       tallFrames = !!on;
       if (!tallFrames) setFrameAspect(null);
-      if (autoFit) lookAtBody(autoFit.name, autoFit.mode);
+      if (track && !track.paused) retarget();
+      else if (autoFit) lookAtBody(autoFit.name, autoFit.mode);
       requestRender();
     },
     info,

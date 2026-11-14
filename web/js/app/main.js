@@ -5,9 +5,10 @@
 
 import { store, subscribe, setScenarios, setUi, updateScenario } from "./store.js";
 import {
-  colorHex, isWrappedSlot, validateScenario, scenarioTimes, chooseStep, physicsKey, encodeHash, decodeHash, hashBody, coverageEnd, makeScenario,
+  colorHex, isWrappedSlot, validateScenario, scenarioTimes, physicsKey, encodeHash, decodeHash, hashBody, coverageEnd, makeScenario,
   DAY_MS, HOUR_MS,
 } from "./state.js";
+import { missionSeries } from "./playback.js";
 import { loadCatalog, QUICK_STARTS, catalogSites } from "./catalog.js";
 import { initPhysics, physicsError, physicsCoverage, siteFor, stateAt, seriesFor, useLiveTerrain } from "./physics_adapter.js";
 import { readyTerrain, ensureTerrain, keepOnly, onTerrainChange } from "./terrain_live.js";
@@ -63,8 +64,12 @@ function computeCore(s) {
       const state0 = await stateAt(site, t0);
       let series = null;
       let look = null;
-      if (span > 0) series = await seriesFor(site, t0, t1, chooseStep(span));
-      else {
+      if (span > 0) {
+        // The step follows the span (5 min for days to 3 h for decades), with detail around eclipses (playback.js).
+        const a = performance.now();
+        series = await missionSeries(site, t0, t1, seriesFor);
+        performance.measure?.(`moonat:series ${series.t_ms.length}`, { start: a, end: performance.now() });
+      } else {
         // Look ahead for the next set or rise, without running past the end of the ephemeris tables.
         const end = coverageEnd(t0, physicsCoverage());
         const t1Look = Math.min(t0 + LOOKAHEAD_MS, end === null ? Infinity : end - HOUR_MS);

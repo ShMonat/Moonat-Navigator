@@ -7,8 +7,9 @@
 import { store, subscribe, setUi } from "./store.js";
 import { formatDuration, formatUtc, DAY_MS } from "./state.js";
 import { horizonElAt, findEvents, stats, pctAbove, compassPoint } from "./derive.js";
-import { elevationIcon, azimuthIcon, visibleIcon, phaseIcon, fluxIcon, ringIcon } from "./icons.js";
+import { elevationIcon, azimuthIcon, visibleIcon, phaseIcon, fluxIcon, ringIcon, clockIcon } from "./icons.js";
 import { eclipseText, earthElCaption, rankRows, sortRows, bestIds, rankSentence, RANK_KEYS } from "./compare_text.js";
+import { withDetail, envelopeIndices, longestRun, JULIAN_YEAR_MS } from "./playback.js";
 
 const AU_KM = 149597870.7;
 const S0 = 1361;
@@ -101,7 +102,10 @@ export function renderCompare(items, opts) {
   chartsGate
     .then(() => (lastArgs === args ? loadPlotly() : null))
     .then((Plotly) => {
-      if (Plotly && lastArgs === args) drawCharts(Plotly, ok, opts);
+      if (!Plotly || lastArgs !== args) return;
+      const a = performance.now();
+      drawCharts(Plotly, ok, opts);
+      performance.measure?.("moonat:charts", { start: a, end: performance.now() }); // read by the playback checks
     })
     .catch((err) => {
       for (const c of document.querySelectorAll(".chart")) c.textContent = "Charts could not load (offline?). " + err.message;
@@ -240,7 +244,24 @@ function whenInstant(it) {
 }
 function whenMission(it) {
   if (it.series?.route) return `${formatUtc(it.t0)} · ${it.series.route.length_km.toFixed(1)} km rover traverse, ${formatDuration(it.span)}`;
+  // A base's stay of a year or more reads in years ("5 years", "1.5 years").
+  if (it.span >= 365 * DAY_MS) {
+    const y = (it.span / JULIAN_YEAR_MS).toFixed(1).replace(/\.0$/, "");
+    return `${formatUtc(it.t0)} · ${y} ${y === "1" ? "year" : "years"}`;
+  }
   return `${formatUtc(it.t0)} · ${formatDuration(it.span)} stay`;
+}
+
+/**
+ * Card row for the longest stretch without something (sunlight, Earth in view) over the whole stay, when there is one
+ * and the stay is not all of it: "9 d 14 h · longest darkness (12 dark spells, 10 % of the time)".
+ */
+function longestRow(it, values, what, spells) {
+  const r = longestRun(it.series.t_ms, values);
+  if (!r.count || r.ms >= 0.995 * it.span) return "";
+  const share = (100 * r.total_ms) / Math.max(1, it.span);
+  const sub = `${what}${r.count > 1 ? ` (${r.count} ${spells}, ${share < 1 ? share.toFixed(1) : Math.round(share)}% of the time)` : ""}`;
+  return row(clockIcon(), formatDuration(r.ms), sub);
 }
 
 function terrainSub(it) {
@@ -340,6 +361,8 @@ function sunMissionCard(it) {
     row(ringIcon(lit), pct(lit), "of the stay with sunlight"),
     row(elevationIcon(el.max), `${deg(el.min)} to ${deg(el.max)}`, "Sun height (elevation), lowest to highest"),
     row(fluxIcon(flux.mean / S0), wm2(flux.mean), fluxMode === "horiz" ? "average on flat ground" : "average on a Sun-facing panel"),
+    // The night a base must ride out on batteries (terrain shadow, night, or the Earth's shadow).
+    longestRow(it, se.sun_flux_frac ?? se.sun_vis, "longest darkness", "dark spells"),
   ].join("");
   // During an eclipse the card names it; the terrain's sunset or sunrise follows only when one happens.
   const ecl = eclipseText(se.eclipses, it.t0, it.t0 + it.span);
@@ -358,6 +381,8 @@ function earthMissionCard(it) {
     row(ringIcon(vis), pct(vis), "of the stay with Earth in view"),
     row(elevationIcon(el.max), `${deg(el.min)} to ${deg(el.max)}`, "Earth height (elevation), lowest to highest"),
     row(phaseIcon(ph.mean), `${pct(ph.min * 100)} to ${pct(ph.max * 100)}`, "of Earth's disk lit (phase)"),
+    // The longest time without direct radio contact (the Earth hidden by terrain or below the horizon).
+    vis > 0 ? longestRow(it, se.earth_vis, "longest Earth blackout", "blackouts") : "",
   ].join("");
   const insight = farSideInsight(it, se.earth_el, se.earth_vis);
   const foot = insight ? "" : `<div class="mcard-foot">${missionEvent(it, se.earth_vis, "earth")}</div>`;
@@ -460,18 +485,29 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
   });
   const config = { displaylogo: false, responsive: true, displayModeBar: window.matchMedia?.("(pointer: coarse)").matches ? false : "hover", modeBarButtonsToRemove: ["select2d", "lasso2d", "autoScale2d", "toggleSpikelines"] };
 
+  // Long series (months to years) are drawn as a min/max envelope per pixel column (playback.js envelopeIndices): a few
+  // thousand points per line whatever the span, and a dark spell of one sample keeps its full depth.
+  const bins = Math.max(300, Math.min(1600, (document.getElementById("compare-body").clientWidth || 1000) - 70));
+  // A dense envelope (the Sun circling a polar sky for years) gets a fainter terrain line, so the body's own line reads.
+  const dense = (it) => it.series.t_ms.length > 4 * bins;
+  // y: values per sample of it.series, or { t, y } (a field with the eclipse detail spliced in, playback.js withDetail).
   // Rover traverses on the distance axis use the distance driven at each sample (web/js/rover routeSeries).
-  const xSeries = (it) => (xaxis === "dist" ? it.series.distance_km : xValues(it.series.t_ms, it.t0, xaxis, unitMs));
-  const line = (it, y, extra = {}) => ({
-    type: "scatter",
-    mode: "lines",
-    x: xSeries(it),
-    y,
-    name: it.label,
-    legendgroup: it.s.id,
-    line: { color: it.color, width: 2, dash: it.dash ? "dash" : "solid", shape: "linear" },
-    ...extra,
-  });
+  const line = (it, y, extra = {}) => {
+    const s = Array.isArray(y) ? { t: it.series.t_ms, y } : y;
+    const idx = s.t.length > 4 * bins ? envelopeIndices(s.t, s.y, bins) : null;
+    const pick = (arr) => (idx ? idx.map((i) => arr[i]) : arr);
+    const x = xaxis === "dist" && s.t === it.series.t_ms ? pick(it.series.distance_km) : xValues(pick(s.t), it.t0, xaxis, unitMs);
+    return {
+      type: "scatter",
+      mode: "lines",
+      x,
+      y: pick(s.y),
+      name: it.label,
+      legendgroup: it.s.id,
+      line: { color: it.color, width: idx ? 1.5 : 2, dash: it.dash ? "dash" : "solid", shape: "linear" },
+      ...extra,
+    };
+  };
   const instantMarker = (it, y, fmt) => ({
     type: "scatter",
     mode: "markers",
@@ -503,6 +539,8 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
   };
   // Terrain horizon in the body's direction: per sample at the rover's position for traverses, else the site profile.
   const hzLine = (it, body) => it.series[`${body}_hz_el`] ?? it.series[`${body}_az`].map((az) => horizonElAt(it.horizon, az));
+  // Many eclipses (a stay of years): each gets a "🌑" mark whose tooltip names it, instead of a label that would overlap.
+  const nEclipses = missions.reduce((n, it) => n + (it.series.eclipses?.length || 0), 0);
   const eclipseMarks = () => {
     const shapes = [], annotations = [];
     for (const it of missions) {
@@ -511,10 +549,10 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
         const band = (x0, x1, op) => ({ type: "rect", xref: "x", yref: "paper", x0, x1, y0: 0, y1: 1, fillcolor: th.muted, opacity: op, line: { width: 0 }, layer: "below" });
         shapes.push(band(xOf(it, a), xOf(it, b), 0.07));
         if (e.total_start_ms != null && e.total_end_ms != null) shapes.push(band(xOf(it, e.total_start_ms), xOf(it, e.total_end_ms), 0.12));
+        const text = e.max_frac >= 1 ? "Earth hides the Sun" : `Earth covers ${Math.round(e.max_frac * 100)}% of the Sun`;
         annotations.push({
           x: xOf(it, e.max_ms), y: 1, xref: "x", yref: "paper", yanchor: "bottom", showarrow: false,
-          text: e.max_frac >= 1 ? "Earth hides the Sun" : `Earth covers ${Math.round(e.max_frac * 100)}% of the Sun`,
-          font: { size: 11, color: th.muted },
+          ...(nEclipses > 3 ? { text: "🌑", hovertext: `${text} (${formatUtc(e.max_ms).split(",")[0]})`, font: { size: 10 } } : { text, font: { size: 11, color: th.muted } }),
         });
       }
     }
@@ -530,7 +568,7 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
       const tr = [line(it, it.series.sun_el, { hovertemplate: "%{y:.1f}°" })];
       if (it.horizon) {
         tr.push(line(it, hzLine(it, "sun"), {
-          name: `${it.label}: ${it.horizon.approximate ? "approximate terrain (coarse)" : "terrain horizon"}`, showlegend: false, opacity: 0.85,
+          name: `${it.label}: ${it.horizon.approximate ? "approximate terrain (coarse)" : "terrain horizon"}`, showlegend: false, opacity: dense(it) ? 0.5 : 0.85,
           line: { color: it.color, width: 1.5, dash: "dot" }, hovertemplate: "terrain %{y:.1f}°",
         }));
       }
@@ -545,10 +583,11 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
   const anyEclipse = missions.some((it) => it.series.eclipses?.length);
   const sunVisTraces = traces(
     (it) => {
-      const total = it.series.sun_flux_frac ?? it.series.sun_vis;
-      const tr = [line(it, total.map((v) => v * 100), { hovertemplate: "%{y:.0f}% of the Sun's light" })];
+      // Long missions: the eclipses come from their own 2-min detail (playback.js missionSeries), not the coarse samples.
+      const total = withDetail(it.series, it.series.sun_flux_frac ? "sun_flux_frac" : "sun_vis", (v) => v * 100);
+      const tr = [line(it, total, { hovertemplate: "%{y:.0f}% of the Sun's light" })];
       if (it.series.eclipses?.length) {
-        tr.push(line(it, it.series.sun_vis.map((v) => v * 100), {
+        tr.push(line(it, withDetail(it.series, "sun_vis", (v) => v * 100), {
           name: `${it.label}: terrain only`, showlegend: false, line: { color: it.color, width: 1.5, dash: "dash" },
           hovertemplate: "terrain only %{y:.0f}%",
         }));
@@ -587,7 +626,7 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
   react(
     "sun-flux",
     traces(
-      (it) => [line(it, it.series[fluxKey], { hovertemplate: "%{y:.0f} W/m²" })],
+      (it) => [line(it, withDetail(it.series, fluxKey), { hovertemplate: "%{y:.0f} W/m²" })],
       (it) => {
         const f = sunFlux(it.state0.sun);
         const v = fluxMode === "horiz" ? f.horiz : f.normal;
@@ -603,7 +642,7 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
       const tr = [line(it, it.series.earth_el, { hovertemplate: "%{y:.1f}°" })];
       if (it.horizon) {
         tr.push(line(it, hzLine(it, "earth"), {
-          name: `${it.label}: ${it.horizon.approximate ? "approximate terrain (coarse)" : "terrain horizon"}`, showlegend: false, opacity: 0.85,
+          name: `${it.label}: ${it.horizon.approximate ? "approximate terrain (coarse)" : "terrain horizon"}`, showlegend: false, opacity: dense(it) ? 0.5 : 0.85,
           line: { color: it.color, width: 1.5, dash: "dot" }, hovertemplate: "terrain %{y:.1f}°",
         }));
       }
