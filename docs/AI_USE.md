@@ -30,5 +30,12 @@ research AI model is used to survey algorithms for terrain visibility (docs/rese
   their review of the build-day results is pending. Agents wrote the code, tests, data scripts and docs, and ran the validation reports in docs/validation/ against
   JPL Horizons and published papers. Some data (catalog, polar site placement) still awaits Shahar's review, and demo content
   awaits both humans.
+- 2026-11-14 (afternoon and evening): Shay reviewed the live app and asked for changes: a large 3D Moon globe with polar,
+  near-side and far-side views, end time or duration, a Sun/Earth switch, terrain for any point, and a rover traverse planner.
+  The orchestrating agent split the work among further agents: `polish`, `responsive` (phones and tablets), `ui-tweaks`,
+  `globe`, `eclipse` (Earth eclipsing the Sun, checked against NASA eclipse times), `terrain-everywhere` and `terrain-live`
+  (live NASA Moon Trek elevation), `rover` (path planning), `physics-xcheck` (an independent check of the browser code
+  against JPL Horizons), `qa2` (a judge's-eye audit) and two QA fix agents. Shay decided the public release (a clean copy
+  without the development history).
 - 2026-11-14: screenshots in docs/figures are computed renders captured with a scripted browser. No AI-generated images or
   video are used, and no NASA logos or insignia appear.
