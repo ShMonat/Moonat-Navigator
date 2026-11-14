@@ -1,0 +1,153 @@
+// AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
+// Tests for the scenario model, time helpers, validation and the URL hash (web/js/app/state.js).
+
+import test from "node:test";
+import assert from "node:assert/strict";
+import {
+  parseUtc, isoUtc, toInputValue, formatDuration, normalizeLon, validateScenario, makeScenario, nextColorSlot,
+  encodeHash, decodeHash, chooseStep, coverageEnd, describeYears, colorHex, PALETTE, scenarioTimes, physicsKey, formatUtc,
+  pointLabel, isPointLabel, toUtcText,
+} from "../js/app/state.js";
+
+test("parseUtc reads ISO strings and datetime-local values as UTC", () => {
+  assert.equal(parseUtc("1969-07-20T20:17:40Z"), Date.UTC(1969, 6, 20, 20, 17, 40));
+  assert.equal(parseUtc("1969-07-20T20:17:40"), Date.UTC(1969, 6, 20, 20, 17, 40));
+  assert.equal(parseUtc("1969-07-20T20:17"), Date.UTC(1969, 6, 20, 20, 17));
+  assert.equal(parseUtc("2024-01-19"), Date.UTC(2024, 0, 19));
+  assert.equal(parseUtc("2024-01-19T03:00:00+02:00"), Date.UTC(2024, 0, 19, 1));
+  assert.ok(Number.isNaN(parseUtc("2024-13-01T00:00Z")));
+  assert.ok(Number.isNaN(parseUtc("2023-02-30")));
+  assert.ok(Number.isNaN(parseUtc("tomorrow")));
+  assert.ok(Number.isNaN(parseUtc(null)));
+});
+
+test("isoUtc and toInputValue round-trip whole seconds", () => {
+  const ms = Date.UTC(1972, 11, 11, 19, 54, 57);
+  assert.equal(isoUtc(ms), "1972-12-11T19:54:57Z");
+  assert.equal(toInputValue(ms), "1972-12-11T19:54:57");
+  assert.equal(parseUtc(toInputValue(ms)), ms);
+  assert.equal(formatUtc(ms), "11 Dec 1972, 19:54 UTC");
+});
+
+test("time fields: ISO order, 24-hour clock, typed variants read as UTC", () => {
+  const ms = Date.UTC(1969, 6, 20, 20, 17, 40);
+  assert.equal(toUtcText(ms), "1969-07-20 20:17:40");
+  assert.equal(parseUtc(toUtcText(ms)), ms);
+  assert.equal(parseUtc("1969-07-20 20:17:40 UTC"), ms);
+  assert.equal(parseUtc("1969-7-20  20:17:40"), ms);
+  assert.equal(parseUtc("1969-07-20 8:05"), Date.UTC(1969, 6, 20, 8, 5));
+  assert.ok(Number.isNaN(parseUtc("1969-07-20 24:00")));
+  assert.ok(Number.isNaN(parseUtc("07/20/1969 08:17:40 PM")));
+  assert.equal(toUtcText(NaN), "");
+});
+
+test("formatDuration gives short human text", () => {
+  assert.equal(formatDuration(45 * 60e3), "45 min");
+  assert.equal(formatDuration((3 * 60 + 20) * 60e3), "3 h 20 min");
+  assert.equal(formatDuration((2 * 24 + 5) * 3600e3), "2 d 5 h");
+  assert.equal(formatDuration(18 * 86400e3 + 13 * 3600e3), "19 d");
+  assert.equal(formatDuration(21 * 3600e3 + 36 * 60e3 + 20e3), "21 h 36 min");
+});
+
+test("normalizeLon maps 0..360 to -180..180 east-positive", () => {
+  assert.equal(normalizeLon(23.5), 23.5);
+  assert.ok(Math.abs(normalizeLon(336.6) - -23.4) < 1e-9);
+  assert.equal(normalizeLon(180), 180);
+  assert.equal(normalizeLon(-180), -180);
+  assert.equal(normalizeLon(360), 0);
+});
+
+test("validateScenario: complete, polite errors, coverage", () => {
+  const ok = makeScenario({ lat_deg: 0.67, lon_deg: 23.47, t_start_utc: "1969-07-20T20:17:40Z", t_end_utc: "1969-07-21T17:54:00Z" });
+  assert.deepEqual(validateScenario(ok).errors, {});
+  assert.ok(validateScenario(ok).ok);
+
+  const inst = makeScenario({ lat_deg: 0, lon_deg: 0, t_start_utc: "2025-01-01T00:00:00Z" });
+  assert.ok(validateScenario(inst).ok, "no end time is a valid single instant");
+
+  const bad = makeScenario({ lat_deg: 95, lon_deg: 200, t_start_utc: "2025-01-02T00:00:00Z", t_end_utc: "2025-01-01T00:00:00Z" });
+  const v = validateScenario(bad);
+  assert.ok(!v.ok);
+  assert.match(v.errors.lat_deg, /between/);
+  assert.match(v.errors.lon_deg, /between/);
+  assert.match(v.errors.t_end_utc, /after the start/);
+
+  const incomplete = makeScenario({ lat_deg: 10 });
+  assert.equal(validateScenario(incomplete).complete, false);
+
+  const years = [...Array(11).keys()].map((i) => 1966 + i).concat([...Array(28).keys()].map((i) => 2013 + i));
+  const out = makeScenario({ lat_deg: 0, lon_deg: 0, t_start_utc: "1990-01-01T00:00:00Z" });
+  const vc = validateScenario(out, years);
+  assert.match(vc.errors.t_start_utc, /cover 1966–1976 and 2013–2040/);
+
+  // A start outside the tables is the message shown, even when the span is also too long.
+  const longOut = makeScenario({ lat_deg: 0, lon_deg: 0, t_start_utc: "1985-03-01T00:00:00Z", t_end_utc: "2019-01-17T00:00:00Z" });
+  const vl = validateScenario(longOut, years);
+  assert.match(Object.values(vl.errors)[0], /sky tables cover/);
+  assert.equal(vl.errors.t_end_utc, undefined);
+});
+
+test("pointLabel names custom points in N/S and E/W; isPointLabel recognises old and new names", () => {
+  assert.equal(pointLabel(-36.3256, 119.305), "Point 36.3° S, 119.3° E");
+  assert.equal(pointLabel(0.6741, -23.42), "Point 0.7° N, 23.4° W");
+  assert.equal(pointLabel(10, 270), "Point 10.0° N, 90.0° W", "0..360 longitudes are normalised");
+  assert.ok(isPointLabel("Point 36.3° S, 119.3° E"));
+  assert.ok(isPointLabel("Point -36.3°, 119.3°"));
+  assert.ok(!isPointLabel("Apollo 11"));
+  assert.ok(!isPointLabel("Point 36.3° S, 119.3° E #2"));
+  assert.ok(!isPointLabel(""));
+});
+
+test("describeYears groups runs", () => {
+  assert.equal(describeYears([1966, 1967, 1968, 2013, 2014]), "1966–1968 and 2013–2014");
+  assert.equal(describeYears([2020]), "2020");
+});
+
+test("colours follow the scenario: the lowest free slot is reused", () => {
+  const a = makeScenario({}, []);
+  const b = makeScenario({}, [a]);
+  const c = makeScenario({}, [a, b]);
+  assert.deepEqual([a.color, b.color, c.color], [0, 1, 2]);
+  assert.equal(nextColorSlot([a, c]), 1);
+  assert.equal(colorHex(0, "light"), PALETTE.light[0]);
+  assert.equal(colorHex(9, "dark"), PALETTE.dark[1]);
+});
+
+test("URL hash round-trips scenarios, tab and x-axis (unicode labels too)", () => {
+  const scenarios = [
+    makeScenario({ label: "Apollo 11", site_id: "apollo11", lat_deg: 0.6741, lon_deg: 23.473, t_start_utc: "1969-07-20T20:17:40Z", t_end_utc: "1969-07-21T17:54:00Z" }),
+    makeScenario({ label: "Chang'e 4 — far side ✓", lat_deg: -45.4561, lon_deg: 177.5885, t_start_utc: "2019-01-03T02:26:00Z", color: 5 }),
+  ];
+  const h = encodeHash({ scenarios, tab: "sky", xaxis: "utc" });
+  assert.ok(h.startsWith("#"));
+  const back = decodeHash(h);
+  assert.equal(back.tab, "sky");
+  assert.equal(back.xaxis, "utc");
+  assert.equal(back.scenarios.length, 2);
+  for (const k of ["label", "site_id", "lat_deg", "lon_deg", "t_start_utc", "t_end_utc", "color"]) {
+    assert.deepEqual(back.scenarios.map((s) => s[k]), scenarios.map((s) => s[k]), k);
+  }
+  assert.equal(decodeHash("#garbage"), null);
+  assert.equal(decodeHash("#s=%%%"), null);
+  assert.equal(decodeHash(""), null);
+});
+
+test("chooseStep keeps about 1000 samples, at least 5 minutes", () => {
+  assert.equal(chooseStep(3600e3), 5 * 60e3);
+  assert.equal(chooseStep(29.5 * 86400e3), Math.ceil(29.5 * 86400e3 / 1000 / 60e3) * 60e3);
+});
+
+test("scenarioTimes and physicsKey", () => {
+  const s = makeScenario({ lat_deg: 1, lon_deg: 2, t_start_utc: "2020-01-01T00:00:00Z", t_end_utc: "2020-01-02T00:00:00Z", label: "x" });
+  assert.equal(scenarioTimes(s).span, 86400e3);
+  const s2 = { ...s, label: "renamed", color: 4 };
+  assert.equal(physicsKey(s), physicsKey(s2), "label and colour do not change the physics key");
+});
+
+test("coverageEnd finds the end of the covered run of years", () => {
+  const years = [1966, 1967, 1968, 1969, 1970, 1971, 1972, 1973, 1974, 1975, 1976, 2013, 2014];
+  assert.equal(coverageEnd(Date.UTC(1969, 6, 20), years), Date.UTC(1977, 0, 1));
+  assert.equal(coverageEnd(Date.UTC(2013, 0, 5), years), Date.UTC(2015, 0, 1));
+  assert.equal(coverageEnd(Date.UTC(1990, 0, 1), years), null);
+  assert.equal(coverageEnd(Date.UTC(1990, 0, 1), null), null);
+});

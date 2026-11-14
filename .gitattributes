@@ -1,0 +1,9 @@
+# Normalize line endings so two laptops (and their agents) don't produce noisy diffs
+* text=auto eol=lf
+*.pdf binary
+*.png binary
+*.jpg binary
+*.tif binary
+*.tiff binary
+*.mp4 binary
+*.bin binary

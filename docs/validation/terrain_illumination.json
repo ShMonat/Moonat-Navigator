@@ -1,0 +1,124 @@
+{
+ "period_utc": [
+  "2020-01-01T00:00:00+00:00",
+  "2038-07-01T00:00:00+00:00"
+ ],
+ "step_h": 2.0,
+ "points": {
+  "glaser_cr1_spot1": {
+   "lat_deg": -89.4395,
+   "lon_deg": -137.1934,
+   "eye_m": 2.0,
+   "source": "Glaser 2014 EPSC, spot 1",
+   "published_avg_pct": 88.1,
+   "published_lit_pct": 92.0,
+   "ours_all_terrain": {
+    "avg_illumination_pct": 86.0,
+    "time_lit_pct": 90.6,
+    "longest_dark_days": 9.58,
+    "sun_el_range_deg": [
+     -2.14,
+     2.12
+    ],
+    "horizon_min_mean_max_deg": [
+     -2.62,
+     -1.56,
+     -0.43
+    ],
+    "ground_elev_m": 1957.99
+   },
+   "ours_ignore_lt_100m": {
+    "avg_illumination_pct": 86.2,
+    "time_lit_pct": 91.0,
+    "longest_dark_days": 8.25,
+    "sun_el_range_deg": [
+     -2.14,
+     2.12
+    ],
+    "horizon_min_mean_max_deg": [
+     -2.74,
+     -1.66,
+     -0.43
+    ],
+    "ground_elev_m": 1957.99
+   }
+  },
+  "glaser_cr1_spot3": {
+   "lat_deg": -89.4516,
+   "lon_deg": -137.2419,
+   "eye_m": 10.0,
+   "source": "Glaser 2014 EPSC, spot 3",
+   "published_avg_pct": 92.5,
+   "published_lit_pct": 95.6,
+   "ours_all_terrain": {
+    "avg_illumination_pct": 92.7,
+    "time_lit_pct": 95.8,
+    "longest_dark_days": 3.08,
+    "sun_el_range_deg": [
+     -2.13,
+     2.11
+    ],
+    "horizon_min_mean_max_deg": [
+     -3.34,
+     -1.93,
+     -0.86
+    ],
+    "ground_elev_m": 1956.5
+   },
+   "ours_ignore_lt_100m": {
+    "avg_illumination_pct": 92.7,
+    "time_lit_pct": 95.8,
+    "longest_dark_days": 3.08,
+    "sun_el_range_deg": [
+     -2.13,
+     2.11
+    ],
+    "horizon_min_mean_max_deg": [
+     -3.34,
+     -1.93,
+     -0.86
+    ],
+    "ground_elev_m": 1956.5
+   }
+  },
+  "catalog_shackleton_rim": {
+   "lat_deg": -89.45,
+   "lon_deg": -137.3,
+   "eye_m": 2.0,
+   "source": "catalog POI",
+   "published_avg_pct": null,
+   "published_lit_pct": null,
+   "ours_all_terrain": {
+    "avg_illumination_pct": 71.8,
+    "time_lit_pct": 77.3,
+    "longest_dark_days": 11.08,
+    "sun_el_range_deg": [
+     -2.13,
+     2.11
+    ],
+    "horizon_min_mean_max_deg": [
+     -2.85,
+     -0.88,
+     0.49
+    ],
+    "ground_elev_m": 1954.96
+   },
+   "ours_ignore_lt_100m": {
+    "avg_illumination_pct": 80.6,
+    "time_lit_pct": 85.7,
+    "longest_dark_days": 6.58,
+    "sun_el_range_deg": [
+     -2.13,
+     2.11
+    ],
+    "horizon_min_mean_max_deg": [
+     -2.85,
+     -1.26,
+     0.32
+    ],
+    "ground_elev_m": 1954.96
+   }
+  }
+ },
+ "_generated_by": "AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team."
+}

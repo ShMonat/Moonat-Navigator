@@ -1,0 +1,523 @@
+/* AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team. */
+/* Moonat app styles. Dark "space" theme by default, light theme via html[data-theme="light"]. */
+
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #090b10;
+  --bg-glow: radial-gradient(1200px 600px at 75% -10%, rgba(80, 110, 190, 0.16), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(120, 90, 160, 0.10), transparent 60%);
+  --surface: #12151c;
+  --surface-2: #191d26;
+  --surface-3: #222734;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --text: #eceae4;
+  --text-2: #b8b6ad;
+  --muted: #8a8880;
+  --accent: #8fb4ff;
+  --accent-ink: #0b0d12;
+  --accent-soft: rgba(143, 180, 255, 0.14);
+  --danger: #ff8a80;
+  --warn: #f5c26b;
+  --sun: #ffc94d;
+  --earth: #5aa9ff;
+  --grid: #2a2e38;
+  --axis: #3a3f4b;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.25);
+  --ground: #3b3a37;
+  --ground-2: #26252a;
+  --sky-top: #000000;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f3ef;
+  --bg-glow: radial-gradient(1200px 600px at 75% -10%, rgba(90, 130, 220, 0.10), transparent 60%);
+  --surface: #ffffff;
+  --surface-2: #f6f5f1;
+  --surface-3: #ebe9e3;
+  --border: rgba(11, 11, 11, 0.10);
+  --border-strong: rgba(11, 11, 11, 0.20);
+  --text: #121316;
+  --text-2: #4d4c48;
+  --muted: #74726b;
+  --accent: #2557d6;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(37, 87, 214, 0.10);
+  --danger: #c62828;
+  --warn: #9a6400;
+  --sun: #c98500;
+  --earth: #1f6fd1;
+  --grid: #e4e2db;
+  --axis: #c3c2b7;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 6px 18px rgba(0, 0, 0, 0.06);
+  --ground: #7c7a73;
+  --ground-2: #5f5d58;
+  --sky-top: #05060a;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--text);
+  background: var(--bg-glow), var(--bg);
+  background-attachment: fixed;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -0.01em; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+[hidden] { display: none !important; }
+.skip { position: absolute; left: -9999px; }
+.skip:focus { left: 12px; top: 12px; z-index: 2000; background: var(--surface); padding: 8px 12px; border-radius: 8px; }
+
+/* ---------- Top bar ---------- */
+.topbar {
+  position: sticky; top: 0; z-index: 1000;
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px;
+  padding: 10px 20px;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.logo { width: 34px; height: 34px; flex: none; }
+.logo-moon { fill: #d9d6cc; }
+.logo-shadow { fill: var(--bg); }
+:root[data-theme="light"] .logo-moon { fill: #8e8b82; }
+.brand h1 { font-size: 20px; line-height: 1.1; }
+.tagline { margin: 2px 0 0; color: var(--text-2); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tabs { display: flex; gap: 4px; padding: 4px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; }
+.tabs button {
+  border: 0; background: transparent; padding: 7px 22px; border-radius: 999px; font-weight: 600; color: var(--text-2);
+}
+.tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); }
+.tabs button:not([aria-selected="true"]):hover { color: var(--text); background: var(--surface-3); }
+.top-actions { display: flex; justify-content: flex-end; align-items: center; gap: 6px; }
+.banner {
+  margin: 0 0 14px; padding: 10px 14px; border-radius: 10px; font-size: 14px;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent); background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+.ghost {
+  border: 1px solid var(--border); background: transparent; padding: 6px 12px; border-radius: 8px; color: var(--text-2);
+}
+.ghost:hover { color: var(--text); border-color: var(--border-strong); background: var(--surface-2); }
+.icon-btn {
+  display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 8px;
+  border: 1px solid var(--border); background: transparent; color: var(--text-2); padding: 0;
+}
+.icon-btn:hover { color: var(--text); background: var(--surface-2); }
+.icon-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+#btn-theme .i-moon { fill: currentColor; stroke: none; }
+:root[data-theme="dark"] #btn-theme .i-moon, :root:not([data-theme]) #btn-theme .i-moon { display: none; }
+:root[data-theme="light"] #btn-theme .i-sun { display: none; }
+.link-btn { border: 0; background: none; color: var(--accent); padding: 0; text-decoration: underline; text-underline-offset: 2px; }
+
+/* ---------- Layout ---------- */
+.layout {
+  display: grid; grid-template-columns: minmax(330px, 400px) minmax(0, 1fr); gap: 20px;
+  padding: 18px 20px 8px; max-width: 1880px; margin: 0 auto; align-items: start;
+}
+.side {
+  position: sticky; top: 72px; max-height: calc(100vh - 84px); overflow: auto;
+  display: flex; flex-direction: column; gap: 14px; padding-right: 4px;
+  scrollbar-width: thin;
+}
+.block-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 650; margin-bottom: 8px; }
+.block-head { display: flex; justify-content: space-between; align-items: baseline; }
+.block-head .link-btn { font-size: 12.5px; color: var(--muted); }
+
+/* Quick-start chips */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  border: 1px solid var(--border-strong); background: var(--surface); border-radius: 999px;
+  padding: 6px 12px; font-size: 13px; color: var(--text); transition: background 0.15s, border-color 0.15s;
+}
+.chip:hover { background: var(--accent-soft); border-color: var(--accent); }
+.chip.active { background: var(--accent-soft); border-color: var(--accent); }
+
+/* Map */
+.map-block { position: relative; }
+.map {
+  height: 230px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border);
+  background: #000; cursor: crosshair;
+}
+.map-hint { margin: 6px 2px 0; font-size: 12px; color: var(--muted); }
+.leaflet-container { background: #000; font: inherit; }
+.leaflet-container.leaflet-grab, .leaflet-interactive { cursor: crosshair; }
+.leaflet-control-attribution { font-size: 10px; }
+.leaflet-bar a { background: var(--surface); color: var(--text); border-color: var(--border); }
+.leaflet-bar a:hover { background: var(--surface-2); }
+.map-coords {
+  background: rgba(0, 0, 0, 0.6); color: #eee; padding: 2px 7px; border-radius: 6px; font-size: 11px;
+  font-variant-numeric: tabular-nums; pointer-events: none;
+}
+.leaflet-tooltip { font-size: 12px; }
+.site-dot { transition: r 0.1s; }
+
+/* Scenario cards */
+.cards { display: flex; flex-direction: column; gap: 10px; }
+.scen {
+  position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 10px 12px 12px 14px; box-shadow: var(--shadow); transition: border-color 0.15s, box-shadow 0.15s;
+}
+.scen::before {
+  content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 4px; border-radius: 0 4px 4px 0; background: var(--c);
+}
+.scen.active { border-color: color-mix(in srgb, var(--c) 70%, var(--border)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--c) 60%, transparent), var(--shadow); }
+.scen-head { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.swatch { width: 12px; height: 12px; border-radius: 50%; background: var(--c); flex: none; box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px color-mix(in srgb, var(--c) 40%, transparent); }
+.scen-label {
+  flex: 1; min-width: 0; border: 1px solid transparent; background: transparent; border-radius: 6px; padding: 3px 6px;
+  font-weight: 650; font-size: 15px;
+}
+.scen-label:hover { border-color: var(--border); }
+.scen-label:focus { border-color: var(--accent); background: var(--surface-2); outline: none; }
+.scen-head .icon-btn { width: 28px; height: 28px; border-color: transparent; font-size: 14px; }
+.scen-head .icon-btn:hover { border-color: var(--border); }
+.picker { position: relative; margin-bottom: 8px; }
+.picker input {
+  width: 100%; padding: 7px 10px 7px 30px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2);
+  font-size: 13.5px;
+}
+.picker::before {
+  content: ""; position: absolute; left: 10px; top: 50%; width: 11px; height: 11px; transform: translateY(-60%);
+  border: 1.8px solid var(--muted); border-radius: 50%; pointer-events: none;
+}
+.picker::after {
+  content: ""; position: absolute; left: 20px; top: 58%; width: 5px; height: 1.8px; background: var(--muted); transform: rotate(45deg); pointer-events: none;
+}
+.picker input:focus { border-color: var(--accent); outline: none; }
+.picker-list {
+  position: absolute; z-index: 1200; left: 0; right: 0; top: calc(100% + 4px); max-height: 300px; overflow: auto;
+  margin: 0; padding: 4px; list-style: none; background: var(--surface); border: 1px solid var(--border-strong); border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+.picker-group { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 8px 8px 4px; }
+.picker-item { padding: 7px 8px; border-radius: 7px; cursor: pointer; }
+.picker-item .pi-name { font-weight: 600; font-size: 13.5px; }
+.picker-item .pi-meta { font-size: 12px; color: var(--muted); }
+.picker-item[aria-selected="true"], .picker-item:hover { background: var(--accent-soft); }
+.picker-empty { padding: 10px; color: var(--muted); font-size: 13px; }
+.fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.field > span { font-size: 11.5px; color: var(--muted); }
+.field input {
+  width: 100%; min-width: 0; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2);
+  font-size: 13.5px; font-variant-numeric: tabular-nums;
+}
+.field input:focus { border-color: var(--accent); outline: none; }
+.field input[aria-invalid="true"] { border-color: var(--danger); }
+.field .with-clear { position: relative; }
+.field .with-clear .clear {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%); border: 0; background: var(--surface-3); color: var(--text-2);
+  width: 20px; height: 20px; border-radius: 50%; font-size: 11px; line-height: 20px; padding: 0;
+}
+.fields.times { margin-top: 8px; grid-template-columns: 1fr; }
+.scen-msg { margin: 8px 0 0; font-size: 12.5px; color: var(--danger); }
+.scen-msg.warn { color: var(--warn); }
+.scen-note { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
+.scen-meta { margin: 6px 0 0; font-size: 12px; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; }
+.add-row { display: flex; gap: 8px; margin-top: 10px; }
+.add-btn {
+  flex: 1; border: 1px dashed var(--border-strong); background: transparent; border-radius: 10px; padding: 9px; color: var(--text-2); font-weight: 600;
+}
+.add-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.add-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ---------- Output ---------- */
+.output { min-width: 0; }
+.tabpanel { min-width: 0; }
+.empty { text-align: center; padding: 60px 20px; color: var(--text-2); }
+.empty h2 { color: var(--text); font-size: 20px; margin-bottom: 6px; }
+.empty-art { width: 180px; margin-bottom: 12px; }
+.empty-art .ground { fill: var(--surface-3); }
+.empty-art .earth { fill: var(--earth); opacity: 0.85; }
+.empty-art .sun { fill: var(--sun); }
+
+.compare-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; min-height: 34px; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 9px; padding: 3px; background: var(--surface); }
+.seg button { border: 0; background: transparent; padding: 5px 12px; border-radius: 6px; font-size: 13px; color: var(--text-2); }
+.seg button[aria-pressed="true"] { background: var(--surface-3); color: var(--text); font-weight: 600; }
+.busy { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; margin: 0; }
+.spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--border-strong); border-top-color: var(--accent); animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.body-section { margin: 14px 0 26px; }
+.sec-title { display: flex; align-items: baseline; gap: 10px; font-size: 22px; margin-bottom: 12px; }
+.sec-icon { font-size: 20px; }
+.sec-icon.sun { color: var(--sun); }
+.sec-sub { font-size: 13px; font-weight: 500; color: var(--muted); }
+
+.metric-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 12px; }
+.mcard {
+  position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px 12px 16px;
+  box-shadow: var(--shadow); overflow: hidden;
+}
+.mcard::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--c); }
+.mcard-head { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+.mcard-title { font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mcard-when { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+.mrows { display: grid; grid-template-columns: auto 1fr; gap: 7px 10px; align-items: center; }
+.mrow-icon { width: 30px; height: 30px; display: grid; place-items: center; }
+.mrow-icon svg { width: 30px; height: 30px; overflow: visible; }
+.mrow-val { display: flex; flex-direction: column; min-width: 0; }
+.mrow-val b { font-size: 17px; font-weight: 650; font-variant-numeric: tabular-nums; line-height: 1.15; }
+.mrow-val span { font-size: 11.5px; color: var(--muted); }
+.mcard-foot { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--border); font-size: 13px; color: var(--text-2); }
+.mcard-foot strong { color: var(--text); }
+.insight {
+  margin-top: 10px; padding: 8px 10px; border-radius: 9px; font-size: 12.5px; line-height: 1.4;
+  background: var(--accent-soft); color: var(--text);
+}
+.ico-stroke { stroke: var(--muted); fill: none; stroke-width: 1.4; }
+.ico-faint { stroke: var(--border-strong); fill: none; stroke-width: 1.2; }
+.ico-ground { fill: var(--surface-3); }
+.ico-sun { fill: var(--sun); }
+.ico-earth-dark { fill: var(--surface-3); stroke: var(--border-strong); stroke-width: 0.8; }
+.ico-earth-lit { fill: var(--earth); }
+.ico-dot { fill: var(--c); }
+
+.charts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+.chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 12px 12px 4px; box-shadow: var(--shadow); min-width: 0; }
+.chart-card.wide { grid-column: 1 / -1; }
+.chart-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 0 4px; }
+.chart-head h3 { font-size: 15px; }
+.chart-head p { margin: 0; font-size: 12.5px; color: var(--muted); flex: 1; min-width: 180px; }
+.chart-head .seg button { font-size: 12px; padding: 3px 9px; }
+.chart { height: 260px; }
+.chart-card.wide .chart { height: 300px; }
+.chart-note { font-size: 12px; color: var(--muted); margin: 4px 6px 8px; }
+
+/* ---------- Sky tab ---------- */
+.sky-controls {
+  display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; align-items: center;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 10px 14px; margin-bottom: 14px; box-shadow: var(--shadow);
+  position: sticky; top: 64px; z-index: 50;
+}
+.sky-time { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.sky-time input[type="range"] { flex: 1; min-width: 80px; accent-color: var(--accent); }
+.play svg { fill: currentColor; stroke: none; width: 18px; height: 18px; }
+.play .i-pause { display: none; }
+.play.playing .i-pause { display: block; }
+.play.playing .i-play { display: none; }
+#sky-clock { font-variant-numeric: tabular-nums; min-width: 92px; font-weight: 600; }
+.speed { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+.speed select { padding: 4px 6px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-2); }
+.sky-look { display: flex; gap: 6px; }
+.sky-note { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--muted); }
+/* Sky grid. The tab is a size container, so the grid picks its columns from the width it really has:
+   one view uses the full width (its height is capped by the window, see .sky-view below); 2 and 4 views go two
+   per row; 3, 5 and 6 views go three per row on a wide screen (all six Apollo sites on one 1920 × 1080 screen) and
+   two per row below about 1150 px; one column on narrow screens. */
+#tab-sky { container: skytab / inline-size; }
+.sky-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 14px; }
+.sky-grid[data-n="1"] { grid-template-columns: minmax(0, 1fr); }
+.sky-grid[data-n="2"], .sky-grid[data-n="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.sky-grid[data-n="3"], .sky-grid[data-n="5"], .sky-grid[data-n="6"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@container skytab (max-width: 1150px) {
+  .sky-grid[data-n="3"], .sky-grid[data-n="5"], .sky-grid[data-n="6"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container skytab (max-width: 700px) {
+  .sky-grid[data-n] { grid-template-columns: minmax(0, 1fr); }
+}
+.sky-hint {
+  position: absolute; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none;
+  background: rgba(10, 14, 22, 0.82); color: #e8edf5; padding: 7px 14px; border-radius: 9px; font-size: 13px;
+}
+.sky-hint[hidden] { display: none; }
+/* The sky HUD (web/js/sky/hud.js) in narrow views (grid of several sites, phones): the framing rule puts the Earth
+   near the top centre, so the text readout (repeated in the card footer) and the exposure toggle (the first HUD
+   button) step aside, and the other buttons get smaller. */
+.sky-view { container-type: inline-size; }
+@container (max-width: 560px) {
+  .sky-view .moonat-sky-info { display: none; }
+  .sky-view .moonat-sky-bar .moonat-sky-btn:first-child { display: none; }
+  .sky-view .moonat-sky-btn { font-size: 11px; padding: 2px 6px; }
+}
+.sky-view .moonat-sky-cap { white-space: normal; width: max-content; max-width: 130px; }
+.sky-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); }
+.sky-card-head { display: flex; align-items: center; gap: 8px; padding: 7px 8px 7px 12px; min-height: 42px; }
+.sky-card-head .mcard-title { flex: 1; min-width: 0; }
+.sky-card-time { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sky-card-acts { display: flex; gap: 4px; flex: none; }
+.sky-act {
+  border: 1px solid var(--border); background: transparent; color: var(--text-2); border-radius: 7px;
+  padding: 3px 9px; font-size: 12.5px; line-height: 1.35; white-space: nowrap;
+}
+.sky-act:hover { color: var(--text); border-color: var(--border-strong); background: var(--surface-2); }
+.sky-exit-btn { display: none; }
+/* In grid cards the full-screen button is an icon only; in narrow ones the time gives way to the buttons. */
+.sky-grid:not([data-n="1"]) .sky-act-txt { display: none; }
+@container skytab (max-width: 520px) {
+  .sky-card-time { display: none; }
+}
+.sky-view { position: relative; aspect-ratio: 16 / 9; background: #000; }
+/* One view: the full width, as high as 16:9 allows but no higher than the window minus the controls (the aspect
+   then widens a little, up to 2.4:1, instead of leaving an empty band beside the view). */
+.sky-grid[data-n="1"] .sky-view { aspect-ratio: auto; height: max(min(56.25cqw, calc(100svh - 300px)), 41.6cqw, 300px); }
+
+/* ---------- Focus mode: one sky view fills the window (sky_tab.js) ---------- */
+body.sky-focus { overflow: hidden; }
+#tab-sky.focus {
+  position: fixed; inset: 0; z-index: 1500; display: flex; flex-direction: column; gap: 8px;
+  padding: 8px 10px 10px; background: var(--bg);
+}
+#tab-sky.focus .sky-controls { position: static; margin: 0; padding: 8px 12px; }
+#tab-sky.focus .sky-note { display: none; }
+#tab-sky.focus .sky-grid { display: flex; flex: 1; min-height: 0; }
+#tab-sky.focus .sky-card:not(.is-focus) { display: none; }
+#tab-sky.focus .sky-card.is-focus { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+#tab-sky.focus .sky-card.is-focus .sky-view { flex: 1; min-height: 0; height: auto; aspect-ratio: auto; }
+#tab-sky.focus .sky-focus-btn { display: none; }
+#tab-sky.focus .sky-exit-btn { display: inline-block; }
+#tab-sky.focus .sky-act-txt { display: inline; }
+#tab-sky.focus .sky-card-time { display: inline; }
+#tab-sky.focus #sky-empty { display: none; }
+.sky-view canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.sky-view canvas:active { cursor: grabbing; }
+.sky-card-foot { display: flex; gap: 14px; flex-wrap: wrap; padding: 8px 12px 10px; font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.sky-card-foot .note { color: var(--muted); }
+.sky-loading { position: absolute; inset: 0; display: grid; place-items: center; color: #999; font-size: 13px; }
+
+/* ---------- About dialog, footer, toast ---------- */
+.about {
+  max-width: 720px; width: calc(100% - 32px); max-height: calc(100vh - 48px); border: 1px solid var(--border-strong); border-radius: 16px;
+  background: var(--surface); color: var(--text); padding: 24px 28px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+.about::backdrop { background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(2px); }
+.about h2 { font-size: 22px; margin-bottom: 8px; }
+.about h3 { font-size: 15px; margin: 18px 0 6px; }
+.about p, .about li, .about dd { color: var(--text-2); }
+.about .lead { color: var(--text); }
+.about-close { position: absolute; right: 14px; top: 14px; margin: 0; }
+.glossary { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0; }
+.glossary dt { font-weight: 650; }
+.glossary dd { margin: 0; }
+.about a { color: var(--accent); text-underline-offset: 2px; }
+.sources { padding-left: 18px; margin: 0; }
+.sources li { margin-bottom: 4px; }
+.fine { font-size: 12px; color: var(--muted) !important; margin-top: 18px; }
+.foot { max-width: 1880px; margin: 0 auto; padding: 10px 20px 24px; font-size: 12px; color: var(--muted); }
+.foot .link-btn { font-size: 12px; }
+.toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 3000;
+  background: var(--text); color: var(--bg); padding: 9px 16px; border-radius: 10px; font-size: 13.5px; box-shadow: var(--shadow);
+}
+
+/* A lone scenario gets one wide card with its metrics side by side. */
+.metric-cards:has(> .mcard:only-child) { grid-template-columns: 1fr; }
+.metric-cards > .mcard:only-child .mrows { grid-template-columns: repeat(4, auto minmax(0, 1fr)); }
+.metric-cards > .mcard:only-child .mrows:has(> :nth-child(6):last-child) { grid-template-columns: repeat(3, auto minmax(0, 1fr)); }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1100px) {
+  .metric-cards > .mcard:only-child .mrows,
+  .metric-cards > .mcard:only-child .mrows:has(> :nth-child(6):last-child) { grid-template-columns: repeat(2, auto minmax(0, 1fr)); }
+  .topbar { grid-template-columns: 1fr auto; }
+  .tabs { grid-row: 2; grid-column: 1 / -1; justify-self: center; }
+  .charts { grid-template-columns: 1fr; }
+  .sky-controls { top: 104px; }
+}
+@media (max-width: 860px) {
+  .layout { grid-template-columns: 1fr; padding: 12px 16px; }
+  .side { position: static; max-height: none; overflow: visible; padding-right: 0; }
+  .tagline { white-space: normal; }
+  .sky-controls { grid-template-columns: 1fr; position: static; }
+  .sky-time { flex-wrap: wrap; }
+}
+@media (max-width: 520px) {
+  .topbar { padding: 8px 16px; gap: 8px; }
+  .tagline { display: none; }
+  .top-actions .ghost { padding: 5px 8px; font-size: 13px; }
+  .fields { grid-template-columns: 1fr; }
+  .glossary { grid-template-columns: 1fr; }
+  .metric-cards > .mcard:only-child .mrows,
+  .metric-cards > .mcard:only-child .mrows:has(> :nth-child(6):last-child) { grid-template-columns: auto 1fr; }
+  .about { padding: 20px 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+.muted { color: var(--muted); font-weight: 400; }
+
+/* ---------- Small screens: output first, builder below; touch targets ---------- */
+.jump-link { display: none; font-size: 12.5px; color: var(--accent); text-underline-offset: 2px; }
+@media (max-width: 860px) {
+  /* The sky and the charts come right after the quick starts; the map and the scenario cards sit below them. */
+  .layout { display: flex; flex-direction: column; align-items: stretch; gap: 14px; }
+  .layout > * { min-width: 0; }
+  .side { display: contents; }
+  .qs-block { order: 1; }
+  .output { order: 2; }
+  .map-block { order: 3; }
+  .scen-block { order: 4; }
+  .jump-link { display: inline; }
+  .topbar { position: static; }
+  .chips { gap: 8px; }
+  .map-block, .scen-block { scroll-margin-top: 8px; }
+}
+/* Touch screens: every control is at least 40 px high. */
+@media (pointer: coarse) {
+  .ghost, .icon-btn, .chip, .add-btn, .sky-act, .seg button, .tabs button { min-height: 40px; }
+  .icon-btn { width: 40px; height: 40px; }
+  .scen-head .icon-btn { width: 40px; height: 40px; }
+  .field input, .picker input, .scen-label, .speed select { min-height: 40px; }
+  .field .with-clear .clear { width: 32px; height: 32px; line-height: 32px; }
+  .link-btn, .jump-link { padding: 10px 4px; min-height: 40px; display: inline-flex; align-items: center; }
+  .sky-time input[type="range"] { height: 40px; }
+  .sky-act { padding: 3px 12px; }
+  .seg button { padding: 5px 14px; }
+  .picker-item { padding: 11px 10px; }
+  .map-hint::after { content: " Use two fingers to move the map."; }
+}
+@media (max-width: 520px) {
+  .topbar { grid-template-columns: 1fr auto; padding: 8px 12px; }
+  .brand h1 { font-size: 19px; }
+  .tabs { width: 100%; }
+  .tabs button { flex: 1; }
+  .layout { padding: 12px; }
+  .foot { padding: 10px 12px 24px; }
+  .sec-title { font-size: 19px; flex-wrap: wrap; row-gap: 0; }
+  .chart-card { padding: 10px 6px 2px; }
+  .chart, .chart-card.wide .chart { height: 320px; }
+  .compare-bar { flex-wrap: wrap; }
+  .seg { max-width: 100%; }
+  .seg button { flex: 1; padding: 5px 8px; font-size: 12.5px; }
+  .sky-controls { padding: 8px 10px; }
+  .sky-time { display: grid; grid-template-columns: auto 1fr auto; gap: 6px 10px; }
+  .sky-time .speed { grid-column: 1 / -1; justify-content: space-between; }
+  .sky-look { display: grid; grid-template-columns: 1fr 1fr; }
+  #sky-clock { min-width: 0; }
+}
+@media (min-width: 640px) and (max-width: 860px) {
+  .sky-controls { grid-template-columns: 1fr auto; }
+}
+@media (pointer: coarse) {
+  .sky-view .moonat-sky-btn { min-height: 34px; padding: 4px 10px; font-size: 12px; }
+}
+/* Phone held sideways (very little height): one slim top bar, a smaller sky view with scrollable gutters, and a focus mode
+   that gives the whole height to the sky. */
+@media (max-height: 520px) and (orientation: landscape) {
+  .topbar { grid-template-columns: 1fr auto 1fr; padding: 4px 12px; gap: 8px; }
+  .tabs { grid-row: auto; grid-column: auto; width: auto; }
+  .tagline { display: none; }
+  .layout { padding-top: 8px; gap: 10px; }
+  .sky-grid[data-n="1"] { max-width: min(100%, calc((100svh - 110px) * 1.78)); margin-inline: auto; }
+  .sky-grid[data-n="1"] .sky-view { height: auto; aspect-ratio: 16 / 9; }
+  #tab-sky.focus { gap: 4px; padding: 4px 8px 6px; }
+  .sky-controls { grid-template-columns: 1fr auto; padding: 4px 8px; gap: 4px 10px; margin-bottom: 8px; }
+  .sky-note { display: none; }
+  .sky-time { flex-wrap: nowrap; gap: 8px; }
+  .sky-controls .icon-btn { width: 36px; height: 36px; min-height: 0; }
+  .sky-look .ghost, #tab-sky.focus .sky-act { min-height: 34px; padding-block: 2px; }
+  #tab-sky.focus .sky-card-head { min-height: 0; padding: 2px 4px 2px 8px; }
+  #tab-sky.focus .sky-card-foot { display: none; }
+}
+@media (max-width: 520px) and (orientation: portrait) {
+  .sky-grid[data-n="1"] .sky-view { height: auto; aspect-ratio: 4 / 3; }
+}

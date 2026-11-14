@@ -1,0 +1,18 @@
+{
+ "id": "art_nobile1",
+ "lat_deg": -84.3661,
+ "lon_deg": 44.35,
+ "grid_n": 385,
+ "spacing_m": 62.5,
+ "half_extent_m": 12000.0,
+ "encoding": "float32 LE, row-major, row 0 = north edge, col 0 = west edge",
+ "values": "z_up_m: ENU up-coordinate of the terrain surface relative to the GROUND point (includes curvature drop)",
+ "albedo": null,
+ "ground_elev_m": 6166.19,
+ "z_min_m": -4745.64,
+ "z_max_m": 551.09,
+ "dem_sources": [
+  "LOLA LDEM_80S_20M (polar stereographic), LRO-L-LOLA-4-GDR-V1.0, NASA PDS Geosciences Node"
+ ],
+ "_generated_by": "AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team."
+}

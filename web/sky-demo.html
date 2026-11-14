@@ -1,0 +1,136 @@
+<!doctype html>
+<!-- AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moonat sky view demo</title>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<style>
+  :root { color-scheme: dark light; --bg: #0c0f15; --fg: #e6ebf3; --mut: #9aa8bd; --line: #2a3344; --ctl: #171c27; }
+  @media (prefers-color-scheme: light) { :root { --bg: #f4f6fa; --fg: #131722; --mut: #55617a; --line: #c9d1df; --ctl: #fff; } }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1280px; margin: 0 auto; padding: 12px 16px 24px; }
+  h1 { font-size: 18px; margin: 4px 0 10px; }
+  #view { width: 100%; aspect-ratio: 16 / 9; border-radius: 8px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: 10px 0; }
+  select, input, button { font: inherit; color: var(--fg); background: var(--ctl); border: 1px solid var(--line); border-radius: 6px; padding: 5px 9px; }
+  button { cursor: pointer; }
+  input[type=range] { flex: 1; min-width: 200px; padding: 0; }
+  label { color: var(--mut); }
+  #status { color: var(--mut); font-size: 12px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Moonat sky view: standing on the Moon</h1>
+  <div id="view"></div>
+  <div class="row">
+    <label>Site <select id="site"></select></label>
+    <label>UTC <input id="time" type="datetime-local" step="60"></label>
+    <button id="earth">Look at Earth</button>
+    <button id="sun">Look at Sun</button>
+    <button id="play">Play timelapse</button>
+  </div>
+  <div class="row">
+    <label for="offset">Time offset</label>
+    <input id="offset" type="range" min="-360" max="360" step="0.25" value="0">
+    <span id="offsetLabel">+0 h</span>
+  </div>
+  <div id="status"></div>
+</main>
+<script type="module">
+// AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
+import { createSkyView } from './js/sky/index.js';
+import { makePlaceholderPatch, makePlaceholderStars } from './js/sky/placeholder.js';
+import * as placeholderPhysics from './js/sky/placeholder_physics.js';
+import { horizonFromPatch } from './js/sky/math.js';
+
+const q = new URLSearchParams(location.search), $ = (id) => document.getElementById(id);
+const getJson = async (u) => { try { const r = await fetch(u); return r.ok ? await r.json() : null; } catch { return null; } };
+
+// Real physics (contract C6) when it exists; otherwise PLACEHOLDER[sky-state] (low precision).
+let physics = placeholderPhysics, physicsName = 'PLACEHOLDER low-precision ephemeris';
+if (q.get('physics') !== 'placeholder') {
+  try {
+    const real = await import('./js/physics/index.js');
+    await real.loadEphem('data/ephem');
+    physics = real; physicsName = 'physics-js (C6)';
+  } catch { /* keep the placeholder */ }
+}
+
+const FALLBACK_SITES = [
+  { id: 'apollo11', name: 'Apollo 11 (Tranquility Base)', lat_deg: 0.67416, lon_deg: 23.47314, t_start_utc: '1969-07-20T20:17:40Z' },
+  { id: 'south_pole', name: 'Lunar south pole region', lat_deg: -89.5, lon_deg: 0, t_start_utc: '2026-11-15T12:00:00Z' },
+];
+const catalog = (await getJson('data/sites.json'))?.sites || FALLBACK_SITES;
+for (const s of catalog) $('site').add(new Option(s.name, s.id));
+
+let view = null, site = null, t0 = 0, playing = 0;
+const now = () => t0 + Number($('offset').value) * 3600e3;
+
+async function refresh() {
+  if (!view) return;
+  view.update(await physics.skyState(site, now()));
+  const h = Number($('offset').value);
+  $('offsetLabel').textContent = `${h >= 0 ? '+' : ''}${h.toFixed(2)} h`;
+}
+
+async function loadSite(id, tIso) {
+  const s = catalog.find((x) => x.id === id) || catalog[0];
+  $('site').value = s.id;
+  t0 = Date.parse(tIso || s.t_start_utc || '2026-11-15T12:00:00Z');
+  $('time').value = new Date(t0).toISOString().slice(0, 16);
+  $('offset').value = 0;
+  const horizon = await getJson(`data/horizons/${s.id}.json`);
+  const hasPatch = !!(await getJson(`data/terrain/${s.id}.json`));
+  // PLACEHOLDER[terrain-patch], PLACEHOLDER[horizon-profile]: synthetic terrain when the site has no real data.
+  const mode = q.get('terrain') || (hasPatch || horizon ? 'real' : 'placeholder');
+  const fake = mode === 'placeholder' ? makePlaceholderPatch() : null;
+  site = physics.makeSite({
+    lat_deg: s.lat_deg, lon_deg: s.lon_deg, ground_elev_m: horizon?.ground_elev_m ?? 0, observer_height_m: 2,
+    horizon: mode === 'real' ? horizon : fake ? horizonFromPatch(fake, 2) : null,
+  });
+  view?.dispose();
+  const realStars = await getJson('data/stars/stars.json');
+  view = await createSkyView($('view'), {
+    site, terrainPatchUrl: mode === 'real' && hasPatch ? `data/terrain/${s.id}` : null, terrainPatch: fake,
+    stars: realStars || makePlaceholderStars(),   // PLACEHOLDER[star-catalog] when the file is missing
+    earthNightTextureUrl: 'assets/earth_night.jpg',
+    fovDeg: Number(q.get('fov')) || 60,
+  });
+  window.skyView = view;
+  await refresh();
+  if (q.has('az')) view.lookAt(Number(q.get('az')), Number(q.get('el') || 5));
+  $('status').textContent = `Physics: ${physicsName}. Terrain: ${mode === 'real' ? (hasPatch ? 'C4 patch' : 'horizon only') : mode === 'placeholder' ? 'SYNTHETIC PLACEHOLDER (not real terrain)' : 'none (smooth horizon)'}. `
+    + `Stars: ${view.info.stars}${realStars ? '' : ' (synthetic placeholder)'}. Drag to look around, scroll to zoom.`;
+}
+
+$('site').addEventListener('change', () => loadSite($('site').value));
+$('time').addEventListener('change', () => { t0 = Date.parse($('time').value + 'Z'); $('offset').value = 0; refresh(); });
+$('offset').addEventListener('input', refresh);
+$('earth').addEventListener('click', async () => { const s = await physics.skyState(site, now()); view.lookAt(s.earth.az_deg, Math.max(s.earth.el_deg, 5)); });
+$('sun').addEventListener('click', async () => { const s = await physics.skyState(site, now()); view.lookAt(s.sun.az_deg, Math.max(s.sun.el_deg, 5)); });
+$('play').addEventListener('click', () => {
+  if (playing) { cancelAnimationFrame(playing); playing = 0; $('play').textContent = 'Play timelapse'; return; }
+  $('play').textContent = 'Pause';
+  const tick = async () => {
+    const o = $('offset'), v = Number(o.value) + 0.25;
+    o.value = v > Number(o.max) ? o.min : v;
+    await refresh();
+    playing = requestAnimationFrame(tick);
+  };
+  playing = requestAnimationFrame(tick);
+});
+
+await loadSite(q.get('site') || 'apollo11', q.get('t'));
+if (q.has('offset')) { $('offset').value = q.get('offset'); await refresh(); }
+window.demoReady = true;
+</script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --no-project python \"$CLAUDE_PROJECT_DIR/scripts/board.py\" session-start",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --no-project python \"$CLAUDE_PROJECT_DIR/scripts/board.py\" notify",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --no-project python \"$CLAUDE_PROJECT_DIR/scripts/board.py\" stop-check",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(uv run python scripts/board.py:*)",
+      "PowerShell(uv run python scripts/board.py:*)",
+      "Bash(uv run pytest:*)",
+      "PowerShell(uv run pytest:*)",
+      "Bash(uv run ruff:*)",
+      "PowerShell(uv run ruff:*)"
+    ]
+  }
+}

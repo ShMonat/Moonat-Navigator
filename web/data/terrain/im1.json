@@ -1,0 +1,18 @@
+{
+ "id": "im1",
+ "lat_deg": -80.1286,
+ "lon_deg": 1.4376,
+ "grid_n": 385,
+ "spacing_m": 62.5,
+ "half_extent_m": 12000.0,
+ "encoding": "float32 LE, row-major, row 0 = north edge, col 0 = west edge",
+ "values": "z_up_m: ENU up-coordinate of the terrain surface relative to the GROUND point (includes curvature drop)",
+ "albedo": null,
+ "ground_elev_m": 2587.61,
+ "z_min_m": -998.34,
+ "z_max_m": 352.43,
+ "dem_sources": [
+  "LOLA LDEM_75S_30M (polar stereographic), LRO-L-LOLA-4-GDR-V1.0, NASA PDS Geosciences Node"
+ ],
+ "_generated_by": "AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team."
+}

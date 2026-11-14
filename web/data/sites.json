@@ -1,0 +1,759 @@
+{
+ "_generated_by": "AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.",
+ "sites": [
+  {
+   "id": "apollo11",
+   "name": "Apollo 11 (Tranquility Base)",
+   "kind": "mission",
+   "agency": "NASA",
+   "lander": "Eagle",
+   "crew": [
+    "Neil Armstrong",
+    "Buzz Aldrin"
+   ],
+   "lat_deg": 0.6741,
+   "lon_deg": 23.473,
+   "t_start_utc": "1969-07-20T20:17:40Z",
+   "t_end_utc": "1969-07-21T17:54:00Z",
+   "blurb": "Where Neil Armstrong first stepped onto the Moon.",
+   "sources": [
+    "https://www.hq.nasa.gov/alsj/a11/a11.html",
+    "https://en.wikipedia.org/wiki/Apollo_11",
+    "https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon",
+    "https://www.lroc.asu.edu/"
+   ],
+   "notes": "Times: landing = LM touchdown, end = LM liftoff (Apollo Flight Journal / ALSJ)."
+  },
+  {
+   "id": "apollo12",
+   "name": "Apollo 12 (Ocean of Storms)",
+   "kind": "mission",
+   "agency": "NASA",
+   "lander": "Intrepid",
+   "crew": [
+    "Pete Conrad",
+    "Alan Bean"
+   ],
+   "lat_deg": -3.0124,
+   "lon_deg": -23.4216,
+   "t_start_utc": "1969-11-19T06:54:35Z",
+   "t_end_utc": "1969-11-20T14:25:47Z",
+   "blurb": "A pinpoint landing right next to an old robot probe, Surveyor 3.",
+   "sources": [
+    "https://www.hq.nasa.gov/alsj/a12/a12.html",
+    "https://en.wikipedia.org/wiki/Apollo_12",
+    "https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon",
+    "https://www.lroc.asu.edu/"
+   ],
+   "notes": "Times: landing = LM touchdown, end = LM liftoff (Apollo Flight Journal / ALSJ)."
+  },
+  {
+   "id": "apollo14",
+   "name": "Apollo 14 (Fra Mauro)",
+   "kind": "mission",
+   "agency": "NASA",
+   "lander": "Antares",
+   "crew": [
+    "Alan Shepard",
+    "Edgar Mitchell"
+   ],
+   "lat_deg": -3.6453,
+   "lon_deg": -17.4714,
+   "t_start_utc": "1971-02-05T09:18:11Z",
+   "t_end_utc": "1971-02-06T18:48:42Z",
+   "blurb": "Where Alan Shepard hit golf balls on the Moon.",
+   "sources": [
+    "https://www.hq.nasa.gov/alsj/a14/a14.html",
+    "https://en.wikipedia.org/wiki/Apollo_14",
+    "https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon",
+    "https://www.lroc.asu.edu/"
+   ],
+   "notes": "Times: landing = LM touchdown, end = LM liftoff (Apollo Flight Journal / ALSJ)."
+  },
+  {
+   "id": "apollo15",
+   "name": "Apollo 15 (Hadley-Apennine)",
+   "kind": "mission",
+   "agency": "NASA",
+   "lander": "Falcon",
+   "crew": [
+    "David Scott",
+    "James Irwin"
+   ],
+   "lat_deg": 26.1322,
+   "lon_deg": 3.6339,
+   "t_start_utc": "1971-07-30T22:16:29Z",
+   "t_end_utc": "1971-08-02T17:11:22Z",
+   "blurb": "The first Moon buggy drive, beside a deep winding valley and tall mountains.",
+   "sources": [
+    "https://www.hq.nasa.gov/alsj/a15/a15.html",
+    "https://en.wikipedia.org/wiki/Apollo_15",
+    "https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon",
+    "https://www.lroc.asu.edu/"
+   ],
+   "notes": "Times: landing = LM touchdown, end = LM liftoff (Apollo Flight Journal / ALSJ)."
+  },
+  {
+   "id": "apollo16",
+   "name": "Apollo 16 (Descartes Highlands)",
+   "kind": "mission",
+   "agency": "NASA",
+   "lander": "Orion",
+   "crew": [
+    "John Young",
+    "Charles Duke"
+   ],
+   "lat_deg": -8.973,
+   "lon_deg": 15.5002,
+   "t_start_utc": "1972-04-21T02:23:35Z",
+   "t_end_utc": "1972-04-24T01:25:48Z",
+   "blurb": "The only Apollo landing in the old, rugged lunar highlands.",
+   "sources": [
+    "https://www.hq.nasa.gov/alsj/a16/a16.html",
+    "https://en.wikipedia.org/wiki/Apollo_16",
+    "https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon",
+    "https://www.lroc.asu.edu/"
+   ],
+   "notes": "Times: landing = LM touchdown, end = LM liftoff (Apollo Flight Journal / ALSJ)."
+  },
+  {
+   "id": "apollo17",
+   "name": "Apollo 17 (Taurus-Littrow)",
+   "kind": "mission",
+   "agency": "NASA",
+   "lander": "Challenger",
+   "crew": [
+    "Eugene Cernan",
+    "Harrison Schmitt"
+   ],
+   "lat_deg": 20.1908,
+   "lon_deg": 30.7717,
+   "t_start_utc": "1972-12-11T19:54:57Z",
+   "t_end_utc": "1972-12-14T22:54:37Z",
+   "blurb": "The last time people walked on the Moon, and the only geologist-astronaut to do it.",
+   "sources": [
+    "https://www.hq.nasa.gov/alsj/a17/a17.html",
+    "https://en.wikipedia.org/wiki/Apollo_17",
+    "https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon",
+    "https://www.lroc.asu.edu/"
+   ],
+   "notes": "Times: landing = LM touchdown, end = LM liftoff (Apollo Flight Journal / ALSJ)."
+  },
+  {
+   "id": "luna9",
+   "name": "Luna 9",
+   "kind": "mission",
+   "agency": "USSR",
+   "lander": "Luna 9 (ALS capsule)",
+   "crew": null,
+   "lat_deg": 7.08,
+   "lon_deg": -64.37,
+   "t_start_utc": "1966-02-03T18:45:30Z",
+   "t_end_utc": "1966-02-06T22:55:00Z",
+   "blurb": "The first spacecraft to land softly on the Moon and send back pictures from its surface.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Luna_9",
+    "https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_landing_sites.html",
+    "https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon"
+   ],
+   "notes": "End time approximate (battery exhausted about 3 days after landing)."
+  },
+  {
+   "id": "luna13",
+   "name": "Luna 13",
+   "kind": "mission",
+   "agency": "USSR",
+   "lander": "Luna 13",
+   "crew": null,
+   "lat_deg": 18.87,
+   "lon_deg": -62.05,
+   "t_start_utc": "1966-12-24T18:01:00Z",
+   "t_end_utc": "1966-12-28T00:00:00Z",
+   "blurb": "A Soviet lander that pushed a probe into the soil to test how firm the Moon's ground is.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Luna_13",
+    "https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_landing_sites.html",
+    "https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon"
+   ],
+   "notes": "End time approximate (date from sources, time of day unknown)."
+  },
+  {
+   "id": "luna16",
+   "name": "Luna 16",
+   "kind": "mission",
+   "agency": "USSR",
+   "lander": "Luna 16",
+   "crew": null,
+   "lat_deg": -0.68,
+   "lon_deg": 56.3,
+   "t_start_utc": "1970-09-20T05:18:00Z",
+   "t_end_utc": "1970-09-21T07:43:00Z",
+   "blurb": "The first robot to bring Moon soil back to Earth.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Luna_16",
+    "https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_landing_sites.html",
+    "https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon"
+   ]
+  },
+  {
+   "id": "luna17",
+   "name": "Luna 17 (Lunokhod 1)",
+   "kind": "mission",
+   "agency": "USSR",
+   "lander": "Luna 17 / Lunokhod 1",
+   "crew": null,
+   "lat_deg": 38.28,
+   "lon_deg": -35.0,
+   "t_start_utc": "1970-11-17T03:47:00Z",
+   "t_end_utc": "1971-09-14T13:05:00Z",
+   "blurb": "Home of Lunokhod 1, the first remote-controlled rover to drive on another world.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Luna_17",
+    "https://en.wikipedia.org/wiki/Lunokhod_1",
+    "https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon"
+   ],
+   "notes": "Landing site of Luna 17; end = last contact with Lunokhod 1 (approximate)."
+  },
+  {
+   "id": "luna20",
+   "name": "Luna 20",
+   "kind": "mission",
+   "agency": "USSR",
+   "lander": "Luna 20",
+   "crew": null,
+   "lat_deg": 3.57,
+   "lon_deg": 56.55,
+   "t_start_utc": "1972-02-21T19:19:00Z",
+   "t_end_utc": "1972-02-22T22:58:00Z",
+   "blurb": "A robot that scooped up Moon rocks from rugged highlands and flew them home.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Luna_20",
+    "https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_landing_sites.html",
+    "https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon"
+   ]
+  },
+  {
+   "id": "luna21",
+   "name": "Luna 21 (Lunokhod 2)",
+   "kind": "mission",
+   "agency": "USSR",
+   "lander": "Luna 21 / Lunokhod 2",
+   "crew": null,
+   "lat_deg": 25.85,
+   "lon_deg": 30.45,
+   "t_start_utc": "1973-01-15T22:35:00Z",
+   "t_end_utc": "1973-05-11T12:00:00Z",
+   "blurb": "Lunokhod 2 drove about 39 km here, farther than any other Moon rover for decades.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Luna_21",
+    "https://en.wikipedia.org/wiki/Lunokhod_2",
+    "https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon"
+   ],
+   "notes": "End = 11 May 1973 (date only; time of day set to 12:00 and approximate)."
+  },
+  {
+   "id": "luna24",
+   "name": "Luna 24",
+   "kind": "mission",
+   "agency": "USSR",
+   "lander": "Luna 24",
+   "crew": null,
+   "lat_deg": 12.75,
+   "lon_deg": 62.2,
+   "t_start_utc": "1976-08-18T06:36:00Z",
+   "t_end_utc": "1976-08-19T05:25:00Z",
+   "blurb": "The last Soviet Moon mission; it drilled deep into the ground and brought a sample home.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Luna_24",
+    "https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_landing_sites.html",
+    "https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon"
+   ]
+  },
+  {
+   "id": "surveyor1",
+   "name": "Surveyor 1",
+   "kind": "mission",
+   "agency": "NASA",
+   "lander": "Surveyor 1",
+   "crew": null,
+   "lat_deg": -2.474,
+   "lon_deg": -43.339,
+   "t_start_utc": "1966-06-02T06:17:36Z",
+   "t_end_utc": "1966-07-14T00:00:00Z",
+   "blurb": "America's first soft landing on the Moon, which sent home over 11,000 pictures.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Surveyor_1",
+    "https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_landing_sites.html",
+    "https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon"
+   ],
+   "notes": "End = end of first lunar day operations (approximate); sporadic contact until Jan 1967."
+  },
+  {
+   "id": "surveyor3",
+   "name": "Surveyor 3",
+   "kind": "mission",
+   "agency": "NASA",
+   "lander": "Surveyor 3",
+   "crew": null,
+   "lat_deg": -3.015,
+   "lon_deg": -23.418,
+   "t_start_utc": "1967-04-20T00:04:00Z",
+   "t_end_utc": "1967-05-04T00:00:00Z",
+   "blurb": "A robot lander that Apollo 12 astronauts later walked over to and visited.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Surveyor_3",
+    "https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_landing_sites.html",
+    "https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon"
+   ],
+   "notes": "End approximate (end of first lunar day)."
+  },
+  {
+   "id": "surveyor5",
+   "name": "Surveyor 5",
+   "kind": "mission",
+   "agency": "NASA",
+   "lander": "Surveyor 5",
+   "crew": null,
+   "lat_deg": 1.461,
+   "lon_deg": 23.195,
+   "t_start_utc": "1967-09-11T00:46:42Z",
+   "t_end_utc": "1967-12-17T00:00:00Z",
+   "blurb": "A scout that tested the soil with a tiny chemistry lab near the future Apollo 11 site.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Surveyor_5",
+    "https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_landing_sites.html",
+    "https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon"
+   ],
+   "notes": "End approximate (last transmission mid-December 1967)."
+  },
+  {
+   "id": "surveyor6",
+   "name": "Surveyor 6",
+   "kind": "mission",
+   "agency": "NASA",
+   "lander": "Surveyor 6",
+   "crew": null,
+   "lat_deg": 0.4743,
+   "lon_deg": -1.4275,
+   "t_start_utc": "1967-11-10T01:01:06Z",
+   "t_end_utc": "1967-12-14T00:00:00Z",
+   "blurb": "The first spacecraft to lift off from the Moon, with a short hop of a few metres.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Surveyor_6",
+    "https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_landing_sites.html",
+    "https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon"
+   ],
+   "notes": "End approximate (last contact mid-December 1967)."
+  },
+  {
+   "id": "surveyor7",
+   "name": "Surveyor 7",
+   "kind": "mission",
+   "agency": "NASA",
+   "lander": "Surveyor 7",
+   "crew": null,
+   "lat_deg": -40.98,
+   "lon_deg": -11.514,
+   "t_start_utc": "1968-01-10T01:05:36Z",
+   "t_end_utc": "1968-02-21T00:00:00Z",
+   "blurb": "The last Surveyor, landed on a rugged highland near the bright crater Tycho.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Surveyor_7",
+    "https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_landing_sites.html",
+    "https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon"
+   ],
+   "notes": "End approximate (last contact 21 Feb 1968)."
+  },
+  {
+   "id": "change3",
+   "name": "Chang'e 3 (Yutu)",
+   "kind": "mission",
+   "agency": "CNSA",
+   "lander": "Chang'e 3 / Yutu",
+   "crew": null,
+   "lat_deg": 44.12,
+   "lon_deg": -19.51,
+   "t_start_utc": "2013-12-14T13:11:00Z",
+   "t_end_utc": "2016-08-03T00:00:00Z",
+   "blurb": "China's first Moon landing, carrying the Yutu (\"Jade Rabbit\") rover.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Chang%27e_3",
+    "https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon"
+   ],
+   "notes": "End = Yutu declared dead (3 Aug 2016, date only); lander kept running longer."
+  },
+  {
+   "id": "change4",
+   "name": "Chang'e 4",
+   "kind": "mission",
+   "agency": "CNSA",
+   "lander": "Chang'e 4 / Yutu-2",
+   "crew": null,
+   "lat_deg": -45.4561,
+   "lon_deg": 177.5885,
+   "t_start_utc": "2019-01-03T02:26:00Z",
+   "t_end_utc": null,
+   "blurb": "The first landing ever on the far side of the Moon, inside Von Karman crater.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Chang%27e_4",
+    "https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon"
+   ],
+   "notes": "Still operating or end date not firmly known; end set to null."
+  },
+  {
+   "id": "change5",
+   "name": "Chang'e 5",
+   "kind": "mission",
+   "agency": "CNSA",
+   "lander": "Chang'e 5",
+   "crew": null,
+   "lat_deg": 43.0576,
+   "lon_deg": -51.9161,
+   "t_start_utc": "2020-12-01T15:11:00Z",
+   "t_end_utc": "2020-12-03T15:10:00Z",
+   "blurb": "China's sample-return mission, which brought home about 2 kg of young lunar rock.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Chang%27e_5",
+    "https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon"
+   ]
+  },
+  {
+   "id": "change6",
+   "name": "Chang'e 6",
+   "kind": "mission",
+   "agency": "CNSA",
+   "lander": "Chang'e 6",
+   "crew": null,
+   "lat_deg": -41.6385,
+   "lon_deg": -153.9852,
+   "t_start_utc": "2024-06-01T22:23:00Z",
+   "t_end_utc": "2024-06-03T23:38:00Z",
+   "blurb": "The first mission to bring back rocks from the far side of the Moon.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Chang%27e_6",
+    "https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon"
+   ]
+  },
+  {
+   "id": "chandrayaan3",
+   "name": "Chandrayaan-3 (Vikram)",
+   "kind": "mission",
+   "agency": "ISRO",
+   "lander": "Vikram / Pragyan",
+   "crew": null,
+   "lat_deg": -69.373,
+   "lon_deg": 32.319,
+   "t_start_utc": "2023-08-23T12:33:00Z",
+   "t_end_utc": "2023-09-04T00:00:00Z",
+   "blurb": "India's lander touched down closer to the south pole than any before it.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Chandrayaan-3",
+    "https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon"
+   ],
+   "notes": "Site named Statio Shiv Shakti. End approximate (rover/lander put to sleep 2-4 Sep 2023)."
+  },
+  {
+   "id": "slim",
+   "name": "SLIM",
+   "kind": "mission",
+   "agency": "JAXA",
+   "lander": "SLIM",
+   "crew": null,
+   "lat_deg": -13.316,
+   "lon_deg": 25.251,
+   "t_start_utc": "2024-01-19T15:20:00Z",
+   "t_end_utc": "2024-08-28T00:00:00Z",
+   "blurb": "Japan's \"Moon Sniper\" landed within about 55 m of its target, though it ended up upside down.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Smart_Lander_for_Investigating_Moon",
+    "https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon"
+   ],
+   "notes": "End approximate (last operation Aug 2024)."
+  },
+  {
+   "id": "im1",
+   "name": "IM-1 Odysseus",
+   "kind": "mission",
+   "agency": "Intuitive Machines",
+   "lander": "Odysseus (Nova-C)",
+   "crew": null,
+   "lat_deg": -80.1286,
+   "lon_deg": 1.4376,
+   "t_start_utc": "2024-02-22T23:23:00Z",
+   "t_end_utc": "2024-02-29T09:00:00Z",
+   "blurb": "The first private spacecraft to land on the Moon, near the south pole.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/IM-1",
+    "https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon"
+   ],
+   "notes": "Coordinates from LROC-based reports near Malapert A (the Wikipedia object list shows a different value; low-medium confidence). End approximate."
+  },
+  {
+   "id": "blueghost1",
+   "name": "Blue Ghost Mission 1",
+   "kind": "mission",
+   "agency": "Firefly Aerospace",
+   "lander": "Blue Ghost",
+   "crew": null,
+   "lat_deg": 18.5623,
+   "lon_deg": 61.8103,
+   "t_start_utc": "2025-03-02T08:34:00Z",
+   "t_end_utc": "2025-03-16T00:00:00Z",
+   "blurb": "A private lander that worked a full lunar day in Mare Crisium and filmed a lunar sunset.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Blue_Ghost_Mission_1",
+    "https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon"
+   ],
+   "notes": "End approximate (shortly after lunar sunset, mid-March 2025)."
+  },
+  {
+   "id": "im2",
+   "name": "IM-2 Athena",
+   "kind": "mission",
+   "agency": "Intuitive Machines",
+   "lander": "Athena",
+   "crew": null,
+   "lat_deg": -84.7906,
+   "lon_deg": 29.1957,
+   "t_start_utc": "2025-03-06T17:32:00Z",
+   "t_end_utc": "2025-03-07T00:00:00Z",
+   "blurb": "The closest any lander has gotten to the lunar south pole, on a tall plateau; it tipped over.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/IM-2",
+    "https://en.wikipedia.org/wiki/List_of_artificial_objects_on_the_Moon"
+   ],
+   "notes": "End approximate (power lost within a day)."
+  },
+  {
+   "id": "art_cabeusb",
+   "name": "Peak near Cabeus B",
+   "kind": "candidate",
+   "agency": "NASA",
+   "lander": null,
+   "crew": null,
+   "lat_deg": -83.6164,
+   "lon_deg": -68.5775,
+   "t_start_utc": null,
+   "t_end_utc": null,
+   "blurb": "A mountain peak near a permanently dark, icy crater. The marker is a sunny point Moonat chose from LOLA terrain.",
+   "sources": [
+    "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/",
+    "https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_CABEUSPKLOA"
+   ],
+   "notes": "APPROXIMATE representative point for the region; NASA has not chosen exact sites. Representative highly-illuminated point chosen by Moonat from LOLA terrain; region per NASA (Oct 2024). Mean Sun visibility 63 % in 2027 (best point within 15 km of the region centre (-83.6, -68.8) from https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_CABEUSPKLOA (P836S2912)); the earlier estimate (-85.3, -45.0) was replaced. docs/validation/terrain.md section 9. Pending Shahar's review."
+  },
+  {
+   "id": "art_haworth",
+   "name": "Haworth",
+   "kind": "candidate",
+   "agency": "NASA",
+   "lander": null,
+   "crew": null,
+   "lat_deg": -86.9555,
+   "lon_deg": -24.1657,
+   "t_start_utc": null,
+   "t_end_utc": null,
+   "blurb": "A deep crater next to the pole with shadowed floors that may hold ice. The marker is a sunny point Moonat chose from LOLA terrain.",
+   "sources": [
+    "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/",
+    "https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_HAWORTH_LOA"
+   ],
+   "notes": "APPROXIMATE representative point for the region; NASA has not chosen exact sites. Representative highly-illuminated point chosen by Moonat from LOLA terrain; region per NASA (Oct 2024). Mean Sun visibility 60 % in 2027 (best point within 15 km of the region centre (-86.7, -23.7) from https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_HAWORTH_LOA (P867S3363)); the earlier estimate (-87.5, -5.0) was replaced. docs/validation/terrain.md section 9. Pending Shahar's review."
+  },
+  {
+   "id": "art_malapert",
+   "name": "Malapert Massif",
+   "kind": "candidate",
+   "agency": "NASA",
+   "lander": null,
+   "crew": null,
+   "lat_deg": -85.9961,
+   "lon_deg": 2.0095,
+   "t_start_utc": null,
+   "t_end_utc": null,
+   "blurb": "A tall mountain that always faces Earth, good for radio contact. The marker is a sunny point Moonat chose from LOLA terrain.",
+   "sources": [
+    "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/",
+    "https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_MALAPERTLOA"
+   ],
+   "notes": "APPROXIMATE representative point for the region; NASA has not chosen exact sites. Representative highly-illuminated point chosen by Moonat from LOLA terrain; region per NASA (Oct 2024). Mean Sun visibility 76 % in 2027 (best point within 15 km of the region centre (-86.0, 0.3) from https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_MALAPERTLOA (P860S0003)); the earlier estimate (-85.99, 0.12) was replaced. docs/validation/terrain.md section 9. Pending Shahar's review."
+  },
+  {
+   "id": "art_mouton_plateau",
+   "name": "Mons Mouton Plateau",
+   "kind": "candidate",
+   "agency": "NASA",
+   "lander": null,
+   "crew": null,
+   "lat_deg": -84.2237,
+   "lon_deg": 29.0434,
+   "t_start_utc": null,
+   "t_end_utc": null,
+   "blurb": "A high, flat-topped plateau near the pole. The marker is a sunny point Moonat chose from LOLA terrain.",
+   "sources": [
+    "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/",
+    "https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_MOUTNPLTLO1"
+   ],
+   "notes": "APPROXIMATE representative point for the region; NASA has not chosen exact sites. Representative highly-illuminated point chosen by Moonat from LOLA terrain; region per NASA (Oct 2024). Mean Sun visibility 51 % in 2027 (best point within 15 km of the region centre (-84.3, 30.6) from https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_MOUTNPLTLO1 (P843S0306)); the earlier estimate (-84.8, 29.2) was replaced. docs/validation/terrain.md section 9. Pending Shahar's review."
+  },
+  {
+   "id": "art_mouton",
+   "name": "Mons Mouton",
+   "kind": "candidate",
+   "agency": "NASA",
+   "lander": null,
+   "crew": null,
+   "lat_deg": -85.4798,
+   "lon_deg": 31.3216,
+   "t_start_utc": null,
+   "t_end_utc": null,
+   "blurb": "A massif near the pole, once called Leibnitz Beta. The marker is a sunny point Moonat chose from LOLA terrain.",
+   "sources": [
+    "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/",
+    "https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_MTMOUTONLOB"
+   ],
+   "notes": "APPROXIMATE representative point for the region; NASA has not chosen exact sites. Representative highly-illuminated point chosen by Moonat from LOLA terrain; region per NASA (Oct 2024). Mean Sun visibility 73 % in 2027 (best point within 15 km of the region centre (-85.4, 35.3) from https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_MTMOUTONLOB (P854S0353)); the earlier estimate (-85.0, 31.0) was replaced. docs/validation/terrain.md section 9. Pending Shahar's review."
+  },
+  {
+   "id": "art_nobile1",
+   "name": "Nobile Rim 1",
+   "kind": "candidate",
+   "agency": "NASA",
+   "lander": null,
+   "crew": null,
+   "lat_deg": -84.3661,
+   "lon_deg": 44.35,
+   "t_start_utc": null,
+   "t_end_utc": null,
+   "blurb": "A sunny spot on the rim of Nobile crater. The marker is a sunny point Moonat chose from LOLA terrain.",
+   "sources": [
+    "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/"
+   ],
+   "notes": "APPROXIMATE representative point for the region; NASA has not chosen exact sites. Representative highly-illuminated point chosen by Moonat from LOLA terrain; region per NASA (Oct 2024). Mean Sun visibility 65 % in 2027 (best point on the 30-42 km rim annulus around (-85.2, 53.5), Nobile crater rim annulus (no LROC mosaic found)); the earlier estimate (-85.2, 53.0) was replaced. docs/validation/terrain.md section 9. Pending Shahar's review."
+  },
+  {
+   "id": "art_nobile2",
+   "name": "Nobile Rim 2",
+   "kind": "candidate",
+   "agency": "NASA",
+   "lander": null,
+   "crew": null,
+   "lat_deg": -84.1053,
+   "lon_deg": 59.6634,
+   "t_start_utc": null,
+   "t_end_utc": null,
+   "blurb": "A second sunny spot on the rim of Nobile crater. The marker is a sunny point Moonat chose from LOLA terrain.",
+   "sources": [
+    "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/",
+    "https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_NOBILE02LOA"
+   ],
+   "notes": "APPROXIMATE representative point for the region; NASA has not chosen exact sites. Representative highly-illuminated point chosen by Moonat from LOLA terrain; region per NASA (Oct 2024). Mean Sun visibility 52 % in 2027 (best point within 15 km of the region centre (-83.9, 58.7) from https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_NOBILE02LOA (P839S0587)); the earlier estimate (-85.4, 54.0) was replaced. docs/validation/terrain.md section 9. Pending Shahar's review."
+  },
+  {
+   "id": "art_degerlache2",
+   "name": "de Gerlache Rim 2",
+   "kind": "candidate",
+   "agency": "NASA",
+   "lander": null,
+   "crew": null,
+   "lat_deg": -88.7036,
+   "lon_deg": -68.4769,
+   "t_start_utc": null,
+   "t_end_utc": null,
+   "blurb": "A rim of de Gerlache crater, next to Shackleton. The marker is a sunny point Moonat chose from LOLA terrain.",
+   "sources": [
+    "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/",
+    "https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_DEGERRIMLO1"
+   ],
+   "notes": "APPROXIMATE representative point for the region; NASA has not chosen exact sites. Representative highly-illuminated point chosen by Moonat from LOLA terrain; region per NASA (Oct 2024). Mean Sun visibility 74 % in 2027 (best point within 15 km of the region centre (-88.5, -66.7) from https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_DEGERRIMLO1 (P885S2933)); the earlier estimate (-88.5, -88.0) was replaced. docs/validation/terrain.md section 9. Pending Shahar's review."
+  },
+  {
+   "id": "art_slater",
+   "name": "Slater Plain",
+   "kind": "candidate",
+   "agency": "NASA",
+   "lander": null,
+   "crew": null,
+   "lat_deg": -87.6901,
+   "lon_deg": 107.2054,
+   "t_start_utc": null,
+   "t_end_utc": null,
+   "blurb": "A flat, low plain close to the pole. The marker is a sunny point Moonat chose from LOLA terrain.",
+   "sources": [
+    "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/"
+   ],
+   "notes": "APPROXIMATE representative point for the region; NASA has not chosen exact sites. Representative highly-illuminated point chosen by Moonat from LOLA terrain; region per NASA (Oct 2024). Mean Sun visibility 41 % in 2027 (best point within 15 km of the region centre (-88.1, 111.3) from Slater crater (-88.08, 111.29); no LROC mosaic found); the earlier estimate (-88.1, 111.3) was replaced. docs/validation/terrain.md section 9. Pending Shahar's review."
+  },
+  {
+   "id": "shackleton_rim",
+   "name": "Shackleton rim (connecting ridge)",
+   "kind": "poi",
+   "agency": null,
+   "lander": null,
+   "crew": null,
+   "lat_deg": -89.4395,
+   "lon_deg": -137.1934,
+   "t_start_utc": null,
+   "t_end_utc": null,
+   "blurb": "A ridge near Shackleton crater that gets sunlight almost all the time, good for solar power.",
+   "sources": [
+    "https://doi.org/10.1016/j.icarus.2014.08.013",
+    "https://elib.dlr.de/94242/1/EPSC2014-136-1.pdf",
+    "https://doi.org/10.1016/j.icarus.2011.03.025",
+    "https://en.wikipedia.org/wiki/Shackleton_(lunar_crater)"
+   ],
+   "notes": "Glaser et al. 2014 connecting-ridge point CR1 spot 1 (89.4395 S, 222.8066 E; 88.1 % average illumination at 2 m, 20 m LOLA DTM). Moonat's LOLA check gives 86.0 % (docs/validation/terrain.md). Coordinates changed by the terrain agent, pending Shahar's review."
+  },
+  {
+   "id": "malapert_massif",
+   "name": "Malapert Massif",
+   "kind": "poi",
+   "agency": null,
+   "lander": null,
+   "crew": null,
+   "lat_deg": -85.99,
+   "lon_deg": 0.12,
+   "t_start_utc": null,
+   "t_end_utc": null,
+   "blurb": "A 5 km tall mountain near the south pole that always has Earth in view.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Malapert_(mountain)"
+   ],
+   "notes": "Summit area."
+  },
+  {
+   "id": "degerlache_rim",
+   "name": "de Gerlache rim",
+   "kind": "poi",
+   "agency": null,
+   "lander": null,
+   "crew": null,
+   "lat_deg": -89.0056,
+   "lon_deg": -96.6455,
+   "t_start_utc": null,
+   "t_end_utc": null,
+   "blurb": "The rim of de Gerlache crater, a very cold neighbour of Shackleton.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/De_Gerlache_(crater)"
+   ],
+   "notes": "Rim-crest point derived by Moonat from LOLA terrain: the highest mean Sun visibility (71 % in 2027) on the rim annulus 12-22 km from the crater centre (-88.5, -87.1); docs/validation/terrain.md section 9. Pending Shahar's review."
+  },
+  {
+   "id": "south_pole",
+   "name": "Lunar south pole",
+   "kind": "poi",
+   "agency": null,
+   "lander": null,
+   "crew": null,
+   "lat_deg": -90.0,
+   "lon_deg": 0.0,
+   "t_start_utc": null,
+   "t_end_utc": null,
+   "blurb": "The very bottom of the Moon, where the Sun always sits on the horizon.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Lunar_south_pole"
+   ],
+   "notes": "Longitude arbitrary at the pole."
+  }
+ ]
+}

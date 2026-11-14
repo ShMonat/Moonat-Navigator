@@ -1,0 +1,37 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.pytest_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv
+
+# Secrets - never commit
+.env
+*.env
+
+# Team board: separate branch `board`, checked out here as a worktree (see docs/COLLABORATION.md)
+board/
+
+# Large / downloaded / generated data (see data/README.md)
+data/raw/
+data/cache/
+outputs/
+
+# Personal Claude Code settings (shared ones live in .claude/settings.json)
+.claude/settings.local.json
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# Agent worktrees created by Claude Code
+.claude/worktrees/

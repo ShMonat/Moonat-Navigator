@@ -1,0 +1,102 @@
+{
+ "_generated_by": "AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.",
+ "years": [
+  1966,
+  1967,
+  1968,
+  1969,
+  1970,
+  1971,
+  1972,
+  1973,
+  1974,
+  1975,
+  1976,
+  2013,
+  2014,
+  2015,
+  2016,
+  2017,
+  2018,
+  2019,
+  2020,
+  2021,
+  2022,
+  2023,
+  2024,
+  2025,
+  2026,
+  2027,
+  2028,
+  2029,
+  2030,
+  2031,
+  2032,
+  2033,
+  2034,
+  2035,
+  2036,
+  2037,
+  2038,
+  2039,
+  2040
+ ],
+ "step_hours": 3.0,
+ "frame": "MOON_ME_DE421",
+ "ephemeris": "DE421",
+ "time_scale": "UTC",
+ "record_layout": [
+  {
+   "name": "sun_me",
+   "dtype": "f8",
+   "count": 3
+  },
+  {
+   "name": "earth_me",
+   "dtype": "f8",
+   "count": 3
+  },
+  {
+   "name": "q_icrs_to_me",
+   "dtype": "f8",
+   "count": 4
+  },
+  {
+   "name": "planets_icrs",
+   "dtype": "f4",
+   "count": 15
+  }
+ ],
+ "record_bytes": 140,
+ "endianness": "little",
+ "interpolation": "cubic Hermite (C1) on positions; slerp on quaternion",
+ "interpolation_scheme": "Record k of <Y>.bin is at POSIX time T(Y)+k*H*3600 s (T(Y) = Y-01-01T00:00:00Z; POSIX ignores leap seconds, like JS Date). For time t in year Y: u=(t-T(Y))/(H*3600), i=min(floor(u),N-2), s=u-i. Positions (sun_me, earth_me, planets_icrs; per component) use cubic Hermite with per-step tangents m_k=(P[k+1]-P[k-1])/2 for 1<=k<=N-2, m_0=(-11P[0]+18P[1]-9P[2]+2P[3])/6, m_(N-1)=(11P[N-1]-18P[N-2]+9P[N-3]-2P[N-4])/6; P(s)=(2s^3-3s^2+1)P[i]+(s^3-2s^2+s)m_i+(-2s^3+3s^2)P[i+1]+(s^3-s^2)m_(i+1). Planet directions are renormalised. Quaternion: slerp from q[i] to q[i+1] after negating q[i+1] if dot(q[i],q[i+1])<0. Rotation matrix from (w,x,y,z): Hamilton, active, v_me = R v_icrs. Topocentric: site_me = (1737.4 + (ground_elev_m+observer_height_m)/1000) km * (cos lat cos lon, cos lat sin lon, sin lat); body_topo = body_me - site_me; planets have no parallax (unit vectors). Reference: moonat.ephem.table (Python).",
+ "quaternion": "q_icrs_to_me = (w, x, y, z), Hamilton, active: v_me = q v_icrs q*",
+ "apparent": "seen from the Moon's centre: light-time + gravitational deflection (Sun, Jupiter, Saturn) + stellar aberration; vector length = light-time distance (km)",
+ "planets": [
+  "mercury",
+  "venus",
+  "mars",
+  "jupiter",
+  "saturn"
+ ],
+ "planet_note": "jupiter and saturn are system barycentres (DE421); offset < 0.1 arcsec",
+ "body_radii_km": {
+  "sun": 696000.0,
+  "earth": 6378.137
+ },
+ "moon_radius_km": 1737.4,
+ "total_bytes": 15959860,
+ "max_interp_error_arcsec": 0.523,
+ "interp_error_check": {
+  "sun_dir_arcsec": 0.522974,
+  "sun_dist_km": 2.079762,
+  "earth_dir_arcsec": 0.06046,
+  "earth_dist_km": 0.040537,
+  "rotation_arcsec": 0.509845,
+  "planets_dir_arcsec": 5.250773,
+  "planets_dir_arcsec_elong_gt_2deg": 0.058624,
+  "n_samples": 4134
+ },
+ "interp_error_note": "Max over random times and the first/last interval of every year, table vs direct skyfield, Moon-centre vectors. Includes the intervals holding a leap second (POSIX time cannot represent 23:59:60, so up to 1 s of lunar rotation, ~0.55 arcsec, there). Elsewhere the Sun error is <= 0.1 arcsec at a 3 h step."
+}

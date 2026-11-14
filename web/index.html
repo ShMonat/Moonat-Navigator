@@ -1,0 +1,200 @@
+<!doctype html>
+<!-- AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team. -->
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Moonat: Lunar Landing Site Navigator</title>
+  <meta name="description" content="See the Sun and Earth from anywhere on the Moon. Compare lunar landing sites and mission dates for sunlight and direct-to-Earth contact.">
+  <meta name="color-scheme" content="dark light">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%23d9d6cc'/%3E%3Ccircle cx='21' cy='12' r='11' fill='%230b0d12'/%3E%3C/svg%3E">
+  <script>
+    // Apply the saved theme before first paint, to avoid a flash.
+    try { const t = localStorage.getItem("moonat-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) { /* storage blocked */ }
+  </script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="css/app.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "leaflet": "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet-src.esm.js"
+    }
+  }
+  </script>
+  <script type="module" src="js/app/main.js"></script>
+</head>
+<body>
+  <a class="skip" href="#output">Skip to results</a>
+
+  <header class="topbar">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13" class="logo-moon"/><circle cx="21.5" cy="11.5" r="11" class="logo-shadow"/></svg>
+      <div>
+        <h1>Moonat</h1>
+        <p class="tagline">Lunar Landing Site Navigator: see the Sun and Earth from anywhere on the Moon</p>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Views">
+      <button role="tab" id="tab-btn-compare" aria-controls="tab-compare" aria-selected="true" data-tab="compare">Compare</button>
+      <button role="tab" id="tab-btn-sky" aria-controls="tab-sky" aria-selected="false" data-tab="sky" tabindex="-1">Sky</button>
+    </nav>
+    <div class="top-actions">
+      <button class="ghost" id="btn-share" title="Copy a link to this view">Share</button>
+      <button class="ghost" id="btn-about" title="What the numbers mean and where the data comes from">About</button>
+      <button class="icon-btn" id="btn-theme" aria-label="Switch to light theme" title="Switch theme">
+        <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><g><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></g></svg>
+        <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="side" aria-label="Scenarios">
+      <section class="block qs-block">
+        <div class="block-head">
+          <h2 class="block-title">Quick start</h2>
+          <a class="jump-link" href="#map-block">Map and scenarios &darr;</a>
+        </div>
+        <div class="chips" id="quickstarts"></div>
+      </section>
+
+      <section class="block map-block" id="map-block">
+        <div id="map" class="map" role="application" aria-label="Moon map: click to set the location of the selected scenario"></div>
+        <p class="map-hint" id="map-hint">Click the map to place the selected scenario.</p>
+      </section>
+
+      <section class="block scen-block" id="scen-block">
+        <div class="block-head">
+          <h2 class="block-title">Scenarios</h2>
+          <button class="link-btn" id="btn-clear" hidden>Clear all</button>
+        </div>
+        <div id="cards" class="cards"></div>
+        <div class="add-row" id="add-row">
+          <button class="add-btn" id="btn-add-location" title="Same times, new place">+ Add location</button>
+          <button class="add-btn" id="btn-add-time" title="Same place, new time">+ Add time</button>
+        </div>
+      </section>
+    </aside>
+
+    <section class="output" id="output" aria-live="polite">
+      <div id="tab-compare" role="tabpanel" aria-labelledby="tab-btn-compare" class="tabpanel">
+        <div class="empty" id="compare-empty" hidden>
+          <svg viewBox="0 0 120 60" class="empty-art" aria-hidden="true"><path d="M0 52 Q30 38 52 46 T120 40 V60 H0z" class="ground"/><circle cx="88" cy="18" r="9" class="earth"/><circle cx="28" cy="14" r="5" class="sun"/></svg>
+          <h2>Pick a place on the Moon and a time</h2>
+          <p>Use the map, type coordinates, or load a historical mission. A quick start is the fastest way in.</p>
+        </div>
+        <div id="compare-body">
+          <div class="compare-bar" id="compare-bar">
+            <div class="seg" role="group" aria-label="Time axis" id="xaxis-toggle">
+              <button data-x="met" aria-pressed="true">Mission elapsed time</button>
+              <button data-x="utc" aria-pressed="false">Calendar time (UTC)</button>
+            </div>
+            <p class="busy" id="busy" hidden><span class="spinner" aria-hidden="true"></span>Computing…</p>
+          </div>
+
+          <section class="body-section" id="sec-sun" aria-labelledby="h-sun">
+            <h2 class="sec-title" id="h-sun"><span class="sec-icon sun" aria-hidden="true">☀</span>Sun <span class="sec-sub">power and heat</span></h2>
+            <div class="metric-cards" id="cards-sun"></div>
+            <div class="charts" id="charts-sun"></div>
+          </section>
+
+          <section class="body-section" id="sec-earth" aria-labelledby="h-earth">
+            <h2 class="sec-title" id="h-earth"><span class="sec-icon earth" aria-hidden="true">🌍</span>Earth <span class="sec-sub">direct radio contact</span></h2>
+            <div class="metric-cards" id="cards-earth"></div>
+            <div class="charts" id="charts-earth"></div>
+          </section>
+        </div>
+      </div>
+
+      <div id="tab-sky" role="tabpanel" aria-labelledby="tab-btn-sky" class="tabpanel" hidden>
+        <div class="sky-controls" id="sky-controls">
+          <div class="sky-time">
+            <button class="icon-btn play" id="btn-play" aria-label="Play timelapse" title="Play / pause">
+              <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+              <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>
+            </button>
+            <input type="range" id="sky-slider" min="0" max="1000" value="0" step="1" aria-label="Time since mission start">
+            <output id="sky-clock" for="sky-slider">T+0 h</output>
+            <label class="speed">Speed
+              <select id="sky-speed">
+                <option value="600000">10 min / s</option>
+                <option value="3600000" selected>1 h / s</option>
+                <option value="21600000">6 h / s</option>
+                <option value="86400000">1 day / s</option>
+              </select>
+            </label>
+          </div>
+          <div class="sky-look">
+            <button class="ghost" id="btn-look-earth">🌍 Look at Earth</button>
+            <button class="ghost" id="btn-look-sun">☀ Look at Sun</button>
+          </div>
+          <p class="sky-note" id="sky-note">Drag to look around, scroll to zoom. Missions are synchronised by time since landing.</p>
+        </div>
+        <div class="empty" id="sky-empty" hidden>
+          <h2>No sky to show yet</h2>
+          <p>Add a scenario with a location and a start time.</p>
+        </div>
+        <div class="sky-grid" id="sky-grid"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p>Ephemeris: JPL DE421 (validated against JPL Horizons) · Terrain: NASA LRO LOLA · Map: NASA Moon Trek (LRO WAC mosaic) · Earth: NASA Blue Marble · Built for NASA Space Apps 2026.
+      Made with the help of AI (Claude Code). <button class="link-btn" data-open-about>How it works</button></p>
+  </footer>
+
+  <dialog id="about" class="about" aria-labelledby="about-title">
+    <form method="dialog" class="about-close"><button class="icon-btn" aria-label="Close">✕</button></form>
+    <h2 id="about-title">How Moonat works</h2>
+    <p class="lead">Pick one or more places on the Moon and a time (or a whole mission). Moonat puts the Sun and Earth exactly where they are in that
+      sky and checks whether the local hills hide them.</p>
+
+    <h3>What the numbers mean</h3>
+    <dl class="glossary">
+      <dt>Elevation</dt><dd>How high a body is above the flat, ideal horizon, in degrees. 0° is the horizon line, 90° is straight up.
+        A positive value does <em>not</em> guarantee a view: a hill or crater rim can still block it.</dd>
+      <dt>Azimuth</dt><dd>The compass direction, in degrees clockwise from lunar north: 0° north, 90° east, 180° south, 270° west.</dd>
+      <dt>Visible disk</dt><dd>How much of the Sun's or Earth's disk clears the real terrain horizon. 100% means fully in view, 0% means hidden.</dd>
+      <dt>Sunlight (W/m²)</dt><dd>Solar power arriving on a panel that faces the Sun, or on flat ground. About 1361 W/m² at Earth's average
+        distance from the Sun, scaled by the actual distance and by how much of the Sun is visible.</dd>
+      <dt>Earth phase</dt><dd>How much of Earth's disk is lit. It is the opposite of the Moon's phase seen from Earth: at new Moon, Earth looks full.</dd>
+      <dt>Sets in / rises in</dt><dd>Time until the body next disappears behind (or clears) the horizon. For Earth this is the end of the direct radio window.</dd>
+    </dl>
+
+    <h3>Why the far side never sees Earth</h3>
+    <p>The Moon always shows the same face to Earth, because it spins exactly once per orbit. Seen from the near side, Earth hangs in almost the
+      same spot in the sky, rocking by a few degrees (libration). From the far side, Earth never rises at all. That is why China's
+      Chang'e 4 lander needed the Queqiao relay satellite to talk home.</p>
+
+    <h3>Why terrain matters</h3>
+    <p>Near the poles the Sun skims the horizon, so a single ridge can decide whether a lander gets power. Moonat uses NASA LOLA laser altimetry
+      to trace the real horizon around catalogued sites, out to more than 100 km, including the curvature of the Moon. For a point you pick
+      yourself, Moonat traces the horizon on a coarser LOLA elevation grid (about 3.8 km per cell, 480 m near the south pole). Distant
+      mountains are there, but hills within a few kilometres are not, so these results are labelled "approximate terrain".</p>
+
+    <h3>Data and accuracy</h3>
+    <ul class="sources">
+      <li><strong>Positions:</strong> JPL DE421 planetary ephemeris and the precise lunar orientation (libration included), with light-time and
+        aberration. The Sun and Earth directions agree with <a href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noopener">JPL Horizons</a>
+        to better than one arcsecond.</li>
+      <li><strong>Terrain:</strong> NASA Lunar Reconnaissance Orbiter laser altimeter (LOLA) elevation models, from the
+        <a href="https://pds-geosciences.wustl.edu/missions/lro/lola.htm" target="_blank" rel="noopener">NASA Planetary Data System</a>.</li>
+      <li><strong>Map:</strong> <a href="https://trek.nasa.gov/moon/" target="_blank" rel="noopener">NASA Moon Trek</a>, LRO Wide Angle Camera global mosaic.</li>
+      <li><strong>Earth:</strong> <a href="https://visibleearth.nasa.gov/images/57752/" target="_blank" rel="noopener">NASA Blue Marble</a> and
+        <a href="https://visibleearth.nasa.gov/images/55167/" target="_blank" rel="noopener">City Lights</a> images, turned with the real rotation of the Earth.</li>
+      <li><strong>Stars:</strong> Yale Bright Star Catalogue (stars to magnitude 6); constellation lines from d3-celestial.</li>
+      <li><strong>Missions:</strong> landing coordinates and times from NASA NSSDCA, the Apollo Lunar Surface Journal and LROC. The Artemis III
+        candidate regions are NASA's 2024 list, placed at approximate points, since exact landing sites are not chosen yet.</li>
+      <li><strong>Frames:</strong> selenographic latitude and east-positive longitude (Mean Earth / polar axis frame). Times are UTC.
+        The eye is 2 m above the ground. The Moon has no air, so there is no refraction.</li>
+    </ul>
+    <p class="fine">Built for the NASA Space Apps Challenge 2026, "Lunar Landing Site Navigator". The code was written with Claude Code
+      (Anthropic), directed and reviewed by the Moonat team.</p>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+</body>
+</html>

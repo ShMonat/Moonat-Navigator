@@ -1,0 +1,125 @@
+{
+ "_generated_by": "AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.",
+ "api": "https://ssd.jpl.nasa.gov/api/horizons.api",
+ "sites": {
+  "apollo11": {
+   "lat_deg": 0.674,
+   "lon_deg": 23.473,
+   "alt_km": 0.0
+  },
+  "southpole": {
+   "lat_deg": -89.5,
+   "lon_deg": 0.0,
+   "alt_km": 0.0
+  },
+  "change4": {
+   "lat_deg": -45.44,
+   "lon_deg": 177.59,
+   "alt_km": 0.0
+  }
+ },
+ "cases": [
+  {
+   "file": "apollo11_sun_epochs.txt",
+   "site": "apollo11",
+   "body": "sun",
+   "command": "10"
+  },
+  {
+   "file": "apollo11_sun_series.txt",
+   "site": "apollo11",
+   "body": "sun",
+   "command": "10"
+  },
+  {
+   "file": "apollo11_earth_epochs.txt",
+   "site": "apollo11",
+   "body": "earth",
+   "command": "399"
+  },
+  {
+   "file": "apollo11_earth_series.txt",
+   "site": "apollo11",
+   "body": "earth",
+   "command": "399"
+  },
+  {
+   "file": "southpole_sun_epochs.txt",
+   "site": "southpole",
+   "body": "sun",
+   "command": "10"
+  },
+  {
+   "file": "southpole_sun_series.txt",
+   "site": "southpole",
+   "body": "sun",
+   "command": "10"
+  },
+  {
+   "file": "southpole_earth_epochs.txt",
+   "site": "southpole",
+   "body": "earth",
+   "command": "399"
+  },
+  {
+   "file": "southpole_earth_series.txt",
+   "site": "southpole",
+   "body": "earth",
+   "command": "399"
+  },
+  {
+   "file": "change4_sun_epochs.txt",
+   "site": "change4",
+   "body": "sun",
+   "command": "10"
+  },
+  {
+   "file": "change4_sun_series.txt",
+   "site": "change4",
+   "body": "sun",
+   "command": "10"
+  },
+  {
+   "file": "change4_earth_epochs.txt",
+   "site": "change4",
+   "body": "earth",
+   "command": "399"
+  },
+  {
+   "file": "change4_earth_series.txt",
+   "site": "change4",
+   "body": "earth",
+   "command": "399"
+  },
+  {
+   "file": "apollo11_mercury_epochs.txt",
+   "site": "apollo11",
+   "body": "mercury",
+   "command": "199"
+  },
+  {
+   "file": "apollo11_venus_epochs.txt",
+   "site": "apollo11",
+   "body": "venus",
+   "command": "299"
+  },
+  {
+   "file": "apollo11_mars_epochs.txt",
+   "site": "apollo11",
+   "body": "mars",
+   "command": "499"
+  },
+  {
+   "file": "apollo11_jupiter_epochs.txt",
+   "site": "apollo11",
+   "body": "jupiter",
+   "command": "599"
+  },
+  {
+   "file": "apollo11_saturn_epochs.txt",
+   "site": "apollo11",
+   "body": "saturn",
+   "command": "699"
+  }
+ ]
+}

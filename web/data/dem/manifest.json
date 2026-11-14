@@ -1,0 +1,53 @@
+{
+ "_generated_by": "AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.",
+ "format": "moonat-dem-tiles/1",
+ "frame": "MOON_ME_DE421",
+ "reference_radius_m": 1737400.0,
+ "dtype": "int16",
+ "byte_order": "little",
+ "value": "height_m above the reference sphere (1 unit = 1 m)",
+ "nodata": -32768,
+ "layout": "each tile is tile_size x tile_size values, row-major, row 0 = top (north for cylindrical, lon 0 side for south polar); tile (tr, tc) holds rows tr*tile_size.. and cols tc*tile_size..; edge tiles are padded with nodata",
+ "levels": [
+  {
+   "id": "global8",
+   "projection": "simple_cylindrical",
+   "res_ppd": 8,
+   "lat_top_deg": 90.0,
+   "lon_left_deg": 0.0,
+   "lines": 1440,
+   "samples": 2880,
+   "periodic_lon": true,
+   "pixel_centre": "lat = lat_top - (row + 0.5)/res_ppd; lon_east = lon_left + (col + 0.5)/res_ppd",
+   "tile_size": 240,
+   "tiles": [
+    6,
+    12
+   ],
+   "url": "global8/r{tr}_c{tc}.bin",
+   "cell_m": 3790.4,
+   "source": "LOLA LDEM_16 (NASA PDS), 2 x 2 block mean"
+  },
+  {
+   "id": "south480",
+   "projection": "polar_stereographic",
+   "pole": -1,
+   "scale_m": 480.0,
+   "row0": 649.5,
+   "col0": 649.5,
+   "lines": 1300,
+   "samples": 1300,
+   "equations": "s = pole; k = 2R/(1 + s*uz); x = k*uy; y_up = -s*k*ux; row = row0 - y_up/scale_m; col = col0 + x/scale_m (u = unit vector in MOON_ME, R = 1737400 m)",
+   "tile_size": 260,
+   "tiles": [
+    5,
+    5
+   ],
+   "url": "south480/r{tr}_c{tc}.bin",
+   "cell_m": 480.0,
+   "use_where": "lat_deg <= -80 (fall back to global8 outside the grid)",
+   "source": "LOLA LDEM_75S_240M (NASA PDS), 2 x 2 block mean of the central 2600 x 2600 px"
+  }
+ ],
+ "algorithm": "moonat.terrain.horizon (docs/validation/terrain.md); use the finest level that covers each ray sample, step = level cell size, bilinear interpolation"
+}
