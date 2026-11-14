@@ -53,7 +53,7 @@ Challenge Resources tab (published 2026-11-13): Quickmap, Moon Trek, JPL Horizon
 
 ## Tools
 - Claude Code (Anthropic) — AI coding agent used to write the code and docs — https://claude.com/claude-code — see docs/AI_USE.md
-- Playwright for Python (Microsoft) with the installed Microsoft Edge — scripted app screenshots in docs/figures/app_*.png and docs/figures/globe_*.png, and the demo video recorder scripts/video/record_demo.py (dev dependency) — https://playwright.dev/python/ — Apache-2.0
+- Playwright for Python (Microsoft) with the installed Microsoft Edge — scripted app screenshots in docs/figures/app_*.png and docs/figures/globe_*.png, the live-terrain browser check scripts/check_terrain_live.py (docs/figures/terrain_live_*.png), and the demo video recorder scripts/video/record_demo.py (dev dependency) — https://playwright.dev/python/ — Apache-2.0
 - imageio-ffmpeg — bundled FFmpeg binary used to encode the demo video — https://github.com/imageio/imageio-ffmpeg — BSD-2-Clause (the bundled FFmpeg build with libx264 is GPL)
 - FFmpeg with libx264 — H.264 encoding of the demo video (outputs/video/, via imageio-ffmpeg) — https://ffmpeg.org/ , https://www.videolan.org/developers/x264.html — LGPL/GPL
 
@@ -89,6 +89,7 @@ Challenge Resources tab (published 2026-11-13): Quickmap, Moon Trek, JPL Horizon
 - Moon Trek 3D terrain, Cesium quantized-mesh-1.0 tiles (evaluated, not used: simplified TIN) — https://marshub.s3.amazonaws.com/moon_v14/layer.json — public
 - USGS Astrogeology map mosaics on AWS (`planetarymaps.usgs.gov` / `asc-pds-services`): LOLA LDEM 118 m global BigTIFF and the LMAP south-pole 5 m COG `ldem_87s_5mpp_cog.tif` (evaluated as static alternatives, not used) — https://planetarymaps.usgs.gov/mosaic/ — public (USGS / NASA)
 - Esri LERC (Limited Error Raster Compression) version 1 format description — our decoder web/js/terrain/lerc1.js is written from it — https://github.com/Esri/lerc — Apache-2.0
+- ★ NASA Moon Trek in the live app — every custom point (map click, typed coordinates, shared link) fetches its LOLA horizon and 3D ground from the Moon Trek ImageServer at run time (web/js/app/terrain_live.js); credited in the page footer, the About panel and each point's status line — https://trek.nasa.gov/moon/ — public (NASA)
 
 ### Additional entries (docs completeness check, 2026-11-14)
 - Smith et al. 2010, Space Sci. Rev. 150, 209-241, "The Lunar Orbiter Laser Altimeter investigation on the Lunar Reconnaissance Orbiter mission" — the LOLA instrument behind every terrain product above — https://doi.org/10.1007/s11214-009-9512-y — paper (cited only)

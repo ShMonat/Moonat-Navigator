@@ -13,7 +13,7 @@
 // The work runs in a module Web Worker when one is available (fetch + LERC decode + ray march take
 // ~0.1 s of CPU on top of the network time); in Node or with {worker: false} it runs inline.
 
-import { computeTerrain } from './core.js';
+import { abortError, computeTerrain } from './core.js';
 
 const CACHE = new Map(); // key -> Promise<result>
 let worker = null, nextId = 1;
@@ -24,11 +24,13 @@ function getWorker() {
   try {
     worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
     worker.onmessage = (ev) => {
-      const { id, result, error } = ev.data;
+      const { id, result, error, aborted } = ev.data;
       const p = pending.get(id);
       if (!p) return;
       pending.delete(id);
-      if (error) p.reject(new Error(error)); else p.resolve(result);
+      if (aborted) p.reject(abortError());
+      else if (error) p.reject(new Error(error));
+      else p.resolve(result);
     };
     worker.onerror = (ev) => {
       for (const p of pending.values()) p.reject(new Error(`terrain worker failed: ${ev.message || 'error'}`));
@@ -62,26 +64,42 @@ function absolute(url) {
  * @param {boolean}[opts.online=true]      false: shipped C5 tiles only
  * @param {string} [opts.demBaseUrl='data/dem']
  * @param {boolean}[opts.worker=true]      use a Web Worker when available
+ * @param {AbortSignal}[opts.signal]       cancel: the Moon Trek requests stop and the promise rejects
+ *                                         with an AbortError (the request is then dropped from the cache)
  * @param {function}[opts.fetch]           fetch replacement (forces inline execution)
  * @returns {Promise<{horizon: object, patch: object|null, meta: object}>}
+ *   Results are cached per (lat, lon, options) for the page's lifetime. If Moon Trek cannot be
+ *   reached the promise still resolves, with the tiles-only horizon, horizon.approximate = true,
+ *   patch = null and meta.fallback giving the reason.
  */
 export function terrainAt(lat_deg, lon_deg, opts = {}) {
-  const { worker: useWorker = true, fetch: fetchFn, trekFetch, ...rest } = opts;
+  const { worker: useWorker = true, fetch: fetchFn, trekFetch, signal, ...rest } = opts;
+  if (signal?.aborted) return Promise.reject(abortError());
   const o = { ...rest, demBaseUrl: absolute(rest.demBaseUrl ?? 'data/dem') };
   const key = JSON.stringify([lat_deg, lon_deg, o]);
-  if (!fetchFn && !trekFetch && CACHE.has(key)) return CACHE.get(key);
+  const cacheable = !fetchFn && !trekFetch;
+  if (cacheable && CACHE.has(key)) return CACHE.get(key);
   let p;
-  const w = useWorker && !fetchFn && !trekFetch && typeof Worker !== 'undefined' ? getWorker() : false;
+  const w = useWorker && cacheable && typeof Worker !== 'undefined' ? getWorker() : false;
   if (w) {
     const id = nextId++;
     p = new Promise((resolve, reject) => {
       pending.set(id, { resolve, reject });
       w.postMessage({ id, lat_deg, lon_deg, opts: o });
-    }).catch(() => computeTerrain(lat_deg, lon_deg, o)); // worker trouble: run inline
+      signal?.addEventListener('abort', () => {
+        if (!pending.has(id)) return;
+        pending.delete(id);
+        w.postMessage({ cancel: id });
+        reject(abortError());
+      }, { once: true });
+    }).catch((e) => {
+      if (e && e.name === 'AbortError') throw e;
+      return computeTerrain(lat_deg, lon_deg, { ...o, signal }); // worker trouble: run inline
+    });
   } else {
-    p = computeTerrain(lat_deg, lon_deg, { ...o, fetch: fetchFn, trekFetch });
+    p = computeTerrain(lat_deg, lon_deg, { ...o, fetch: fetchFn, trekFetch, signal });
   }
-  if (!fetchFn && !trekFetch) {
+  if (cacheable) {
     CACHE.set(key, p);
     p.catch(() => CACHE.delete(key));
   }

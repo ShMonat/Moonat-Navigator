@@ -6,7 +6,8 @@
 import { formatDuration, formatUtc } from "./state.js";
 import { compassPoint } from "./derive.js";
 import { stateAt } from "./physics_adapter.js";
-import { makeSkyView, terrainPatchUrl } from "./sky_adapter.js";
+import { makeSkyView, terrainPatchUrl, skyPatch } from "./sky_adapter.js";
+import { terrainStatusText } from "./terrain_live.js";
 import { bindPinchZoom } from "./gestures.js";
 
 const $ = (id) => document.getElementById(id);
@@ -113,7 +114,14 @@ export function setSkyItems(newItems) {
       cards.set(key, rec);
       if (visible) watch(rec);
     }
+    const terrainChanged = rec.it.horizon !== it.horizon || rec.it.patch !== it.patch;
     rec.it = it;
+    if (terrainChanged) {
+      // Real terrain arrived for a custom point (or went away): new skyline and 3D ground, same camera.
+      rec.lastT = null;
+      if (rec.view) swapTerrain(rec);
+    }
+    if (!it.s.site_id) rec.lastT = null; // the footer shows the live terrain status, which can change on its own
     rec.root.style.setProperty("--c", it.color);
     rec.root.querySelector(".mcard-title").textContent = it.label;
     order.push(rec.root);
@@ -275,13 +283,33 @@ function recycleViews() {
   }
 }
 
+/**
+ * Give a live view the card's current terrain. The 3D view swaps its terrain in place (setTerrain); a view without
+ * that (the 2D fallback) is rebuilt.
+ */
+function swapTerrain(rec) {
+  const it = rec.it;
+  if (typeof rec.view.setTerrain === "function") {
+    // Catalog sites keep their C4 patch file; custom points get the live patch (or none yet).
+    rec.view.setTerrain(it.s.site_id ? { horizon: it.horizon } : { horizon: it.horizon, patch: skyPatch(it.patch) });
+    return;
+  }
+  rec.view.dispose();
+  rec.view = null;
+  rec.viewEl.replaceChildren();
+  rec.viewEl.insertAdjacentHTML("beforeend", LOADING_HTML);
+  if (visible && rec.onScreen && !rec.creating) createView(rec);
+}
+
 async function createView(rec) {
   rec.creating = true;
   try {
     const it = rec.it;
-    const patch = await terrainPatchUrl(it.s.site_id);
+    // Catalog sites: the precomputed C4 patch file. Custom points: the live Moon Trek patch once it has arrived.
+    const patchUrl = it.s.site_id ? await terrainPatchUrl(it.s.site_id) : null;
     const { view, mode } = await makeSkyView(rec.viewEl, {
-      site: it.site, terrainPatchUrl: patch, fovDeg: 70, earthNightTextureUrl: "assets/earth_night.jpg",
+      site: it.site, terrainPatchUrl: patchUrl, terrainPatch: it.s.site_id ? null : skyPatch(it.patch),
+      fovDeg: 70, earthNightTextureUrl: "assets/earth_night.jpg",
     });
     if (!cards.has(rec.key)) {
       view.dispose(); // the scenario was removed while the view was loading
@@ -289,6 +317,8 @@ async function createView(rec) {
     }
     rec.view = view;
     rec.mode = mode;
+    // The terrain may have changed while the view was loading (live terrain of a custom point).
+    if (rec.it.horizon !== it.horizon || rec.it.patch !== it.patch) swapTerrain(rec);
     if (rec === focusRec) setViewFocus(view, true);
     rec.viewEl.querySelector(".sky-loading")?.remove();
     rec.lastT = null;
@@ -331,8 +361,13 @@ function deg1(x) {
 }
 
 function terrainNote(it) {
-  if (it.horizon?.approximate) {
-    return '<span class="note" title="Custom points use a coarse LOLA elevation grid (about 3.8 km per cell, 480 m near the south pole), so hills within a few km are missing.">approximate terrain (coarse LOLA tiles)</span>';
+  if (!it.s.site_id) {
+    // Custom points: live terrain status ("Loading NASA terrain…", real Moon Trek terrain, or the coarse fallback).
+    const text = terrainStatusText(it.s.lat_deg, it.s.lon_deg);
+    const tip = it.horizon?.approximate
+      ? "Until the NASA Moon Trek terrain arrives (or if it cannot be reached), custom points use a coarse LOLA grid (about 3.8 km per cell, 480 m near the south pole), so hills within a few km are missing."
+      : "Horizon and 3D ground from NASA LRO LOLA elevation, fetched for this point from NASA Moon Trek.";
+    return `<span class="note" title="${esc(tip)}">${esc(text)}</span>`;
   }
   if (it.horizon) return '<span class="note">real terrain horizon (LOLA)</span>';
   if (it.s.site_id) return '<span class="note">flat horizon: terrain profile not loaded yet</span>';

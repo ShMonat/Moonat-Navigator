@@ -1,10 +1,9 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
-// Reader of the shipped C5 DEM tiles (web/data/dem, format moonat-dem-tiles/1) for the far field.
-// Same maths as horizonFromTiles in web/js/physics/terrain.js (bilinear, finest level that covers
-// the sample: south480 within 450 km when the site is at |lat| ≥ 78° S, else global8; longitude
-// wraps), kept separate so the terrain module does not depend on physics internals. The test
-// web/tests/terrain_everywhere.test.mjs checks that the march over these tiles alone reproduces
-// horizonFromTiles exactly.
+// Reader of the shipped C5 DEM tiles (web/data/dem, format moonat-dem-tiles/1): the far field of
+// terrainAt, and (with march.js) the whole of horizonFromTiles in web/js/physics/terrain.js.
+// Bilinear on the finest level that covers the sample: south480 within 450 km when the site is at
+// |lat| ≥ 78° S, else global8; longitude wraps. web/tests/physics_terrain.test.mjs checks the
+// result against the Python reference (moonat.terrain on the same tiles).
 
 import { D2R, R_M, enuBasis } from './geom.js';
 

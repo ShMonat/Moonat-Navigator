@@ -110,7 +110,25 @@ For each catalog site, three horizons (2 m eye, 0.25° azimuth step):
 
 - **The old way:** tiles only took 4–50 ms of compute (Node, tiles on local disk) and fetched 0.1–4.8 MB of tiles, with no Moon Trek requests.
 - **In the browser:** `terrainAt` runs the whole job in a module Web Worker, so the page stays responsive.
-- **Not verified:** the worker path has not been run in a real browser here. The Browser pane was full of other agents' tabs. The CORS headers were checked with an `Origin` header, and the requests are "simple" GETs (no preflight).
+
+### 5.1 In the live app (Microsoft Edge, `scripts/check_terrain_live.py`, 1920 × 1080)
+The site is served locally; the points are opened through a shared `#s=` link, which takes the same scenario path as a map
+click or typed coordinates.
+
+| Check | Result |
+|---|---|
+| Tycho floor, −43.0°, −11.36° (southern highlands; central peak 13.4° high, 9.8 km south) | "Real terrain: NASA LOLA via Moon Trek (118 m)" 2.8 s after page load; 2 requests, 0.53 MB; one Web Worker; no console errors |
+| South-pole ridge, −89.3°, 130° (not in the catalog) | "Real terrain … (20 m)" 2.5–5.3 s after page load; 3 requests, 0.74 MB; no console errors |
+| Rapid edits: latitude retyped 4 times, 0.8 s apart | 8 superseded `exportImage` requests cancelled, only the last point's 2 complete; final status "Real terrain" |
+| trek.nasa.gov blocked (DNS mapped to a closed port, which also covers the worker) | "Approximate horizon (coarse tiles)" after 1.2 s; the coarse skyline is drawn; the only console errors are the refused connections |
+| A stalled server request (seen once: 31 s, then only the 474 m level) | now 12 s timeout + one retry per grid (`web/tests/terrain_live.test.mjs`) |
+
+![Tycho floor, real terrain](../figures/terrain_live_highland.png)
+*Tycho floor with live Moon Trek terrain (Sun 18° ENE, looking south at the central peak).*
+![Tycho floor, coarse fallback](../figures/terrain_live_highland_fallback.png)
+*The same view when Moon Trek cannot be reached: the 3.8 km tiles lose the central peak.*
+![South-pole ridge, real terrain](../figures/terrain_live_pole.png)
+*−89.3°, 130°: Sun 1.5° up behind the camera, Earth 2.1° up in the south-west, 20 m LOLA ground.*
 
 ## 6. Limits
 - **Low-latitude near field:** it is LOLA 118 m, not SLDEM2015 59 m. Where the horizon is set within about 1 km (flat mare), the result can differ from C3 by about 1°. That is the same size as the DEM-noise sensitivity of C3 itself.

@@ -6,7 +6,8 @@ import {
   colorHex, isWrappedSlot, validateScenario, scenarioTimes, chooseStep, physicsKey, encodeHash, decodeHash, coverageEnd, DAY_MS, HOUR_MS,
 } from "./state.js";
 import { loadCatalog, QUICK_STARTS, catalogSites } from "./catalog.js";
-import { initPhysics, physicsError, physicsCoverage, siteFor, stateAt, seriesFor } from "./physics_adapter.js";
+import { initPhysics, physicsError, physicsCoverage, siteFor, stateAt, seriesFor, useLiveTerrain } from "./physics_adapter.js";
+import { readyTerrain, ensureTerrain, keepOnly, onTerrainChange } from "./terrain_live.js";
 import { initScenarioUI } from "./scenarios_ui.js";
 import { renderCompare, rerenderCompare, initBodySwitch, syncBody } from "./compare.js";
 import { initSkyTab, setSkyItems, setSkyVisible } from "./sky_tab.js";
@@ -79,12 +80,16 @@ function scrollToOutputTop() {
 
 const cache = new Map();
 
+/** Custom points are computed again once their real (Moon Trek) terrain arrives. */
+const terrainTag = (s) => (!s.site_id && readyTerrain(s.lat_deg, s.lon_deg) ? "|trek" : "");
+
 function computeCore(s) {
   const key = physicsKey(s);
-  if (!cache.has(key)) {
+  const ckey = key + terrainTag(s);
+  if (!cache.has(ckey)) {
     if (cache.size > 80) cache.delete(cache.keys().next().value);
     const p = (async () => {
-      const { site, horizon } = await siteFor(s);
+      const { site, horizon, patch } = await siteFor(s);
       const { t0, t1, span } = scenarioTimes(s);
       const state0 = await stateAt(site, t0);
       let series = null;
@@ -96,15 +101,15 @@ function computeCore(s) {
         const t1Look = Math.min(t0 + LOOKAHEAD_MS, end === null ? Infinity : end - HOUR_MS);
         if (t1Look - t0 >= 2 * HOUR_MS) look = await seriesFor(site, t0, t1Look, HOUR_MS);
       }
-      return { key, site, horizon, t0, t1, span, state0, series, look, error: null };
+      return { key, site, horizon, patch, t0, t1, span, state0, series, look, error: null };
     })().catch((error) => {
       console.error("[moonat] compute failed", error);
-      cache.delete(key);
+      cache.delete(ckey);
       return { key, error };
     });
-    cache.set(key, p);
+    cache.set(ckey, p);
   }
-  return cache.get(key);
+  return cache.get(ckey);
 }
 
 let computeSeq = 0;
@@ -116,6 +121,8 @@ async function recompute() {
     .map((s, index) => ({ s, index }))
     .filter(({ s }) => validateScenario(s, physicsCoverage()).ok);
   $("busy").hidden = false;
+  // Stop fetching real terrain for points no scenario shows any more (rapid map clicks, edited coordinates).
+  keepOnly(valid.filter(({ s }) => !s.site_id).map(({ s }) => [s.lat_deg, s.lon_deg]));
   const cores = await Promise.all(valid.map(({ s }) => computeCore(s)));
   if (seq !== computeSeq) return; // a newer request superseded this one
   $("busy").hidden = true;
@@ -239,6 +246,9 @@ async function boot() {
 
   await Promise.all([loadCatalog(), initPhysics("data/ephem")]);
   showPhysicsError();
+  // Custom points: show the coarse tiles horizon at once, then recompute when the real terrain arrives.
+  useLiveTerrain({ ready: readyTerrain, ensure: ensureTerrain });
+  onTerrainChange(() => scheduleRecompute(0));
   initQuickStarts();
   initScenarioUI();
 

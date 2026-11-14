@@ -145,7 +145,7 @@
   </main>
 
   <footer class="foot">
-    <p>Ephemeris: JPL DE421 (validated against JPL Horizons) · Terrain: NASA LRO LOLA · Map: NASA Moon Trek (LRO WAC mosaic) and LOLA polar relief · Earth: NASA Blue Marble · Built for NASA Space Apps 2026.
+    <p>Ephemeris: JPL DE421 (validated against JPL Horizons) · Terrain: NASA LRO LOLA (custom points live from NASA Moon Trek, JPL) · Map: NASA Moon Trek (LRO WAC mosaic) and LOLA polar relief · Earth: NASA Blue Marble · Built for NASA Space Apps 2026.
       Made with the help of AI (Claude Code). <button class="link-btn" data-open-about>How it works</button></p>
   </footer>
 
@@ -175,8 +175,9 @@
     <h3>Why terrain matters</h3>
     <p>Near the poles the Sun skims the horizon, so a single ridge can decide whether a lander gets power. Moonat uses NASA LOLA laser altimetry
       to trace the real horizon around catalogued sites, out to more than 100 km, including the curvature of the Moon. For a point you pick
-      yourself, Moonat traces the horizon on a coarser LOLA elevation grid (about 3.8 km per cell, 480 m near the south pole). Distant
-      mountains are there, but hills within a few kilometres are not, so these results are labelled "approximate terrain".</p>
+      yourself, Moonat fetches the same kind of LOLA elevation for that spot from NASA Moon Trek (20 m near the south pole, 30 m near the
+      poles, 118 m elsewhere) and builds the horizon and the 3D ground in your browser within a few seconds. Until it arrives, or if Moon Trek
+      cannot be reached, the horizon comes from a coarser grid shipped with the site (about 3.8 km per cell), labelled "approximate".</p>
 
     <h3>Data and accuracy</h3>
     <ul class="sources">

@@ -153,6 +153,9 @@ await createSkyView(container /* HTMLElement */, {
   (`fitBodyView`). `lookAt(az, el)` aimed within 0.5° of the Earth or the Sun does the same; any other `lookAt` only turns
   the camera. The user drags to look around the whole hemisphere and scrolls to zoom. After a resize, a view that the user
   has not turned or zoomed is framed again for the new aspect ratio.
+- Terrain extras: `createSkyView(..., { terrainPatch: { meta, data: Float32Array } })` takes an in-memory C4 patch instead of
+  `terrainPatchUrl`, and `view.setTerrain({ horizon, patch })` swaps the skyline and/or the patch in place (camera, sky and
+  textures stay; an omitted key keeps its value; `horizon: null` = the patch's own skyline).
 - Extras beyond C8 used by the app's focus mode: `setPixelBudget(px | null)` (drawing-buffer size; pixel ratio ≤ 2) and
   `setTallFrames(on)`: a body too high for the container's aspect gets a centred, taller frame (down to 3:4) in which the
   photo rule fits both the horizon and the body, like a square Apollo Hasselblad photo.
@@ -170,22 +173,35 @@ await createSkyView(container /* HTMLElement */, {
   `"three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"`; Plotly `plotly.js-dist-min@2.35.2`.
 - ENU → three.js mapping: three.x = east, three.y = up, three.z = −north (right-handed). Units: metres near the site.
 
-## C9 `terrain-at` (producer: `terrain-everywhere`; consumers: `physics-js`, `sky-viewer`, `web-app`) — **proposed, not wired**
-Real LOLA terrain for any clicked point, computed in the browser (branch `shay/terrain-everywhere`; research and
-validation: docs/research/terrain-everywhere.md, docs/validation/terrain-everywhere.md). `web/js/terrain/index.js` exports:
+## C9 `terrain-at` (producer: `terrain-everywhere`; consumers: `web-app`, `sky-viewer`, `rover`) — **implemented**
+Real LOLA terrain for any point, computed in the browser. Research and validation: docs/research/terrain-everywhere.md,
+docs/validation/terrain-everywhere.md. `web/js/terrain/index.js` exports (stable API; add options, never change these):
 ```js
-await terrainAt(lat_deg, lon_deg, {radius_km, observer_height_m = 2, az_step_deg = 0.25, patch = true,
-                                   online = true, demBaseUrl = "data/dem", worker = true}) -> {
+await terrainAt(lat_deg, lon_deg, {
+  radius_km,                 // outer half-width of the on-demand data (default: the level plan, 64–96 km)
+  observer_height_m = 2, az_step_deg = 0.25,
+  patch = true,              // also build the C4-shaped patch (±12 km, 385 × 385)
+  online = true,             // false: shipped C5 tiles only (no network beyond the site)
+  demBaseUrl = "data/dem", worker = true,
+  signal,                    // AbortSignal: cancels the Moon Trek requests; the promise rejects with an AbortError
+}) -> {
   horizon,  // C3 object (az_step 0.25, el_deg[1440], dist_km[1440], ground_elev_m, max_range_km, dem_sources)
             // + source: "moon-trek+dem-tiles" | "dem-tiles", approximate (true only for the tiles fallback), label
-  patch,    // C4 fields + z_up_m: Float32Array(grid_n²) in site ENU (±12 km, 385²), or null without Moon Trek data
-  meta: { sources, resolution_m, ms, timing_ms, bytes, levels: [{layer, half_km, cell_m, n, bytes, ms}], fallback }
+  patch,    // C4 fields + z_up_m: Float32Array(grid_n²) in site ENU, row 0 = north, col 0 = west, or null
+  meta: { sources, resolution_m, ms, timing_ms, bytes, levels: [{layer, half_km, cell_m, n, bytes, ms}], errors, fallback }
 }
 ```
-- Near and mid field: site-centred stereographic LOLA grids (401², LERC) from the NASA Moon Trek ImageServer:
-  20/80/320 m (85–90°S), 30/120/480 m (75–90°), 118/474 m elsewhere. Far field: the C5 tiles. Same ray march as C3/C5.
-- Runs in a module Web Worker; cold load 1–3 s (up to 4.5 s when the server is busy) and 0.5–0.75 MB per point.
-- If Moon Trek fails: tiles-only horizon, `approximate: true`, `meta.fallback` says why.
+- Near and mid field: site-centred stereographic LOLA grids (401 × 401, LERC) from the NASA Moon Trek ImageServer:
+  20/80/320 m (85–90°S), 30/120/480 m (75–90°), 118/474 m elsewhere. Far field: the C5 tiles. Same ray march as C3/C5
+  (`horizonFromTiles` now runs on the same code: web/js/terrain/tiles.js + march.js).
+- Runs in a module Web Worker. Cold load 1–5 s in Edge (server-dependent) and 0.5–0.75 MB per point. Each grid has a 12 s
+  timeout and one retry. Results are cached per (lat, lon, options) for the page's lifetime.
+- If Moon Trek cannot be reached the promise still resolves: tiles-only horizon, `approximate: true`, `patch: null`,
+  `meta.fallback` says why.
+- **App wiring** (`web/js/app/terrain_live.js`): custom points only (catalog sites keep their C3/C4 files). Points are
+  keyed to ~9 m, start after 350 ms of stability, and are cancelled when no scenario uses them any more. The tiles horizon
+  shows at once; when real terrain arrives the scenario is recomputed and the sky view swaps it in with `setTerrain`.
+  Status text: "Loading NASA terrain…" → "Real terrain: NASA LOLA via Moon Trek (N m)" or "Approximate horizon (coarse tiles)".
 
 ## C7 `scenario` (producer: `web-app`; internal to the UI)
 `{ id, label, color, site_id | null, lat_deg, lon_deg, t_start_utc, t_end_utc | null }`. No limit on the number of scenarios.

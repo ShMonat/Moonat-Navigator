@@ -53,12 +53,14 @@ export function decodeBsq(buf, width, height) {
  * Fetch one site-centred grid from Moon Trek.
  * @returns {Promise<{layer, half_m, cell_m, n, data: Float32Array, bytes, ms, url}>}
  */
-export async function fetchGrid(layerKey, lat_deg, lon_deg, half_m, n, { fetchFn, tolerance_m = 0.05, timeout_ms = 30000, base = TREK_BASE } = {}) {
+export async function fetchGrid(layerKey, lat_deg, lon_deg, half_m, n, { fetchFn, tolerance_m = 0.05, timeout_ms = 30000, base = TREK_BASE, signal = null } = {}) {
   const layer = LAYERS[layerKey];
   const url = exportUrl(layer.id, lat_deg, lon_deg, half_m, n, { tolerance_m, base });
   const t0 = Date.now();
   const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
   const timer = ctl ? setTimeout(() => ctl.abort(), timeout_ms) : null;
+  const onAbort = () => ctl && ctl.abort();
+  if (signal) { if (signal.aborted) onAbort(); else signal.addEventListener('abort', onAbort, { once: true }); }
   try {
     const res = await fetchFn(url, ctl ? { signal: ctl.signal } : undefined);
     if (!res.ok) throw new Error(`Moon Trek ${layer.id}: HTTP ${res.status}`);
@@ -70,6 +72,7 @@ export async function fetchGrid(layerKey, lat_deg, lon_deg, half_m, n, { fetchFn
     return { layer: layerKey, label: layer.label, half_m, cell_m: (2 * half_m) / n, n, data: img.pixels, bytes: buf.byteLength, ms: Date.now() - t0, url };
   } finally {
     if (timer) clearTimeout(timer);
+    signal?.removeEventListener?.('abort', onAbort);
   }
 }
 

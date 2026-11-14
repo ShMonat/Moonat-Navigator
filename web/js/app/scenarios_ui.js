@@ -11,6 +11,7 @@ import {
 } from "./state.js";
 import { searchSites, scenarioFieldsFromSite, siteById, KIND_LABEL, catalogSites, isTrimmedMission, shortName } from "./catalog.js";
 import { physicsCoverage } from "./physics_adapter.js";
+import { terrainStatusText, onTerrainChange } from "./terrain_live.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -50,6 +51,13 @@ export function initScenarioUI() {
     else if (kind === "ui" && "theme" in detail) recolor();
     else if (kind === "field" && detail.id && detail.external) syncCard(detail.id);
     if (kind !== "ui") updateAddButtons();
+  });
+  // Custom points: the status line follows the live terrain ("Loading NASA terrain…" → real terrain or fallback).
+  onTerrainChange(() => {
+    for (const s of store.scenarios) {
+      const card = cardsEl.querySelector(`[data-id="${s.id}"]`);
+      if (card && !s.site_id) refreshCard(card, s);
+    }
   });
 }
 
@@ -355,7 +363,7 @@ function refreshCard(card, s) {
       parts.push(span ? `Mission: ${formatDuration(span)}` : "Single instant (add an end time for a mission)");
     }
     if (site && site.kind === "candidate") parts.push("· approximate location (Artemis III candidate region)");
-    if (!s.site_id) parts.push("· approximate terrain (coarse LOLA tiles)");
+    if (!s.site_id) parts.push(`· ${terrainStatusText(s.lat_deg, s.lon_deg)}`);
   }
   meta.textContent = parts.join(" ");
   meta.hidden = !parts.length;

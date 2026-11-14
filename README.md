@@ -42,7 +42,7 @@ Every claim below is backed by a validation report you can rerun.
 | Malapert site search vs **Bussey et al. 2010** | 75.9 % Sun visibility in 2027 (published 74 % over a lunar year, point 2.5 km away) | [terrain.md](docs/validation/terrain.md) §9 |
 | Ray-marched horizon vs independent 3-D point cloud | correlation 0.9995 / 0.9997, no azimuth mirroring | [terrain.md](docs/validation/terrain.md) §4 |
 | Eclipse of the Sun by the Earth: whole-Moon contacts P1…P4 of 2025-03-14 and 1967-04-24 vs **NASA (Espenak)** | within 2.6 s; Blue Ghost's end of totality 08:34 UTC vs its diamond-ring photo "around 08:30" | [eclipse.md](docs/validation/eclipse.md) |
-| Horizons for **custom map points** (coarse DEM tiles) | reads about 1–1.4° too low at typical sites, because the first few km of relief are not resolved. Far-field features are recovered (4–5× better than a flat horizon at Apollo 15 and 17). The app labels these "approximate terrain". | [physics.md](docs/validation/physics.md) §6 |
+| Horizons for **custom points** (live LOLA from **NASA Moon Trek**: 20 m near the south pole, 30 m near the poles, 118 m elsewhere) vs the precomputed catalog horizons | 0.07–0.37° RMS at 10 of 12 sites (0.01–0.19° where the horizon is set beyond 5 km); Sun-visible time within 0–3.4 points at 5 polar sites. Until it arrives (1–5 s), or offline, a coarse tiles horizon labelled "approximate" is shown. | [terrain-everywhere.md](docs/validation/terrain-everywhere.md) |
 
 Known limits: UT1 is taken as UTC, and the drawn Earth globe ignores precession and nutation (about 0.36° in 2026).
 Neither affects Sun or Earth positions. Full lists are in the validation reports. Website QA: [qa.md](docs/validation/qa.md).
@@ -56,8 +56,9 @@ Neither affects Sun or Earth positions. Full lists are in the validation reports
 3. **Visibility:** the Sun and Earth disks are sampled with 400 points. The fraction above the horizon gives the visible
    fraction, with Sun limb darkening for flux.
 4. **Split of work:** heavy precomputation in Python (`src/moonat/`, validated against Horizons and the papers above).
-   Light geometry in the browser (`web/js/physics/`, tested against the Python reference). Clicked points use coarse DEM
-   tiles (11.7 MB) fetched on demand.
+   Light geometry in the browser (`web/js/physics/`, tested against the Python reference). Any other point gets real LOLA
+   terrain on demand: `web/js/terrain/` (`terrainAt`) fetches it from NASA Moon Trek in a Web Worker and builds the horizon and
+   the 3D ground in the browser ([research](docs/research/terrain-everywhere.md)).
 
 ## Data sources
 NASA Space Apps challenge resources are marked with a star. Full list with licences: [docs/REFERENCES.md](docs/REFERENCES.md).

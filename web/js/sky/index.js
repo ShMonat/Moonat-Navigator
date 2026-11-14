@@ -6,6 +6,8 @@
 //                                                 earthTextureUrl, fovDeg });
 //   view.update(skyState)   // C6 sky state; re-positions everything and renders once
 //   view.lookAt(az_deg, el_deg); view.setFov(deg); view.resize(); view.dispose();
+//   view.setTerrain({ horizon, patch })   // extra: swap in new terrain (e.g. live terrain of a custom point)
+// The C4 patch can also be passed in memory: createSkyView(container, { site, terrainPatch: { meta, data } }).
 //
 // Geometry: the eye is the origin of the three.js frame (x = east, y = up, z = -north), observer_height_m above
 // the ground point. The view never computes physics; every direction and size comes from the sky state.
@@ -109,12 +111,13 @@ export async function createSkyView(container, {
   exposure: initialExposure = 'eye',   // "eye": stars stay visible in daylight; "camera": exposed for the sunlit ground
 } = {}) {
   const eyeH = site?.observer_height_m ?? 2;
-  const [starsJson, constellationsJson, earthTexture, nightTexture, patch] = await Promise.all([
+  const [starsJson, constellationsJson, earthTexture, nightTexture, patch0] = await Promise.all([
     stars ?? fetchJson(starsUrl), fetchJson(constellationsUrl), fetchTexture(earthTextureUrl),
     fetchTexture(earthNightTextureUrl), terrainPatch ?? fetchPatch(terrainPatchUrl),
   ]);
+  let patch = patch0;   // replaced by setTerrain()
   // Skyline: the site's C3 profile; without one, the patch's own skyline; without both, a smooth horizon.
-  const horizon = site?.horizon ?? (patch ? horizonFromPatch(patch, eyeH) : flatHorizon(eyeH));
+  let horizon = site?.horizon ?? (patch ? horizonFromPatch(patch, eyeH) : flatHorizon(eyeH));
 
   container.classList.add('moonat-sky');
   if (!container.clientHeight) container.style.aspectRatio = '16 / 9';
@@ -136,14 +139,14 @@ export async function createSkyView(container, {
 
   const sky = buildSky({ starsJson, constellationsJson, earthTexture, nightTexture });
   sky.setConstellations(showConstellations);
-  const terrain = buildTerrain({
-    patch, horizon, eyeH, floatLinear: renderer.capabilities.isWebGL2 && renderer.extensions.has('OES_texture_float_linear'),
-  });
+  const floatLinear = renderer.capabilities.isWebGL2 && renderer.extensions.has('OES_texture_float_linear');
+  let terrain = buildTerrain({ patch, horizon, eyeH, floatLinear });
   const skyScene = new THREE.Scene(), farScene = new THREE.Scene(), nearScene = new THREE.Scene();
   skyScene.add(sky.group, sky.fixed);
   farScene.add(terrain.skirt);
   nearScene.add(terrain.near);
-  const sunDir = new THREE.Vector3(0, 1, 0), horizonMaxEl = Math.max(...horizon.el_deg);
+  const sunDir = new THREE.Vector3(0, 1, 0);
+  let horizonMaxEl = Math.max(...horizon.el_deg);
   let sunFrac = 1;
   let shadowDirty = true, exposureMode = initialExposure === 'camera' ? 'camera' : 'eye';
   sky.setExposureMode(exposureMode);
@@ -523,8 +526,36 @@ export async function createSkyView(container, {
     container.classList.remove('moonat-sky', 'dragging');
   }
 
+  const info = { stars: sky.starCount, hasPatch: !!patch, hasEarthTexture: !!earthTexture, horizonSource: site?.horizon ? 'site' : patch ? 'patch' : 'smooth' };
+
+  /**
+   * Replace the terrain without rebuilding the view: a new C3 skyline and/or C4 patch, e.g. when the real terrain of a
+   * custom point arrives after the view opened on the coarse tiles horizon. The camera, sky and textures stay; only
+   * the terrain meshes are rebuilt (tens of ms). `horizon`: C3 object, or null for the patch's own skyline (or a smooth
+   * one); `patch`: { meta, data: Float32Array } (C4) or null. An omitted key keeps its current value.
+   */
+  function setTerrain({ horizon: newHorizon, patch: newPatch } = {}) {
+    if (disposed) return;
+    if (newPatch !== undefined) patch = newPatch;
+    if (newHorizon !== undefined) horizon = newHorizon ?? (patch ? horizonFromPatch(patch, eyeH) : flatHorizon(eyeH));
+    farScene.remove(terrain.skirt);
+    nearScene.remove(terrain.near);
+    terrain.dispose();
+    terrain = buildTerrain({ patch, horizon, eyeH, floatLinear });
+    farScene.add(terrain.skirt);
+    nearScene.add(terrain.near);
+    horizonMaxEl = Math.max(...horizon.el_deg);
+    info.hasPatch = !!patch;
+    info.horizonSource = newHorizon ? 'site' : patch ? 'patch' : horizon.smooth ? 'smooth' : info.horizonSource;
+    shadowDirty = true;
+    if (state) {
+      update(state);   // terrain uniforms (Sun, earthshine) and the Sun's share above the new skyline
+      if (autoFit) lookAtBody(autoFit.name, autoFit.mode);
+    } else requestRender();
+  }
+
   return {
-    update, lookAt, lookAtBody, setFov, resize, dispose,
+    update, lookAt, lookAtBody, setFov, resize, dispose, setTerrain,
     // Extras beyond C8, for the app and for debugging:
     setConstellations: (on) => { sky.setConstellations(on); requestRender(); },
     setCloseUp: (on) => { closeUpOn = !!on; hud.setCloseUp(closeUpOn); requestRender(); },
@@ -547,6 +578,6 @@ export async function createSkyView(container, {
       if (autoFit) lookAtBody(autoFit.name, autoFit.mode);
       requestRender();
     },
-    info: { stars: sky.starCount, hasPatch: !!patch, hasEarthTexture: !!earthTexture, horizonSource: site?.horizon ? 'site' : patch ? 'patch' : 'smooth' },
+    info,
   };
 }

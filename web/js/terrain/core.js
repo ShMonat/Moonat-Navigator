@@ -23,6 +23,7 @@ const now = () => (typeof performance !== 'undefined' ? performance.now() : Date
  * @param {boolean}[o.online=true]        false = C5 tiles only (the previous behaviour)
  * @param {function}[o.fetch]             fetch replacement (tests)
  * @param {function}[o.trekFetch]         fetch used for Moon Trek (default o.fetch / global fetch)
+ * @param {AbortSignal}[o.signal]         cancels the Moon Trek requests; the promise then rejects with an AbortError
  * @returns {Promise<{horizon, patch, meta}>}
  */
 export async function computeTerrain(lat_deg, lon_deg, o = {}) {
@@ -36,12 +37,23 @@ export async function computeTerrain(lat_deg, lon_deg, o = {}) {
   } = o;
   const plan = online ? planLevels(lat_deg, { n: n_px, radius_km: o.radius_km }) : [];
 
-  // Fetch the far-field tiles and the Moon Trek grids in parallel; a failed grid is skipped.
+  // Fetch the far-field tiles and the Moon Trek grids in parallel. The server usually answers in 0.6–4.5 s but
+  // occasionally stalls on one request: each grid gets `timeout_ms` (12 s) and one retry, then it is skipped.
   const farP = farField(lat_deg, lon_deg, { baseUrl: demBaseUrl, fetchFn });
-  const gridP = plan.map((lv, i) => fetchGrid(lv.key, lat_deg, lon_deg, lv.half_m, lv.n, {
-    fetchFn: trekFetch, tolerance_m: i === 0 ? Math.min(tolerance_m, 0.02) : tolerance_m, base: o.trekBase,
-  }).catch((e) => ({ error: String(e.message || e), key: lv.key })));
+  const gridP = plan.map((lv, i) => {
+    const get = () => fetchGrid(lv.key, lat_deg, lon_deg, lv.half_m, lv.n, {
+      fetchFn: trekFetch, tolerance_m: i === 0 ? Math.min(tolerance_m, 0.02) : tolerance_m, base: o.trekBase,
+      signal: o.signal, timeout_ms: o.timeout_ms ?? 12000,
+    });
+    return get()
+      .catch((e) => {
+        if (o.signal?.aborted) throw e;
+        return get();
+      })
+      .catch((e) => ({ error: String(e.message || e), key: lv.key }));
+  });
   const [far, ...got] = await Promise.all([farP, ...gridP]);
+  if (o.signal?.aborted) throw abortError();
   const tFetch = now();
   const grids = got.filter((g) => !g.error);
   const errors = got.filter((g) => g.error).map((g) => g.error);
@@ -100,7 +112,7 @@ export async function computeTerrain(lat_deg, lon_deg, o = {}) {
     patch: tp,
     meta: {
       sources,
-      resolution_m: Math.round(fine * 10) / 10,
+      resolution_m: Math.round(fine * 100) / 100,
       ms: Math.round(tEnd - t0),
       timing_ms: { fetch: Math.round(tFetch - t0), march: Math.round(tMarch - tFetch), patch: Math.round(tEnd - tMarch) },
       bytes,
@@ -111,4 +123,15 @@ export async function computeTerrain(lat_deg, lon_deg, o = {}) {
       fallback: online && grids.length === 0 ? `Moon Trek unavailable: ${errors[0] || 'no levels'}` : null,
     },
   };
+}
+
+/** The error a cancelled request rejects with (name "AbortError", like fetch). */
+export function abortError() {
+  try {
+    return new DOMException('terrain request cancelled', 'AbortError');
+  } catch {
+    const e = new Error('terrain request cancelled');
+    e.name = 'AbortError';
+    return e;
+  }
 }
