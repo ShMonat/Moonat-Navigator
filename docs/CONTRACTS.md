@@ -291,3 +291,40 @@ await routeSeries(route, t0Ms, t1Ms, stepMs, {stop_every_km, stop_h}) -> C6 seri
   workers. 2–7 s in the browser for 6–20 km routes; 0.9–6 MB downloaded (including C5 tiles on a first visit).
 - **App wiring:** `web/js/rover/app.js` `routeCore(s)` (called by the app's compute for scenarios with `route`), route
   card `ui.js`, globe two-step pick `pick.js`, Sky-tab ride `sky_ride.js` (sky, skyline and ±8 km ground per station).
+
+## C11 `suggest-dates` (producer: `suggest`; consumer: `web-app`) — **implemented**
+Suggested mission dates for one site: the best windows for solar power, direct-to-Earth contact or both, and special
+events (eclipses of the Sun by the Earth, Earthrises). Definitions and validation: docs/validation/suggest.md.
+`web/js/suggest/index.js` exports (stable API; add options and fields, never change these):
+```js
+await suggestDates({ lat_deg, lon_deg, horizon /* C3 or null */, ground_elev_m?, observer_height_m? }, {
+  from, to,               // Date | epoch ms | ISO; default today 00:00 UTC → +2 calendar years; clipped to the
+                          // ephemeris coverage (1966–1976, 2013–2040); RangeError if nothing is covered
+  durationMs,             // window length for sun/earth/both; default LUNAR_DAY_MS (14.77 d)
+  kinds,                  // subset of ["sun", "earth", "both", "eclipse", "earthrise"] (default all, in this order)
+  limit = 5,              // items per kind
+  signal,                 // AbortSignal: rejects with an AbortError
+  onProgress,             // (0..1) while sampling
+  stepMs, ephemBaseUrl = "data/ephem", worker = true,
+}) -> [{
+  kind, rank,             // rank 1 = best within its kind; items come in the order of `kinds`
+  t_start_utc, t_end_utc, // ISO-8601 UTC; window, or eclipse first/last contact at the site, or Earthrise bracket;
+                          // null for a far-side note
+  t_max_utc?,             // eclipse: greatest eclipse at the site; earthrise: half the Earth's disk visible
+  score,                  // 0..1, per kind (below)
+  title, detail,          // English text for the UI ("14.8 d of continuous sunlight from 19 Jan 2027")
+  note?,                  // true: a statement about the whole range, not a window (near side, far side, no sunlight)
+  stats,                  // numbers behind the text, per kind
+}]                        // + non-enumerable `meta`: {from_utc, to_utc, step_ms, duration_ms, samples, ms}
+```
+- **Sampling:** one C6 `series()` pass every 10 min (≤ 110 000 samples; 3 h when only eclipses are asked for).
+- **Scores:** `sun` = mean `flux_frac` (terrain + Earth, C6) over the window; `earth` = mean Earth `vis_frac`;
+  `both` = mean of min(`flux_frac`, Earth `vis_frac`) (power and link at the same moment); `eclipse` = largest
+  covered share of the Sun's flux while the Sun is above the skyline; `earthrise` = Earth phase × Sun `flux_frac` at
+  the half-disk moment. Windows do not overlap; scores within 0.005 count as equal and are listed soonest first.
+- **Notes:** near side → one `earth` note "Earth always in view"; far side → one `earth` and one `both` note with
+  `stats.reason` ("far-side" | "terrain"); Earthrises only where the Earth crosses the skyline.
+- **Eclipses:** every event where the Earth covers part of the Sun as seen from the site with the Sun above the
+  terrain skyline; contacts to 1 s from `physics/eclipse.js` (solid Earth, as C6). `stats.type` "total" | "partial".
+- **Runtime:** a module Web Worker (inline in Node or without Worker). Cached per site and options; a new
+  `durationMs` reuses the samples. Two years at a polar site: ~0.8–0.9 s in Edge, ~0.1 s at low latitudes.

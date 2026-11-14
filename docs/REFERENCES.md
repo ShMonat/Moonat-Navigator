@@ -48,6 +48,10 @@ Challenge Resources tab (published 2026-11-13): Quickmap, Moon Trek, JPL Horizon
 - Shoemaker, E. M. et al. (1968), "Television observations from Surveyor 3", J. Geophys. Res. 73, 3989 — the refraction halo and bright beads around the Earth in Surveyor 3's eclipse pictures (motivates the red ring in the sky view) — https://doi.org/10.1029/JB073i012p03989 — paper (cited only)
 - Gauss–Legendre quadrature (Newton iteration on Legendre polynomials; e.g. Press et al., Numerical Recipes, §4.6) — the ring integral of the eclipsed solar flux — method only
 
+### Suggested dates (agent `suggest`)
+- Espenak, F. (NASA GSFC), "Decade Tables of Lunar Eclipses: 2021 to 2030" — the 14 lunar eclipses of 2025–2030 (greatest eclipse, type, umbral magnitude) against which the eclipse search is validated (docs/validation/suggest.md) — https://eclipse.gsfc.nasa.gov/LEdecade/LEdecade2021.html — public (NASA)
+- Cassini's laws of lunar rotation (lunar equator inclined 1.54° to the ecliptic, common node line) — explanation of the polar seasons and the 346.6-day eclipse year in docs/validation/suggest.md — https://en.wikipedia.org/wiki/Cassini%27s_laws — CC BY-SA 4.0 (cited only)
+
 ## Images, textures and other media
 - LRO WAC global mosaic 303 ppd v02 (NASA/GSFC/Arizona State University), via the NASA Moon Trek WMTS, 128 tiles at zoom 3 stitched to 4096 x 2048 px (plus a 1024 x 512 preview) — base texture of the Moon globe site picker (web/data/moonmap/wac_global*.jpg) — https://trek.nasa.gov/tiles/Moon/EQ/LRO_WAC_Mosaic_Global_303ppd_v02/1.0.0/WMTSCapabilities.xml — public (NASA)
 - LOLA LDEM_16 and LDEM_75S_240M (NASA LRO LOLA, PDS) rendered as hillshade — polar-cap textures of the globe (web/data/moonmap/cap_*.jpg; 1.3 km/px caps to 68°, a 193 m/px south cap poleward of 83.5° S) — https://pds-geosciences.wustl.edu/missions/lro/lola.htm — public (NASA PDS)

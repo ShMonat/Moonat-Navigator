@@ -27,6 +27,9 @@ Decisions in Shahar's domain are marked *(pending Shahar's review)*.
    LOLA grid (A* on travel time with slope limits, VIPER-class / Apollo LRV presets) and runs the C6 physics along it,
    with a horizon every 100–250 m (contract C10, docs/validation/rover.md) *(speed model approved by Shay, 2026-11-14;
    network use pending Shahar's review)*.
+   **Suggested dates:** `web/js/suggest/` ranks mission dates for a site (best solar, Earth-contact and combined
+   windows, eclipses of the Sun by the Earth, Earthrises) from one C6 series pass in a module worker (contract C11,
+   docs/validation/suggest.md) *(definitions pending Shay's review; not yet wired into the UI)*.
 6. **UI:** two tabs, per the Main Tab verdict. **Compare** (scenario builder + Sun and Earth panels, overlaid) and **Sky**
    (the rendered view, one per scenario, drag to look around the hemisphere, timelapse for missions).
 7. **Data contracts:** `docs/CONTRACTS.md` (binding).
