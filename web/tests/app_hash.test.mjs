@@ -4,7 +4,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { encodeHash, decodeHash, makeScenario } from "../js/app/state.js";
+import { encodeHash, decodeHash, makeScenario, hashBody } from "../js/app/state.js";
 
 function scenarios() {
   const list = [];
@@ -81,4 +81,23 @@ test("bad Sky values are ignored, not trusted", () => {
   assert.deepEqual(back.sky, { offsetMs: null, look: null, view: null });
   assert.equal(decodeHash(`#v=10,20,0&${base}`).sky.view, null);
   assert.equal(decodeHash(`#v=a,b,c&${base}`).sky.view, null);
+});
+
+test("one page, one Sun | Earth switch: links from the tab era open on the body they showed (hashBody)", () => {
+  const sc = scenarios();
+  const s = encodeHash({ scenarios: sc }).slice(1); // "s=..."
+  // A Sky-tab link showed the sky: aimed at its "look" body, or the opening view toward the Earth without one.
+  assert.equal(hashBody(decodeHash(`#tab=sky&${s}`)), "earth");
+  assert.equal(hashBody(decodeHash(`#tab=sky&look=sun&${s}`)), "sun");
+  assert.equal(hashBody(decodeHash(`#tab=sky&b=earth&look=sun&${s}`)), "sun");
+  assert.equal(hashBody(decodeHash(`#tab=sky&look=earth&${s}`)), "earth");
+  // A Compare-tab link (no tab, or tab=compare) and a new link keep their section, "b".
+  assert.equal(hashBody(decodeHash(`#${s}`)), "sun");
+  assert.equal(hashBody(decodeHash(`#b=earth&${s}`)), "earth");
+  assert.equal(hashBody(decodeHash(`#tab=compare&b=earth&${s}`)), "earth");
+  assert.equal(hashBody(null), "sun");
+  // The page writes no tab and no look any more: the body is "b", the moment "t", the camera "v".
+  const h = encodeHash({ scenarios: sc, body: "earth", sky: { offsetMs: 3600e3, view: null } });
+  assert.match(h, /^#b=earth&t=3600&s=/);
+  assert.equal(hashBody(decodeHash(h)), "earth");
 });

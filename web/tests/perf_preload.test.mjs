@@ -51,7 +51,7 @@ test("the modulepreload list in index.html is exactly the static module graph of
   assert.equal(new Set(listed).size, listed.length, "duplicate modulepreload entries");
 });
 
-test("the Sky tab's module preloads are the sky view's graph plus three.js from the import map", () => {
+test("the sky view module preloads are the sky view's graph plus three.js from the import map", () => {
   const sky = arrayIn("SKY_MODULES");
   const { files, bare } = graph("js/sky/index.js");
   const importMap = JSON.parse(/<script type="importmap">([\s\S]*?)<\/script>/.exec(HTML)[1]).imports;
@@ -66,15 +66,15 @@ test("the opening view's data preloads exist, and the first-visit ones are the A
   }
   const [a11] = QUICK_STARTS[0].resolve([]);
   const year = a11.t_start_utc.slice(0, 4);
-  assert.equal(QUICK_STARTS[0].tab, "sky");
+  assert.equal(QUICK_STARTS[0].key, "apollo11"); // the first visit opens the Apollo 11 story
   assert.deepEqual(arrayIn("FIRST_VISIT"), [
     `data/ephem/${year}.bin`, `data/horizons/${a11.site_id}.json`, `data/terrain/${a11.site_id}.bin`,
   ]);
-  // The URLs the sky view requests by default (web/js/sky/index.js) and the night map the Sky tab passes.
+  // The URLs the sky view requests by default (web/js/sky/index.js) and the night map the sky panel passes.
   const skySrc = read("js/sky/index.js");
   for (const u of arrayIn("SKY_DATA")) assert.ok(skySrc.includes(`'${u}'`), u);
   assert.ok(skySrc.includes("'assets/earth_daymap.jpg'"));
-  assert.ok(read("js/app/sky_tab.js").includes('"assets/earth_night.jpg"'));
+  assert.ok(read("js/app/sky_panel.js").includes('"assets/earth_night.jpg"'));
 });
 
 test("the years the inline script preloads for a shared link are the ephemeris years", () => {

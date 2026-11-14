@@ -1,16 +1,18 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
 // Scenario cards: progressive builder (location three ways, start and optional end time in UTC), validation,
-// the "+ Add location" / "+ Add time" buttons and the searchable missions-and-sites picker.
+// the "+ Add location" / "+ Add time" buttons, the searchable missions-and-sites picker, and "✨ Suggest dates" next to
+// the start time (dates with the most sunlight, the best Earth contact or an eclipse, from web/js/suggest/).
 
 import {
   store, subscribe, addScenario, duplicateScenario, removeScenario, updateScenario, setActive, setScenarios, activeScenario,
 } from "./store.js";
 import {
-  colorHex, validateScenario, parseUtc, toUtcText, isoUtc, normalizeLon, formatDuration, scenarioTimes, pointLabel, isPointLabel,
-  parseDuration, durationUnit, durationValueText, endFromDuration,
+  colorHex, validateScenario, parseUtc, toUtcText, isoUtc, normalizeLon, formatDuration, formatUtc, scenarioTimes, pointLabel,
+  isPointLabel, parseDuration, durationUnit, durationValueText, endFromDuration, coverageEnd, DAY_MS,
 } from "./state.js";
 import { searchSites, scenarioFieldsFromSite, siteById, KIND_LABEL, catalogSites, isTrimmedMission, shortName } from "./catalog.js";
-import { physicsCoverage } from "./physics_adapter.js";
+import { physicsCoverage, siteFor } from "./physics_adapter.js";
+import { suggestDates, suggestIcon, SUGGEST_KINDS } from "./suggest_adapter.js";
 import { terrainStatusText, onTerrainChange } from "./terrain_live.js";
 import { buildRouteCard, addRouteScenario } from "../rover/ui.js";
 
@@ -23,8 +25,11 @@ let clearBtn;
 // Per scenario id: how the end is given ("end" | "dur") and the unit last used for the duration. UI view only.
 const endModes = new Map();
 const endUnits = new Map();
+let onSuggestPick = () => {};
 
-export function initScenarioUI() {
+/** opts.onSuggest(scenario, suggestion): a suggested date was chosen (main.js sets the times and the Sun | Earth switch). */
+export function initScenarioUI({ onSuggest } = {}) {
+  if (onSuggest) onSuggestPick = onSuggest;
   cardsEl = $("#cards");
   addLocBtn = $("#btn-add-location");
   addTimeBtn = $("#btn-add-time");
@@ -61,6 +66,9 @@ export function initScenarioUI() {
       const card = cardsEl.querySelector(`[data-id="${s.id}"]`);
       if (card && !s.site_id && !s.route) refreshCard(card, s);
     }
+  });
+  document.addEventListener("pointerdown", (e) => {
+    if (openSuggest && !e.target.closest?.(".start-field")) closeSuggest();
   });
 }
 
@@ -195,7 +203,7 @@ function buildCard(s, index) {
   const t0 = timeField("Start (UTC)", "t_start_utc", s.t_start_utc, false);
   const t1 = timeField("End (UTC)", "t_end_utc", s.t_end_utc, true);
   const end = buildEndField(s, card, t0, t1);
-  card.append(el("div", { class: "fields times" }, t0.wrap, end.wrap));
+  card.append(el("div", { class: "fields times" }, buildStartField(s, t0), end.wrap));
   for (const f of [t0, t1]) {
     const commit = () => {
       const raw = f.input.value;
@@ -386,7 +394,134 @@ function refreshCard(card, s) {
   }
   meta.textContent = parts.join(" ");
   meta.hidden = !parts.length;
+  syncSuggestButton(card, s);
   updateAddButtons();
+}
+
+// ---------------------------------------------------------------------------------------------
+// "✨ Suggest dates": a small list of dates for the card's place, from the suggestion engine (suggest_adapter.js):
+// the best sunlight, the best Earth contact, both, eclipses visible from there, Earthrise at limb and polar sites.
+// Choosing one sets the start and the end (main.js, onSuggest).
+
+let openSuggest = null; // { pop, btn, abort } of the open list
+
+/** The start field: its label, the "Suggest dates" button and the input; the list opens under it. */
+function buildStartField(s, t0) {
+  const id = `st-${s.id}`;
+  t0.input.id = id;
+  const btn = el("button", {
+    type: "button", class: "suggest-btn", "aria-expanded": "false", "aria-haspopup": "dialog", hidden: true,
+    title: "Dates with the most sunlight, the best Earth contact, or an eclipse, seen from this place",
+  }, el("span", { class: "sg-ico", "aria-hidden": "true", text: "✨" }), "Suggest dates");
+  const pop = el("div", { class: "suggest-pop", role: "dialog", "aria-label": "Suggested dates", hidden: true });
+  btn.addEventListener("click", () => (openSuggest?.pop === pop ? closeSuggest() : showSuggest(s, btn, pop)));
+  pop.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    e.stopPropagation();
+    closeSuggest(true);
+  });
+  const head = el("div", { class: "end-head" }, el("label", { for: id, text: "Start (UTC)" }), btn);
+  return el("div", { class: "field start-field" }, head, t0.input, pop);
+}
+
+function syncSuggestButton(card, s) {
+  const btn = card.querySelector(".suggest-btn");
+  if (btn) btn.hidden = s.lat_deg === null || s.lon_deg === null;
+}
+
+function closeSuggest(focusButton = false) {
+  if (!openSuggest) return;
+  const { pop, btn, abort } = openSuggest;
+  openSuggest = null;
+  abort.abort();
+  pop.hidden = true;
+  pop.replaceChildren();
+  btn.setAttribute("aria-expanded", "false");
+  if (focusButton) btn.focus();
+}
+
+/** The list searches this long from the card's start (C11 default: two years), inside the ephemeris coverage. */
+const SUGGEST_SPAN_MS = 2 * 365.25 * DAY_MS;
+
+async function showSuggest(s0, btn, pop) {
+  closeSuggest();
+  const abort = new AbortController();
+  openSuggest = { pop, btn, abort };
+  btn.setAttribute("aria-expanded", "true");
+  pop.hidden = false;
+  const s = store.scenarios.find((x) => x.id === s0.id) || s0;
+  // From the card's start day (or today), inside the years the ephemeris tables cover.
+  const years = physicsCoverage();
+  let from = parseUtc(s.t_start_utc || "");
+  if (!Number.isFinite(from) || coverageEnd(from, years) === null) from = Date.now();
+  if (coverageEnd(from, years) === null && years.length) from = Date.UTC(Math.min(...years), 0, 1);
+  from = Math.floor(from / DAY_MS) * DAY_MS;
+  const end = coverageEnd(from, years);
+  const to = Math.min(from + SUGGEST_SPAN_MS, end ?? Infinity);
+  // Windows as long as the card's mission; a single instant gets the engine's default, one lunar day.
+  const span = s.t_end_utc ? parseUtc(s.t_end_utc) - parseUtc(s.t_start_utc) : NaN;
+  const durationMs = span > 0 ? span : undefined;
+  const place = s.label || pointLabel(s.lat_deg, s.lon_deg);
+  const close = el("button", { type: "button", class: "icon-btn suggest-close", "aria-label": "Close", text: "✕" });
+  close.addEventListener("click", () => closeSuggest(true));
+  const sub = el("small", { text: `${formatUtc(from).split(",")[0]} to ${formatUtc(to).split(",")[0]}${durationMs ? ` · ${formatDuration(durationMs)} windows` : ""}` });
+  const status = el("p", { class: "suggest-status", role: "status" }, el("span", { class: "spinner", "aria-hidden": "true" }), el("span", { text: "Searching…" }));
+  const list = el("div", { class: "suggest-list" });
+  pop.replaceChildren(el("div", { class: "suggest-head" }, el("div", {}, el("strong", { text: `Good dates for ${place}` }), sub), close), status, list);
+  try {
+    // The place's terrain horizon: the catalog site's C3 profile, or the live one of a custom point once it is there.
+    const { horizon } = await siteFor(s);
+    if (abort.signal.aborted) return;
+    const progressText = status.lastChild;
+    const found = await suggestDates({ lat_deg: s.lat_deg, lon_deg: s.lon_deg, horizon }, {
+      from, to, durationMs, signal: abort.signal,
+      onProgress: (f) => (progressText.textContent = `Searching… ${Math.round(f * 100)}%`),
+    });
+    if (abort.signal.aborted) return;
+    status.hidden = !!found.length;
+    status.textContent = found.length ? "" : "Nothing stands out in these dates. Try another start date.";
+    const nodes = [];
+    for (const k of SUGGEST_KINDS) {
+      const group = found.filter((g) => g.kind === k.kind);
+      if (!group.length) continue;
+      nodes.push(el("p", { class: "suggest-kind", text: `${k.icon} ${k.heading}` }));
+      for (const g of group) nodes.push(suggestItem(s, g));
+    }
+    // Kinds this page does not list by name still show, at the end.
+    for (const g of found.filter((x) => !SUGGEST_KINDS.some((k) => k.kind === x.kind))) nodes.push(suggestItem(s, g));
+    list.replaceChildren(...nodes);
+    list.querySelector("button.suggest-item")?.focus();
+  } catch (err) {
+    if (abort.signal.aborted || err?.name === "AbortError") return;
+    console.warn("[moonat] date suggestions failed", err);
+    status.hidden = false;
+    status.textContent = err?.name === "RangeError" ? "No sky tables for these dates: pick a start in a covered year."
+      : "Suggestions are not available for this place right now.";
+  }
+}
+
+/**
+ * One suggestion: its title, when, and its detail as a tooltip. A window or an event is a button that sets the card's
+ * times (main.js onSuggest); a note (a statement about the whole range, e.g. "Earth always in view") is plain text.
+ */
+function suggestItem(s, g) {
+  const t0 = g.t_start_utc ? parseUtc(g.t_start_utc) : NaN;
+  const t1 = g.t_end_utc ? parseUtc(g.t_end_utc) : NaN;
+  let when = "";
+  if (Number.isFinite(t0)) when = Number.isFinite(t1) && t1 > t0 ? `${formatUtc(t0)} · ${formatDuration(t1 - t0)}` : formatUtc(t0);
+  // The title says what and when; the exact times and the detail are in the tooltip.
+  const tip = [when, g.detail].filter(Boolean).join(" · ");
+  const text = el("span", { class: "si-text" }, el("b", { text: g.title || "Suggested dates" }),
+    g.note && g.detail ? el("small", { class: "si-detail", text: g.detail }) : null);
+  const icon = el("span", { class: "si-icon", "aria-hidden": "true", text: suggestIcon(g.kind) });
+  if (g.note || !Number.isFinite(t0)) return el("div", { class: "suggest-item note" }, icon, text);
+  const item = el("button", { type: "button", class: "suggest-item", title: tip }, icon, text);
+  if (tip) item.setAttribute("aria-description", tip);
+  item.addEventListener("click", () => {
+    closeSuggest();
+    onSuggestPick(s, g);
+  });
+  return item;
 }
 
 /** Re-sync a card's inputs after an external change (map click). */

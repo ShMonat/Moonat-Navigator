@@ -250,6 +250,14 @@ No end time = a single instant. Scenarios may share or differ in times.
   max_slope_deg, max_cross_deg, stop_every_km, stop_h }`; `lat_deg`/`lon_deg` is the start, and no end time = end on
   arrival. URL hash rows get an 8th element `[end_lat, end_lon, preset, speed, max_slope, max_cross, stop_km, stop_h]`
   (older links have 7 and stay valid); `x=dist` selects the distance axis.
+- **Share links** (`web/js/app/state.js` encodeHash / decodeHash): `#b=earth&x=utc&t=5250&v=258.9,12.5,40&s=<rows>`,
+  every key optional. `b` = the Sun | Earth switch (the body every sky view is aimed at and whose data shows; default
+  Sun), `x` = the charts' time axis (`utc` | `dist`; default time since start), `t` = the sky's moment (s after the
+  scenarios' start), `v` = the first view's camera (az, el, horizontal FOV, deg), `s` = base64url JSON rows
+  `[label, lat, lon, start, end|0, site_id|0, color(, route)]`. **Changed 2026-11-14 (one-flow layout):** the page no
+  longer writes `tab` and `look`. Links from the tab era still open: `tab=sky` opens on its `look` body (none: the
+  Earth, the opening view it showed), any other link on its `b` (`hashBody`); `#tab=sky` without scenarios opens the
+  first-visit story, Apollo 11.
 
 ## C10 `rover-traverse` (producer: `rover`; consumer: `web-app`) — **implemented** (advanced mode)
 Plan a rover drive between two points from real terrain, then follow the Sun and Earth along it

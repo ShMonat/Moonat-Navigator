@@ -15,12 +15,20 @@ The Sun sets the power budget and the Earth sets the direct-to-Earth communicati
 can hide either one. Moonat computes both against the real terrain and lets you compare sites and dates side by side.
 
 ## What it does
-- **Scenarios:** pick a place (coordinates, a map click, or one of 40 catalog sites: Apollo, Luna, Surveyor, Chang'e,
-  Chandrayaan-3, Artemis III candidate regions) and a time or a mission span. Add as many as you want.
-- **Compare tab:** Sun and Earth elevation, visible fraction of each disk, solar flux (W/m²), phase, and time to
-  sunset or Earthset, one line per scenario.
-- **Sky tab:** a first-person 3D view from 2 m above the ground, with terrain lit by the Sun, the Earth with its true
-  phase and orientation, stars and planets, and a timelapse.
+One page, in the order you need it:
+1. **Place and time:** click the Moon globe (missions, Artemis III candidate regions and places of interest are marked
+   in their own colours), type coordinates or search 40 catalog sites (Apollo, Luna, Surveyor, Chang'e, Chandrayaan-3,
+   Artemis III regions), and give a time or a mission span. **✨ Suggest dates** proposes the windows with the most
+   sunlight, the best Earth contact or both, and the eclipses and Earthrises seen from that place. Or start with a
+   story: Apollo 11, all Apollo landings, the south pole, the far side, an eclipse, a rover drive.
+2. **The sky from there:** a first-person 3D view from 2 m above the ground, with terrain lit by the Sun, the Earth with
+   its true phase and orientation, stars and planets, and a timelapse; one view per scenario. A hint offers the eclipse
+   or the Earthrise a mission window holds ("Show me").
+3. **☀ Sun | 🌍 Earth:** one switch turns every view to the Sun or the Earth and shows that body's numbers: elevation,
+   visible fraction of the disk, solar flux (W/m²), phase, time to sunset or Earthset, a side-by-side ranking of the
+   scenarios, and charts with a cursor at the sky's moment.
+
+More:
 - **Eclipses seen from the Moon:** when the Earth crosses the Sun (a lunar eclipse on Earth), the share of sunlight it
   hides is computed and drawn, with the red ring of Earth's atmosphere; quick start "Eclipse from the Moon" replays
   Blue Ghost's 14 March 2025 view ([validation against NASA's contact times](docs/validation/eclipse.md)).

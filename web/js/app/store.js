@@ -6,7 +6,7 @@
 //   "field"     - a location or time changed in place (physics recompute; the edited card is not rebuilt)
 //   "label"     - a label changed (outputs relabel, no recompute)
 //   "active"    - the selected scenario changed
-//   "ui"        - tab, x-axis or theme changed
+//   "ui"        - the Sun | Earth choice, the time axis or the theme changed
 
 import { makeScenario, nextColorSlot, copyLabel } from "./state.js";
 
@@ -15,9 +15,8 @@ const listeners = new Set();
 export const store = {
   scenarios: [],
   activeId: null,
-  tab: "compare",
   xaxis: "met",
-  body: "sun", // Compare tab section shown: "sun" | "earth"
+  body: "sun", // the Sun | Earth switch: the body the sky views aim at and whose data shows, "sun" | "earth"
   theme: "dark",
 };
 

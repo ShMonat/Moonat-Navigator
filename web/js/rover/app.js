@@ -1,6 +1,6 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
 // The app side of a rover traverse scenario (C7 + `route`, contract C10): turns the scenario into a planning request,
-// and computes the item the Compare and Sky tabs show (same shape as a static scenario, plus `route`).
+// and computes the item the sky views and the data under them show (same shape as a static scenario, plus `route`).
 
 import { planRoute, routeTrack, routeSeries, RouteError } from "./index.js";
 import { PRESETS, roverParams } from "./presets.js";
@@ -32,7 +32,7 @@ export function routeRequest(s) {
 }
 
 /**
- * Compute a traverse scenario for the Compare and Sky tabs. Without an end time the window ends on arrival.
+ * Compute a traverse scenario for the sky views and the data under them. Without an end time the window ends on arrival.
  * Returns { key, site, horizon, patch: null, t0, t1, span, state0, series, look: null, error: null, route } where
  * site/horizon are those of the start, series is routeSeries() (C6 + distance_km, position, ...) and
  * route = { result (planRoute), track (routeTrack), req }.

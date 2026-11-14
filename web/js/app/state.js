@@ -281,11 +281,13 @@ export function physicsKey(s) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// URL hash: "#tab=sky&x=utc&b=earth&t=5250&look=sun&v=258.9,12.5,40&s=<base64url(JSON)>"; every key is optional.
-//   tab: "sky" (default Compare); x: Compare time axis ("utc" | "dist", default mission elapsed time); b: "earth" (default
-//   Sun section); Sky tab: t = time since the scenarios' start (whole seconds), look = "earth" | "sun" (the last Look
-//   button), v = camera of the first sky view: azimuth, elevation, horizontal field of view (deg, local horizon frame);
-//   s = the scenarios. Links made before t, look and v existed decode as before.
+// URL hash: "#x=utc&b=earth&t=5250&v=258.9,12.5,40&s=<base64url(JSON)>"; every key is optional.
+//   b: "earth" (the Sun | Earth switch: the body every sky view is aimed at and whose data shows; default "sun");
+//   x: the charts' time axis ("utc" | "dist", default time since start); t = the sky's moment, time since the
+//   scenarios' start (whole seconds); v = camera of the first sky view: azimuth, elevation, horizontal field of view
+//   (deg, local horizon frame); s = the scenarios.
+//   Links from the page's Compare and Sky tabs also hold tab ("sky") and look ("earth" | "sun", the last Look
+//   button); they still decode, and hashBody turns them into the body they showed. The page no longer writes them.
 // s JSON = [[label, lat, lon, start, end|0, site_id|0, color(, route)], ...]
 // route (rover traverses only): [end_lat, end_lon, preset, speed_mps, max_slope_deg, max_cross_deg, stop_every_km, stop_h]
 
@@ -304,8 +306,9 @@ function b64urlDecode(str) {
 }
 
 /**
- * Encode the app state into a URL hash string (with the leading "#"). `sky` (optional, Sky tab only):
- * { offsetMs, look, view: { az_deg, el_deg, fov_deg } }, as returned by the Sky tab; null fields are left out.
+ * Encode the app state into a URL hash string (with the leading "#"). `sky` (optional): { offsetMs, view: { az_deg,
+ * el_deg, fov_deg } }, as returned by the sky panel; null fields are left out. `tab` and `sky.look` are written only
+ * when given (the page of the tab era wrote them; tests rebuild such links).
  */
 export function encodeHash({ scenarios, tab = "compare", xaxis = "met", body = "sun", sky = null }) {
   const rows = scenarios.map((s) => [
@@ -383,6 +386,16 @@ export function decodeHash(hash) {
   } catch {
     return null;
   }
+}
+
+/**
+ * The Sun | Earth choice a decoded link (decodeHash) opens with: every sky view is aimed at it and its data is shown.
+ * Links made when the page had Compare and Sky tabs: a "tab=sky" link showed the sky aimed at its "look" body (none:
+ * the opening view, toward the Earth), so it opens on that body; any other link keeps its "b" (the Compare section).
+ */
+export function hashBody(h) {
+  if (h?.tabGiven && h.tab === "sky") return h.sky?.look === "sun" ? "sun" : "earth";
+  return h?.body === "earth" ? "earth" : "sun";
 }
 
 function round(x, d) {

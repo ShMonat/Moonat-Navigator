@@ -1,6 +1,8 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
-// Compare tab: Sun and Earth sections. Single instants get metric cards; missions get summary cards plus Plotly
-// charts against mission elapsed time (or calendar time), one line per scenario.
+// The data under the sky: Sun and Earth sections (one shown at a time, by the page's "☀ Sun | 🌍 Earth" switch), and the
+// "Side by side" table of several scenarios. Single instants get metric cards; missions get summary cards plus Plotly
+// charts against mission elapsed time (or calendar time, or distance for rover traverses), one line per scenario,
+// with a time cursor at the moment the sky shows.
 
 import { store, subscribe, setUi } from "./store.js";
 import { formatDuration, formatUtc, DAY_MS } from "./state.js";
@@ -13,6 +15,15 @@ const S0 = 1361;
 const PLOTLY_URL = "https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js";
 
 let plotlyPromise = null;
+let chartsGate = Promise.resolve();
+/**
+ * Hold the chart drawing (and the 1 MB Plotly download) until `promise` settles, e.g. until the first sky view is on
+ * screen, so the charts under the sky do not slow down the view at the top.
+ */
+export function holdChartsUntil(promise) {
+  chartsGate = Promise.resolve(promise).catch(() => {});
+}
+
 /** Load Plotly on first use (it is large, and only missions need it). */
 function loadPlotly() {
   if (window.Plotly) return Promise.resolve(window.Plotly);
@@ -43,16 +54,15 @@ let fluxMode = "normal"; // "normal" (Sun-facing panel) or "horiz" (flat ground)
 let lastArgs = null;
 
 /**
- * Render the Compare tab.
+ * Render the Sun and Earth data.
  * items: [{ s, label, color, dash, t0, t1, span, horizon, state0, series | null, look | null, error | null }]
  */
 export function renderCompare(items, opts) {
   lastArgs = [items, opts];
   const ok = items.filter((it) => !it.error && it.state0);
-  document.getElementById("compare-empty").hidden = ok.length > 0;
   document.getElementById("compare-body").hidden = ok.length === 0;
   const anyMission = ok.some((it) => it.series);
-  document.getElementById("xaxis-toggle").hidden = !anyMission;
+  document.getElementById("chart-tools").hidden = !anyMission;
   // Rover traverses (web/js/rover) can also be drawn against the distance driven; static sites cannot.
   const anyRoute = ok.some((it) => it.series?.distance_km);
   const distBtn = document.querySelector('#xaxis-toggle [data-x="dist"]');
@@ -73,6 +83,7 @@ export function renderCompare(items, opts) {
   const sunCharts = document.getElementById("charts-sun");
   const earthCharts = document.getElementById("charts-earth");
   if (!anyMission) {
+    cursorCtx = null;
     sunCharts.replaceChildren();
     earthCharts.replaceChildren();
     // The shells are gone, so the next mission render must rebuild them.
@@ -86,22 +97,31 @@ export function renderCompare(items, opts) {
   ensureChartShells(earthCharts, "earth");
   // The Earth elevation caption fits the sites shown (near side, poles and limb, far side).
   document.getElementById("help-earth-el").textContent = earthElCaption(ok);
-  loadPlotly()
-    .then((Plotly) => drawCharts(Plotly, ok, opts))
+  const args = lastArgs;
+  chartsGate
+    .then(() => (lastArgs === args ? loadPlotly() : null))
+    .then((Plotly) => {
+      if (Plotly && lastArgs === args) drawCharts(Plotly, ok, opts);
+    })
     .catch((err) => {
       for (const c of document.querySelectorAll(".chart")) c.textContent = "Charts could not load (offline?). " + err.message;
     });
 }
 
+const BODY_SUB = { sun: "Sunlight: power and heat", earth: "Earth in view: direct radio contact" };
+
 /**
- * The "☀ Sun | 🌍 Earth" switch: shows one section at a time. The choice lives in store.body (and the URL hash).
+ * The "☀ Sun | 🌍 Earth" switch under the sky: shows one section at a time (the choice lives in store.body and the URL
+ * hash) and calls onPick(body) on every press, also of the pressed half, so main.js can aim the sky views at it.
  * Plotly cannot measure a hidden chart, so the charts of a section are resized when it is shown.
  */
-export function initBodySwitch() {
+export function initBodySwitch(onPick = () => {}) {
   const seg = document.getElementById("body-toggle");
   seg.addEventListener("click", (e) => {
     const b = e.target.closest("button");
-    if (b && b.dataset.body !== store.body) setUi({ body: b.dataset.body });
+    if (!b) return;
+    onPick(b.dataset.body);
+    if (b.dataset.body !== store.body) setUi({ body: b.dataset.body });
   });
   subscribe((kind, detail) => {
     if (kind === "ui" && "body" in detail) syncBody();
@@ -109,25 +129,31 @@ export function initBodySwitch() {
   syncBody();
 }
 
-/** Apply store.body to the DOM (button state, which section is visible) and resize the charts that just appeared. */
+/**
+ * Apply store.body to the DOM (button state, which section is visible, the time-axis selector moved above that
+ * section's charts) and fit the charts that just appeared.
+ */
 export function syncBody() {
   const body = store.body === "earth" ? "earth" : "sun";
   for (const b of document.querySelectorAll("#body-toggle button")) b.setAttribute("aria-pressed", String(b.dataset.body === body));
+  document.getElementById("body-sub").textContent = BODY_SUB[body];
   document.getElementById("sec-sun").hidden = body !== "sun";
   document.getElementById("sec-earth").hidden = body !== "earth";
+  document.getElementById(`charts-${body}`).before(document.getElementById("chart-tools"));
   resizeShownCharts();
+  drawCursor(true);
 }
 
 /**
  * Fit the charts of the visible section to their boxes. Plotly's own window-resize handler cannot measure a hidden
- * chart, so charts that were hidden during a resize (the other section, or the whole Compare tab while the Sky tab was
- * open) keep their old width until this runs: when a section or the Compare tab is shown.
+ * chart, so charts that were hidden during a resize (the other section, or the whole data block while it was empty)
+ * keep their old width until this runs: when a section is shown.
  */
 export function resizeShownCharts() {
   if (!plotlyPromise) return;
   plotlyPromise.then((Plotly) => {
     requestAnimationFrame(() => {
-      if (document.getElementById("tab-compare").hidden) return;
+      if (document.getElementById("compare-body").hidden) return;
       const body = store.body === "earth" ? "earth" : "sun";
       for (const c of document.querySelectorAll(`#sec-${body} .chart`)) if (c.classList.contains("js-plotly-plot")) Plotly.Plots.resize(c);
     });
@@ -344,7 +370,7 @@ function earthMissionCard(it) {
 const CHARTS = {
   sun: [
     { id: "sun-el", wide: true, title: "Sun elevation", help: "Height above the flat, ideal horizon. Dotted: the real terrain horizon in that direction. Above 0° does not guarantee sunlight." },
-    { id: "sun-vis", title: "Visible Sun", help: "Share of the Sun's light that reaches the site: 100% = the full Sun. Terrain and, during an eclipse, the Earth block part of it (the disk's darker edge counts a little less). Dashed: terrain only." },
+    { id: "sun-vis", title: "Visible Sun", help: "Share of the Sun's light that reaches the site (100% = the full Sun). Terrain and, during an eclipse, the Earth block part of it." },
     { id: "sun-flux", title: "Sunlight power", help: "Solar power reaching a panel, in W/m².", toggle: true },
   ],
   earth: [
@@ -460,6 +486,12 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
   // On the distance axis only rover traverses are drawn (a static site has no distance).
   const missions = items.filter((it) => it.series && (xaxis !== "dist" || it.series.distance_km));
   const instants = xaxis === "dist" ? [] : items.filter((it) => !it.series);
+  // Every chart gets the sky's time cursor on top of its own shapes (drawCursor keeps it current).
+  cursorCtx = { missions, xaxis, unitMs, th };
+  const react = (id, data, layout) => {
+    baseShapes.set(id, layout.shapes || []);
+    Plotly.react(`chart-${id}`, data, { ...layout, shapes: [...(layout.shapes || []), ...cursorShapes()] }, config);
+  };
 
   // Eclipses of the Sun by the Earth (C6 series().eclipses): a light band for the partial phases, a darker one for
   // totality, labelled once per event.
@@ -506,7 +538,7 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
     },
     (it) => instantMarker(it, it.state0.sun.el_deg, deg(it.state0.sun.el_deg)),
   );
-  Plotly.react("chart-sun-el", sunEl, layoutBase("Elevation (°)", { ticksuffix: "°" }), config);
+  react("sun-el", sunEl, layoutBase("Elevation (°)", { ticksuffix: "°" }), config);
 
   // Visible Sun. Solid: the share of the Sun's light that reaches the site (C6 flux_frac: limb-darkened, after the
   // terrain and the Earth). Dashed, for windows with an eclipse: the terrain alone (C6 vis_frac, share of the disk).
@@ -544,7 +576,7 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
       annotations: (sunVisLayout.annotations || []).map((a) => ({ ...a, y: 0.5, yanchor: "middle" })),
     });
   }
-  Plotly.react("chart-sun-vis", sunVisTraces, sunVisLayout, config);
+  react("sun-vis", sunVisTraces, sunVisLayout, config);
 
   const fluxKey = fluxMode === "horiz" ? "flux_horiz_wm2" : "flux_normal_wm2";
   // The scale starts at 0 and reaches at least 1400 W/m² for a Sun-facing panel (the solar constant is 1361) or 100 W/m²
@@ -552,8 +584,8 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
   let fluxMax = 0;
   for (const it of missions) for (const v of it.series[fluxKey]) if (v > fluxMax) fluxMax = v;
   for (const it of instants) fluxMax = Math.max(fluxMax, sunFlux(it.state0.sun)[fluxMode === "horiz" ? "horiz" : "normal"] || 0);
-  Plotly.react(
-    "chart-sun-flux",
+  react(
+    "sun-flux",
     traces(
       (it) => [line(it, it.series[fluxKey], { hovertemplate: "%{y:.0f} W/m²" })],
       (it) => {
@@ -579,10 +611,10 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
     },
     (it) => instantMarker(it, it.state0.earth.el_deg, deg(it.state0.earth.el_deg)),
   );
-  Plotly.react("chart-earth-el", earthEl, layoutBase("Elevation (°)", { ticksuffix: "°" }), config);
+  react("earth-el", earthEl, layoutBase("Elevation (°)", { ticksuffix: "°" }), config);
 
-  Plotly.react(
-    "chart-earth-vis",
+  react(
+    "earth-vis",
     traces(
       (it) => [line(it, it.series.earth_vis.map((v) => v * 100), { hovertemplate: "%{y:.0f}%" })],
       (it) => instantMarker(it, it.state0.earth.vis_frac * 100, `${Math.round(it.state0.earth.vis_frac * 100)}%`),
@@ -591,8 +623,8 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
     config,
   );
 
-  Plotly.react(
-    "chart-earth-phase",
+  react(
+    "earth-phase",
     traces(
       (it) => [line(it, it.series.earth_phase.map((v) => v * 100), { hovertemplate: "%{y:.0f}% lit" })],
       (it) => instantMarker(it, it.state0.earth.phase_frac * 100, `${Math.round(it.state0.earth.phase_frac * 100)}% lit`),
@@ -603,4 +635,65 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
   // A chart first drawn in a hidden section gets Plotly's default 700 px width, and Plotly.react keeps it: fit the
   // shown section to its box (e.g. the Far side story opens the Earth section; 700 px overflows a phone).
   resizeShownCharts();
+}
+
+// ---------------------------------------------------------------------------------------------
+// Time cursor: a dotted vertical line at the moment the sky views show (the timelapse slider). On the "time since start"
+// axis one line; on the UTC and distance axes one per scenario, in its colour, where it is at that moment.
+
+let cursorMs = 0;
+let cursorCtx = null; // { missions, xaxis, unitMs, th } of the last chart draw
+const baseShapes = new Map(); // chart id -> its own shapes (eclipse bands)
+let cursorTimer = 0;
+let cursorLast = 0;
+
+/** Move the charts' time cursor to `offsetMs` after the scenarios' start (throttled while the timelapse plays). */
+export function setChartCursor(offsetMs) {
+  cursorMs = Math.max(0, Number(offsetMs) || 0);
+  drawCursor();
+}
+
+function cursorShapes() {
+  if (!cursorCtx || !cursorCtx.missions.length) return [];
+  const { missions, xaxis, unitMs, th } = cursorCtx;
+  const line = (x, color) => ({
+    type: "line", xref: "x", yref: "paper", x0: x, x1: x, y0: 0, y1: 1, layer: "above",
+    line: { color, width: 1.5, dash: "dot" },
+  });
+  if (xaxis === "met") return [line(cursorMs / unitMs, th.textStrong)];
+  const seen = new Set();
+  const out = [];
+  for (const it of missions) {
+    const t = it.t0 + Math.min(cursorMs, it.span || 0);
+    let x;
+    if (xaxis === "utc") x = new Date(t).toISOString().slice(0, 19).replace("T", " ");
+    else {
+      const tt = it.series.t_ms;
+      const i = Math.max(0, Math.min(tt.length - 1, Math.round((t - tt[0]) / ((tt[1] - tt[0]) || 1))));
+      x = it.series.distance_km[i];
+    }
+    const key = `${x}|${missions.length > 1 ? it.color : ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(line(x, missions.length > 1 ? it.color : th.textStrong));
+  }
+  return out;
+}
+
+/** Redraw the cursor on the shown charts: at most about 12 times a second, or at once (`now`). */
+function drawCursor(now = false) {
+  if (!plotlyPromise || !cursorCtx) return;
+  clearTimeout(cursorTimer);
+  const wait = now ? 0 : Math.max(0, 80 - (performance.now() - cursorLast));
+  cursorTimer = setTimeout(() => {
+    cursorLast = performance.now();
+    plotlyPromise.then((Plotly) => {
+      const body = store.body === "earth" ? "earth" : "sun";
+      const cur = cursorShapes();
+      for (const c of document.querySelectorAll(`#sec-${body} .chart.js-plotly-plot`)) {
+        const id = c.id.replace(/^chart-/, "");
+        Plotly.relayout(c, { shapes: [...(baseShapes.get(id) || []), ...cur] });
+      }
+    }).catch(() => {});
+  }, wait);
 }

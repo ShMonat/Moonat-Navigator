@@ -30,8 +30,16 @@ Decisions in Shahar's domain are marked *(pending Shahar's review)*.
    **Suggested dates:** `web/js/suggest/` ranks mission dates for a site (best solar, Earth-contact and combined
    windows, eclipses of the Sun by the Earth, Earthrises) from one C6 series pass in a module worker (contract C11,
    docs/validation/suggest.md) *(definitions pending Shay's review; not yet wired into the UI)*.
-6. **UI:** two tabs, per the Main Tab verdict. **Compare** (scenario builder + Sun and Earth panels, overlaid) and **Sky**
-   (the rendered view, one per scenario, drag to look around the hemisphere, timelapse for missions).
+6. **UI: one flow** (2026-11-14, Shay's request after using the app on his phone; replaces the two tabs of the Main Tab
+   verdict) *(pending Shahar's review: board flag `single-flow-layout`)*. The page reads in the order a visitor needs it:
+   the place (the globe, with catalog sites coloured by kind) and the time (scenario cards, with "✨ Suggest dates",
+   C11), or a story (the quick starts, right under the scenario box); then the sky from there (one view per scenario,
+   drag to look around, the timelapse bar under the views, a hint when the window holds an eclipse or an Earthrise);
+   then **one switch "☀ Sun | 🌍 Earth"** that aims every view at that body and shows its cards, the side-by-side
+   table and the charts (with a time cursor at the sky's moment). Phones read it top to bottom; tablets put the globe
+   beside the cards; from 1100 px the inputs and the results are two columns. Rare view toggles (close-up,
+   constellations, camera exposure, the full readout) sit in each view's "⋯" menu; the sky HUD is minimal and the
+   card footer under each view has the full readout.
 7. **Data contracts:** `docs/CONTRACTS.md` (binding).
 
 ## 1. Big picture

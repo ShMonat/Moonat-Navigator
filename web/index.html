@@ -65,6 +65,11 @@
   <link rel="modulepreload" href="js/terrain/trek.js">
   <link rel="modulepreload" href="js/terrain/lerc1.js">
   <link rel="modulepreload" href="js/app/scenarios_ui.js">
+  <link rel="modulepreload" href="js/app/suggest_adapter.js">
+  <link rel="modulepreload" href="js/suggest/index.js">
+  <link rel="modulepreload" href="js/suggest/core.js">
+  <link rel="modulepreload" href="js/suggest/windows.js">
+  <link rel="modulepreload" href="js/suggest/format.js">
   <link rel="modulepreload" href="js/rover/ui.js">
   <link rel="modulepreload" href="js/rover/index.js">
   <link rel="modulepreload" href="js/rover/route.js">
@@ -79,14 +84,15 @@
   <link rel="modulepreload" href="js/sky/words.js">
   <link rel="modulepreload" href="js/app/derive.js">
   <link rel="modulepreload" href="js/app/icons.js">
-  <link rel="modulepreload" href="js/app/sky_tab.js">
+  <link rel="modulepreload" href="js/app/sky_panel.js">
   <link rel="modulepreload" href="js/app/sky_adapter.js">
   <link rel="modulepreload" href="js/app/gestures.js">
+  <link rel="modulepreload" href="js/app/events.js">
   <link rel="modulepreload" href="js/rover/sky_ride.js">
   <script>
-    // What the opening view needs, by tab: the Sky tab (a first visit, or a "tab=sky" link) gets three.js, the sky
-    // modules, the stars and the Earth images at once, and on a first visit the Apollo 11 quick start's data; the
-    // Compare tab gets Plotly (the 1 MB chart library), which the Sky tab only fetches later, at idle priority.
+    // What the opening view needs: three.js, the sky modules, the stars and the Earth images at once (the sky view is the
+    // first result on a desktop page), and on a first visit the Apollo 11 quick start's data. Plotly (the 1 MB chart library,
+    // for the charts under the sky) is fetched later, once the first sky view is drawn (main.js).
     (function () {
       try {
         var PLOTLY = "https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"; // = PLOTLY_URL in js/app/compare.js
@@ -98,7 +104,6 @@
         var covered = function (y) { return (y >= 1966 && y <= 1976) || (y >= 2013 && y <= 2040); }; // = data/ephem/manifest.json
         var h = location.hash || "";
         var hasScenarios = /(^#|&)s=/.test(h);
-        var sky = /(^#|&)tab=sky(&|$)/.test(h) || (!hasScenarios && !/(^#|&)tab=/.test(h));
         var add = function (rel, href, as, cors) {
           var l = document.createElement("link");
           l.rel = rel;
@@ -121,23 +126,27 @@
           });
           Object.keys(want).forEach(function (u) { add(dataRel, u, "fetch", true); });
         }
-        if (!sky) return add("preload", PLOTLY, "script");
+        // On a phone (one column, or little height) the sky is below the globe and the scenario cards, and its views are
+        // built when they scroll into sight: what only the views use (stars, Earth images, the 3D ground) is fetched at
+        // low priority there; the ephemeris and the horizon, which the first results need, at once.
+        var skyBelow = innerWidth < 700 || (innerWidth < 1100 && innerHeight < 700);
+        var viewRel = skyBelow ? "prefetch" : dataRel;
         SKY_MODULES.forEach(function (u) { add("modulepreload", u); });
-        if (!hasScenarios) FIRST_VISIT.forEach(function (u) { add("preload", u, "fetch", true); });
-        SKY_DATA.forEach(function (u) { add(dataRel, u, "fetch", true); });
-        SKY_IMAGES.forEach(function (u) { add(dataRel, u, "image", true); });
+        if (!hasScenarios) FIRST_VISIT.forEach(function (u) { add(/^data\/terrain\//.test(u) ? viewRel : "preload", u, "fetch", true); });
+        SKY_DATA.forEach(function (u) { add(viewRel, u, "fetch", true); });
+        SKY_IMAGES.forEach(function (u) { add(viewRel, u, "image", true); });
       } catch (e) { /* preloading is only an optimisation */ }
     })();
   </script>
   <script type="module" src="js/app/main.js"></script>
 </head>
 <body>
-  <a class="skip" href="#output">Skip to results</a>
+  <a class="skip" href="#sky-panel">Skip to the sky view</a>
 
   <header class="topbar">
     <div class="brand">
       <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13" class="logo-moon"/><circle cx="21.5" cy="11.5" r="11" class="logo-shadow"/></svg>
-      <div>
+      <div class="brand-text">
         <div class="brand-row">
           <h1>Moonat</h1>
           <button type="button" class="valid-badge" id="btn-validated" aria-haspopup="dialog" title="How we checked the numbers against NASA and JPL references">
@@ -146,10 +155,6 @@
         <p class="tagline">Lunar Landing Site Navigator: see the Sun and Earth from anywhere on the Moon</p>
       </div>
     </div>
-    <nav class="tabs" role="tablist" aria-label="Views">
-      <button role="tab" id="tab-btn-compare" aria-controls="tab-compare" aria-selected="true" data-tab="compare">Compare</button>
-      <button role="tab" id="tab-btn-sky" aria-controls="tab-sky" aria-selected="false" data-tab="sky" tabindex="-1">Sky</button>
-    </nav>
     <div class="top-actions">
       <button class="ghost" id="btn-share" title="Copy a link to this view">Share</button>
       <button class="ghost" id="btn-about" title="What the numbers mean and where the data comes from">About</button>
@@ -161,25 +166,29 @@
   </header>
 
   <div class="intro" id="intro" role="note" aria-label="Introduction">
-    <p><strong>The real sky of any place on the Moon, at any moment<span class="intro-more">:</span></strong><span class="intro-more"> the Sun and Earth placed from NASA and JPL data, behind real terrain.</span>
-      <span class="intro-try">Try: <button type="button" class="link-btn" data-qs="apollo11">Apollo 11</button> ·
-        <button type="button" class="link-btn" data-qs="apollo-all">All Apollo landings</button> ·
-        <button type="button" class="link-btn" data-qs="pole">South pole</button> ·
-        <button type="button" class="link-btn" data-qs="farside">Far side</button> ·
-        <button type="button" class="link-btn" data-qs="eclipse">Eclipse</button></span></p>
+    <p><strong>Pick a place on the Moon and a time</strong> to see its real sky, from NASA and JPL data<span class="intro-more">, or start with a story</span>.</p>
     <button type="button" class="icon-btn intro-close" id="intro-close" aria-label="Hide this introduction" title="Hide this introduction">✕</button>
   </div>
 
+  <!-- One flow, in the order a visitor needs it: the place (globe), the time (scenario cards), or a story; then the sky
+       from there, its timelapse, and one switch that turns every view to the Sun or the Earth and shows that body's data.
+       Phones read it top to bottom; from about 1100 px the inputs and the results are two columns. -->
   <main class="layout">
-    <aside class="side" aria-label="Scenarios">
-      <section class="block map-block" id="map-block">
+    <div class="inputs" id="inputs">
+      <section class="block map-block" id="map-block" aria-label="Moon globe">
         <div id="map" class="map"></div>
+        <ul class="map-legend" aria-label="Map key">
+          <li><span class="lg lg-mission" aria-hidden="true"></span>Missions</li>
+          <li><span class="lg lg-candidate" aria-hidden="true"></span>Artemis III regions</li>
+          <li><span class="lg lg-poi" aria-hidden="true"></span>Places of interest</li>
+          <li><span class="lg lg-pin" aria-hidden="true"></span>Your places</li>
+        </ul>
         <p class="map-hint" id="map-hint"><span class="hint-mouse">Click the Moon to place the selected scenario. Drag to turn it, scroll to zoom.</span><span class="hint-touch">Tap the Moon to place the selected scenario. Drag to turn it, pinch to zoom.</span></p>
       </section>
 
-      <section class="block scen-block" id="scen-block">
+      <section class="block scen-block" id="scen-block" aria-labelledby="scen-title">
         <div class="block-head">
-          <h2 class="block-title">Scenarios</h2>
+          <h2 class="block-title" id="scen-title">Place and time</h2>
           <button class="link-btn" id="btn-clear" hidden>Clear all</button>
         </div>
         <div id="cards" class="cards"></div>
@@ -191,108 +200,88 @@
           <span aria-hidden="true">🛞</span> Advanced: plan a rover traverse</button>
       </section>
 
-      <section class="block qs-block">
+      <section class="block qs-block" id="qs-block" aria-labelledby="qs-title">
         <div class="block-head">
-          <h2 class="block-title">Quick start</h2>
-          <a class="jump-link" href="#output">Results &uarr;</a>
+          <h2 class="block-title" id="qs-title">Stories</h2>
+          <a class="jump-link" href="#sky-panel">Sky view &darr;</a>
         </div>
         <div class="chips" id="quickstarts"></div>
       </section>
-    </aside>
+    </div>
 
-    <section class="output" id="output" aria-live="polite">
-      <!-- The "what to look for" line of the loaded quick start (main.js). The text below is the first visit's (Apollo 11,
-           as QUICK_STARTS[0].caption), there at first paint so the line does not push the results down later. -->
-      <p class="qs-caption" id="qs-caption"><span class="qs-cap-label">What to look for:</span>
-        <span class="qs-cap-text">Earth hangs high in the west, 59° up and 67 % lit; the Sun is low in the east. Drag the sky to look around, or press play.</span></p>
-      <div id="tab-compare" role="tabpanel" aria-labelledby="tab-btn-compare" class="tabpanel">
-        <div class="empty" id="compare-empty" hidden>
-          <svg viewBox="0 0 120 60" class="empty-art" aria-hidden="true"><path d="M0 52 Q30 38 52 46 T120 40 V60 H0z" class="ground"/><circle cx="88" cy="18" r="9" class="earth"/><circle cx="28" cy="14" r="5" class="sun"/></svg>
-          <h2>Pick a place on the Moon and a time</h2>
-          <p>Click the map, type coordinates, or load a historical mission. A quick start is the fastest way in:</p>
-          <div class="chips empty-chips" data-qs-list></div>
-        </div>
-        <div id="compare-body">
-          <div class="body-switch seg seg-lg" role="group" aria-label="Show Sun data or Earth data" id="body-toggle">
-            <button type="button" data-body="sun" aria-pressed="true"><span aria-hidden="true">☀</span> Sun</button>
-            <button type="button" data-body="earth" aria-pressed="false"><span aria-hidden="true">🌍</span> Earth</button>
-          </div>
-          <div class="compare-bar" id="compare-bar">
-            <div class="seg" role="group" aria-label="Time axis" id="xaxis-toggle">
-              <button data-x="met" aria-pressed="true" title="Mission elapsed time: hours or days since each scenario's start">Time since start</button>
-              <button data-x="utc" aria-pressed="false">Calendar time (UTC)</button>
-              <button data-x="dist" aria-pressed="false" hidden title="Rover traverses: distance driven along the path">Distance travelled</button>
-            </div>
-            <p class="xaxis-note" id="xaxis-note" hidden>Distance axis: only rover traverses are drawn.</p>
-            <p class="busy" id="busy" hidden><span class="spinner" aria-hidden="true"></span>Computing…</p>
-          </div>
-
-          <section class="body-section" id="sec-sun" aria-labelledby="h-sun">
-            <h2 class="sec-title" id="h-sun"><span class="sec-icon sun" aria-hidden="true">☀</span>Sun <span class="sec-sub">power and heat</span></h2>
-            <div class="metric-cards" id="cards-sun"></div>
-            <div class="charts" id="charts-sun"></div>
-          </section>
-
-          <section class="body-section" id="sec-earth" aria-labelledby="h-earth">
-            <h2 class="sec-title" id="h-earth"><span class="sec-icon earth" aria-hidden="true">🌍</span>Earth <span class="sec-sub">direct radio contact</span></h2>
-            <div class="metric-cards" id="cards-earth"></div>
-            <div class="charts" id="charts-earth"></div>
-          </section>
-        </div>
+    <div class="output" id="output">
+      <div class="out-head" aria-live="polite">
+        <!-- The "what to look for" line of the loaded story (main.js). The text below is the first visit's (Apollo 11,
+             as QUICK_STARTS[0].caption), there at first paint so the line does not push the sky down later. -->
+        <p class="qs-caption" id="qs-caption"><span class="qs-cap-label">What to look for:</span>
+          <span class="qs-cap-text">Earth hangs high in the west, 59° up and 67 % lit; the Sun is low in the east. Drag the sky to look around, or press play.</span></p>
+        <p class="busy" id="busy" hidden><span class="spinner" aria-hidden="true"></span>Computing…</p>
       </div>
 
-      <div id="tab-sky" role="tabpanel" aria-labelledby="tab-btn-sky" class="tabpanel" hidden>
-        <div class="sky-controls" id="sky-controls">
-          <div class="sky-time">
-            <button class="icon-btn play" id="btn-play" aria-label="Play timelapse" title="Play / pause">
-              <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
-              <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>
-            </button>
-            <input type="range" id="sky-slider" min="0" max="1000" value="0" step="1" aria-label="Time since mission start">
-            <output id="sky-clock" for="sky-slider">T+0 h</output>
-            <label class="speed">Speed
-              <select id="sky-speed">
-                <option value="600000">10 min / s</option>
-                <option value="3600000" selected>1 h / s</option>
-                <option value="21600000">6 h / s</option>
-                <option value="86400000">1 day / s</option>
-              </select>
-            </label>
-          </div>
-          <div class="sky-look">
-            <button class="ghost" id="btn-look-earth">🌍 Look at Earth</button>
-            <button class="ghost" id="btn-look-sun">☀ Look at Sun</button>
-          </div>
-          <p class="sky-note" id="sky-note">Drag to look around, scroll to zoom. Missions are synchronised by time since landing.</p>
-        </div>
-        <div class="empty" id="sky-empty" hidden>
-          <h2>No sky to show yet</h2>
-          <p>Click the map (or type coordinates) and give a start time, or open a story:</p>
-          <div class="chips empty-chips" data-qs-list></div>
-        </div>
+      <div class="empty" id="out-empty" hidden>
+        <svg viewBox="0 0 120 60" class="empty-art" aria-hidden="true"><path d="M0 52 Q30 38 52 46 T120 40 V60 H0z" class="ground"/><circle cx="88" cy="18" r="9" class="earth"/><circle cx="28" cy="14" r="5" class="sun"/></svg>
+        <h2>Pick a place on the Moon and a time</h2>
+        <p>Click the globe, type coordinates or search a mission. A story is the fastest way in:</p>
+        <div class="chips empty-chips" data-qs-list></div>
+      </div>
+
+      <section class="sky-panel" id="sky-panel" aria-label="Sky view" tabindex="-1">
         <div class="sky-grid" id="sky-grid"></div>
+        <div class="sky-controls" id="sky-controls" hidden>
+          <button class="icon-btn play" id="btn-play" aria-label="Play timelapse" title="Play / pause">
+            <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+            <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>
+          </button>
+          <input type="range" id="sky-slider" min="0" max="1000" value="0" step="1" aria-label="Time since mission start">
+          <output id="sky-clock" for="sky-slider">Start</output>
+          <label class="speed"><span class="speed-word">Speed</span>
+            <select id="sky-speed" aria-label="Timelapse speed">
+              <option value="600000">10 min / s</option>
+              <option value="3600000" selected>1 h / s</option>
+              <option value="21600000">6 h / s</option>
+              <option value="86400000">1 day / s</option>
+            </select>
+          </label>
+        </div>
+        <p class="event-hint" id="event-hint" hidden></p>
+      </section>
+
+      <div class="body-bar" id="body-bar" hidden>
+        <div class="body-switch seg seg-lg" role="group" aria-label="Look at the Sun or the Earth, and show its data" id="body-toggle">
+          <button type="button" data-body="sun" aria-pressed="true"><span aria-hidden="true">☀</span> Sun</button>
+          <button type="button" data-body="earth" aria-pressed="false"><span aria-hidden="true">🌍</span> Earth</button>
+        </div>
+        <p class="body-sub" id="body-sub">Sunlight: power and heat</p>
       </div>
-    </section>
+
+      <div id="compare-body" hidden>
+        <div class="chart-tools" id="chart-tools" hidden>
+          <span class="chart-tools-label" id="xaxis-label">Time axis</span>
+          <div class="seg seg-sm" role="group" aria-labelledby="xaxis-label" id="xaxis-toggle">
+            <button type="button" data-x="met" aria-pressed="true" title="Mission elapsed time: hours or days since each scenario's start">Since start</button>
+            <button type="button" data-x="utc" aria-pressed="false" title="Calendar time (UTC)">UTC</button>
+            <button type="button" data-x="dist" aria-pressed="false" hidden title="Rover traverses: distance driven along the path">Distance</button>
+          </div>
+          <p class="xaxis-note" id="xaxis-note" hidden>Distance axis: only rover traverses are drawn.</p>
+        </div>
+
+        <section class="body-section" id="sec-sun" aria-labelledby="h-sun">
+          <h2 class="sec-title sr-only" id="h-sun">Sun: power and heat</h2>
+          <div class="metric-cards" id="cards-sun"></div>
+          <div class="charts" id="charts-sun"></div>
+        </section>
+
+        <section class="body-section" id="sec-earth" aria-labelledby="h-earth" hidden>
+          <h2 class="sec-title sr-only" id="h-earth">Earth: direct radio contact</h2>
+          <div class="metric-cards" id="cards-earth"></div>
+          <div class="charts" id="charts-earth"></div>
+        </section>
+      </div>
+    </div>
   </main>
   <script>
-    // Paint the tab the app will open on (main.js confirms it): the Sky tab for a first visit (no scenarios in the
-    // link, e.g. no hash) or for a "tab=sky" link; the Compare tab for older links that hold scenarios but no tab.
-    (function () {
-      try {
-        var h = location.hash || "";
-        var hasScenarios = /(^#|&)s=/.test(h);
-        var sky = /(^#|&)tab=sky(&|$)/.test(h) || (!hasScenarios && !/(^#|&)tab=/.test(h));
-        // The Apollo 11 caption is for its Sky tab; for a link's own scenarios main.js decides whether one applies.
-        if (hasScenarios || !sky) document.getElementById("qs-caption").hidden = true;
-        if (!sky) return;
-        document.getElementById("tab-compare").hidden = true;
-        document.getElementById("tab-sky").hidden = false;
-        document.getElementById("tab-btn-compare").setAttribute("aria-selected", "false");
-        document.getElementById("tab-btn-compare").tabIndex = -1;
-        document.getElementById("tab-btn-sky").setAttribute("aria-selected", "true");
-        document.getElementById("tab-btn-sky").tabIndex = 0;
-      } catch (e) { /* main.js sets the tab anyway */ }
-    })();
+    // The Apollo 11 caption is for a first visit; for a link's own scenarios main.js decides whether a story caption applies.
+    try { if (/(^#|&)s=/.test(location.hash || "")) document.getElementById("qs-caption").hidden = true; } catch (e) { /* main.js decides anyway */ }
   </script>
 
   <footer class="foot">

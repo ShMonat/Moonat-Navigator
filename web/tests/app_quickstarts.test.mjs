@@ -1,7 +1,7 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
-// Quick starts (web/js/app/catalog.js) and the first-visit page (web/index.html): how each story opens (tab, Compare
-// axis and section, Sky-tab moment), the numbers its "what to look for" caption quotes, and the story links of the
-// introduction line.
+// Quick starts (web/js/app/catalog.js) and the first-visit page (web/index.html): how each story opens (the Sun | Earth
+// switch, the charts' time axis, the sky's opening moment), the numbers its "what to look for" caption quotes, and
+// the story buttons of the page.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -22,19 +22,19 @@ test("the first six quick starts keep their order (the demo video clicks them by
   assert.deepEqual(QUICK_STARTS.slice(0, 6).map((q) => q.key), ["apollo11", "apollo-all", "pole", "farside", "eclipse", "rover"]);
 });
 
-test("each quick start opens on a valid tab, axis and section, with a one-line caption", () => {
+test("each quick start opens with a valid body, axis and moment, and a one-line caption", () => {
   for (const q of QUICK_STARTS) {
-    if (q.tab !== undefined) assert.ok(["sky", "compare"].includes(q.tab), q.key);
+    assert.equal(q.tab, undefined, q.key); // one page: no tabs
     if (q.xaxis !== undefined) assert.ok(["met", "utc", "dist"].includes(q.xaxis), q.key);
     if (q.body !== undefined) assert.ok(["sun", "earth"].includes(q.body), q.key);
     if (q.offsetMs !== undefined) assert.ok(Number.isFinite(q.offsetMs) && q.offsetMs >= 0, q.key);
     assert.equal(typeof q.caption, "string", q.key);
     assert.ok(q.caption.length > 40 && q.caption.length < 200 && !q.caption.includes("\n"), q.key);
   }
-  // The stories open where they are best seen.
-  assert.equal(byKey("apollo11").tab, "sky");
-  assert.equal(byKey("apollo-all").tab, "compare");
-  assert.equal(byKey("eclipse").tab, "sky");
+  // Each story turns the sky views to the body it is about (the opening view of a first visit faces the Earth, C8).
+  assert.equal(byKey("apollo11").body, "earth");
+  assert.equal(byKey("farside").body, "earth");
+  for (const k of ["apollo-all", "pole", "eclipse", "rover"]) assert.equal(byKey(k).body ?? "sun", "sun", k);
   assert.equal(byKey("eclipse").xaxis, "utc"); // NASA gives the eclipse contacts in UTC
 });
 
@@ -44,13 +44,15 @@ test("the first-visit caption in index.html is the Apollo 11 caption", () => {
   assert.equal(m[1].replace(/\s+/g, " ").trim(), QUICK_STARTS[0].caption);
 });
 
-test("every story link of the introduction line runs an existing quick start", () => {
-  const keys = [...HTML.matchAll(/data-qs="([^"]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(keys, ["apollo11", "apollo-all", "pole", "farside", "eclipse"]);
-  for (const k of keys) assert.ok(byKey(k), k);
+test("every story button written in index.html runs an existing quick start; the chips come from QUICK_STARTS", () => {
+  for (const [, k] of HTML.matchAll(/data-qs="([^"]+)"/g)) assert.ok(byKey(k), k);
+  assert.match(HTML, /<div class="chips" id="quickstarts"><\/div>/);
+  // The stories sit right under the scenario box, before the sky (one flow: place and time, then the sky).
+  const iCards = HTML.indexOf('id="cards"'), iStories = HTML.indexOf('id="quickstarts"'), iSky = HTML.indexOf('id="sky-panel"');
+  assert.ok(iCards > 0 && iCards < iStories && iStories < iSky);
 });
 
-test("the eclipse quick start opens the Sky tab at 81 % cover, inside the window and before totality", async () => {
+test("the eclipse quick start opens the sky at 81 % cover, inside the window and before totality", async () => {
   await initPhysics(fileURLToPath(new URL("../data/ephem", import.meta.url)), { fetch: fileFetch });
   const q = byKey("eclipse");
   const [p] = q.resolve(SITES);

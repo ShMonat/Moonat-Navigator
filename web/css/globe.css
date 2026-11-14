@@ -58,30 +58,45 @@
 .globe-label.side[data-align="end"] { translate: -100% -50%; }
 .globe-label.side[data-align="center"] { translate: -50% -50%; }
 
-/* Catalog sites */
-.globe-site {
-  position: absolute; left: 0; top: 0; width: 8px; height: 8px; translate: -50% -50%;
-  border-radius: 50%; background: #9fc1ff; border: 1.5px solid rgba(0, 0, 0, 0.7);
-  pointer-events: auto; cursor: pointer;
+/* Catalog sites, by kind: colour and shape (missions: amber circles; Artemis III candidate regions: aqua diamonds;
+   places of interest: orchid squares), each with a dark outline so it stands out on the bright highlands, the dark
+   maria and the grey polar relief alike. The legend under the globe (app.css .map-legend) uses the same colours. */
+:root {
+  --site-mission: #ffb22e;
+  --site-candidate: #38e2cf;
+  --site-poi: #e48cff;
 }
-/* (No `scale` on markers: it would also scale the translate(x, y) set from script.) */
-.globe-site.k-mission { background: #f4f1e7; }
+.globe-site {
+  position: absolute; left: 0; top: 0; width: 12px; height: 12px; translate: -50% -50%;
+  pointer-events: auto; cursor: pointer; --k: #c9d4e8;
+}
+/* (No `scale` or `rotate` on markers: it would also act on the translate(x, y) set from script; the shape is drawn
+   by ::after instead.) */
+.globe-site::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--k);
+  border: 1.5px solid rgba(8, 9, 12, 0.9); box-shadow: 0 0 3px rgba(0, 0, 0, 0.55);
+}
+.globe-site.k-mission { --k: var(--site-mission); }
+.globe-site.k-candidate { --k: var(--site-candidate); }
+.globe-site.k-candidate::after { inset: 1.5px; border-radius: 2px; transform: rotate(45deg); }
+.globe-site.k-poi { --k: var(--site-poi); }
+.globe-site.k-poi::after { inset: 1px; border-radius: 2px; }
 .globe-site::before { content: ""; position: absolute; inset: -5px; border-radius: 50%; }
-.globe-site:hover { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85), 0 0 8px 2px rgba(255, 255, 255, 0.45); }
+.globe-site:hover::after { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9), 0 0 8px 2px rgba(255, 255, 255, 0.45); }
 @media (pointer: coarse) {
   .globe-site::before { inset: -9px; }
 }
 
-/* Scenario pins: anchored at the tip */
+/* Scenario pins, in the scenario colours: anchored at the tip, larger than the site markers, with a white outline */
 .globe-pin {
-  position: absolute; left: 0; top: 0; width: 22px; height: 29px; translate: -50% -100%;
-  pointer-events: auto; cursor: default; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
+  position: absolute; left: 0; top: 0; width: 26px; height: 34px; translate: -50% -100%;
+  pointer-events: auto; cursor: default; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 1px rgba(0, 0, 0, 0.6));
 }
 .globe-pin svg { display: block; width: 100%; height: 100%; overflow: visible; }
-.globe-pin path { fill: var(--c); stroke: #fff; stroke-width: 1.7; }
+.globe-pin path { fill: var(--c); stroke: #fff; stroke-width: 2; }
 .globe-pin circle { fill: #fff; }
-.globe-pin.active { width: 28px; height: 37px; }
-.globe-pin.active path { stroke-width: 2.2; }
+.globe-pin.active { width: 32px; height: 42px; }
+.globe-pin.active path { stroke-width: 2.4; }
 
 .globe-tip {
   position: absolute; left: 0; top: 0; z-index: 5; max-width: 240px; pointer-events: none;
@@ -144,18 +159,12 @@ html.globe-locked, html.globe-locked body { overflow: hidden; }
   .globe-preset { min-height: 34px; }
 }
 
-/* Wide screens: a wider side column so the globe can be large. */
-@media (min-width: 1400px) {
-  .layout { grid-template-columns: minmax(380px, 440px) minmax(0, 1fr); }
-}
-@media (min-width: 1600px) {
-  .layout { grid-template-columns: minmax(400px, 500px) minmax(0, 1fr); }
-}
-@media (max-width: 860px) {
-  .globe, .map:not(.globe-host) { max-height: none; }
+/* One column (phones, tablets): the globe is the first block, as tall as the window allows. */
+@media (max-width: 1099.98px) {
+  .globe, .map:not(.globe-host) { max-height: min(78svh, 640px); }
 }
 @media (max-width: 520px) {
-  .globe, .map:not(.globe-host) { aspect-ratio: 1 / 1.16; }
+  .globe, .map:not(.globe-host) { aspect-ratio: 1 / 1.08; }
   .globe-preset { padding: 5px 9px; font-size: 11.5px; }
   /* A row in the bottom-right corner, clear of most of the disc; the credit may take two lines. */
   .globe-tools { flex-direction: row; bottom: 34px; right: 8px; gap: 5px; }

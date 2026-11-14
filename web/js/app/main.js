@@ -1,17 +1,21 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
-// App entry: wires the store, scenario cards, map, physics, Compare and Sky tabs, theme, sharing and the About panel.
+// App entry: wires the store, the globe, the scenario cards, the physics, the sky views, the Sun | Earth switch and the
+// data under it, the event hints, theme, sharing and the About panels. The page is one flow: place and time (globe,
+// cards, stories), then the sky from there, then the chosen body's data.
 
-import { store, subscribe, setScenarios, setUi } from "./store.js";
+import { store, subscribe, setScenarios, setUi, updateScenario } from "./store.js";
 import {
-  colorHex, isWrappedSlot, validateScenario, scenarioTimes, chooseStep, physicsKey, encodeHash, decodeHash, coverageEnd, makeScenario, DAY_MS,
-  HOUR_MS,
+  colorHex, isWrappedSlot, validateScenario, scenarioTimes, chooseStep, physicsKey, encodeHash, decodeHash, hashBody, coverageEnd, makeScenario,
+  DAY_MS, HOUR_MS,
 } from "./state.js";
 import { loadCatalog, QUICK_STARTS, catalogSites } from "./catalog.js";
 import { initPhysics, physicsError, physicsCoverage, siteFor, stateAt, seriesFor, useLiveTerrain } from "./physics_adapter.js";
 import { readyTerrain, ensureTerrain, keepOnly, onTerrainChange } from "./terrain_live.js";
 import { initScenarioUI } from "./scenarios_ui.js";
-import { renderCompare, rerenderCompare, initBodySwitch, syncBody, resizeShownCharts } from "./compare.js";
-import { initSkyTab, setSkyItems, setSkyVisible, queueSkyStart, skyShareState } from "./sky_tab.js";
+import { renderCompare, rerenderCompare, initBodySwitch, syncBody, holdChartsUntil, setChartCursor } from "./compare.js";
+import { initSky, setSkyItems, queueSkyStart, skyShareState, setSkyBody, jumpTo, skyTime } from "./sky_panel.js";
+import { pickHint } from "./events.js";
+import { suggestBody, suggestWindow } from "./suggest_adapter.js";
 import { routeCore } from "../rover/app.js";
 
 const $ = (id) => document.getElementById(id);
@@ -36,47 +40,6 @@ function initTheme() {
     setUi({ theme: t });
     label();
   });
-}
-
-// ---------------------------------------------------------------------------------------------
-// Tabs
-
-function initTabs() {
-  const buttons = [...document.querySelectorAll('.tabs [role="tab"]')];
-  const show = (tab, focus = false) => {
-    for (const b of buttons) {
-      const on = b.dataset.tab === tab;
-      b.setAttribute("aria-selected", String(on));
-      b.tabIndex = on ? 0 : -1;
-      if (on && focus) b.focus();
-    }
-    const changed = $("tab-compare").hidden !== (tab !== "compare");
-    $("tab-compare").hidden = tab !== "compare";
-    $("tab-sky").hidden = tab !== "sky";
-    // Charts drawn earlier keep the width they had: fit them, in case the window changed while the tab was hidden.
-    if (!renderStaleCompare() && changed && tab === "compare") resizeShownCharts();
-    // A new tab opens at its top, not at the scroll depth of the previous one.
-    if (changed) scrollToOutputTop();
-    setSkyVisible(tab === "sky");
-    if (store.tab !== tab) setUi({ tab });
-  };
-  for (const b of buttons) {
-    b.addEventListener("click", () => show(b.dataset.tab));
-    b.addEventListener("keydown", (e) => {
-      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
-      const i = buttons.indexOf(b);
-      const j = (i + (e.key === "ArrowRight" ? 1 : buttons.length - 1)) % buttons.length;
-      show(buttons[j].dataset.tab, true);
-    });
-  }
-  return show;
-}
-
-/** Scroll up to the top of the results when the page is scrolled past it (below the sticky top bar). */
-function scrollToOutputTop() {
-  const bar = document.querySelector(".topbar");
-  const top = $("output").getBoundingClientRect().top + window.scrollY - (bar ? bar.offsetHeight : 0) - 12;
-  if (window.scrollY > top) window.scrollTo({ top: Math.max(0, top) });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -120,12 +83,13 @@ function computeCore(s) {
 
 let computeSeq = 0;
 let lastItems = [];
+let computed = false; // the first compute has finished (until then the page keeps its first-paint layout)
 
 let busyTimer = 0;
 /**
  * Show that results are being computed. A compute that takes longer than a moment (a rover route is planned from
  * live terrain in several seconds) also dims the results still on screen, which belong to the previous scenarios,
- * and labels the Sky tab, which has no other progress indicator.
+ * and labels the sky, which has no other progress indicator.
  */
 function setBusy(on, text = "Computing…") {
   $("busy").hidden = !on;
@@ -151,49 +115,88 @@ async function recompute() {
   const cores = await Promise.all(valid.map(({ s }) => computeCore(s)));
   if (seq !== computeSeq) return; // a newer request superseded this one
   setBusy(false);
+  computed = true;
   lastItems = valid.map(({ s, index }, i) => ({ ...cores[i], s, index }));
   render();
+  if (pendingJump) {
+    // A window opened around an event (a suggested eclipse, "Show me"): the sky shows the event's maximum.
+    const it = lastItems.find((x) => x.s.id === pendingJump.id && !x.error);
+    if (it) jumpTo(pendingJump.atMs - it.t0);
+    pendingJump = null;
+  }
+}
+
+let pendingJump = null; // { id, atMs }: the moment to show once the scenario's new window is computed
+
+/** Give a scenario new times; atMs (epoch ms, optional): the moment the sky then shows. */
+function openWindow(id, t_start_utc, t_end_utc, atMs = null) {
+  pendingJump = Number.isFinite(atMs) ? { id, atMs } : null;
+  updateScenario(id, { t_start_utc, t_end_utc }, "structure");
 }
 
 function decorate(it) {
   return { ...it, label: it.s.label || `Scenario ${it.index + 1}`, color: colorHex(it.s.color, store.theme), dash: isWrappedSlot(it.s.color) };
 }
 
-let compareStale = null; // items waiting for the Compare tab to be shown
 function render() {
   const items = lastItems.map(decorate);
-  // Plotly cannot measure a hidden tab, and the Sky tab does not need Plotly: the Compare tab is drawn when shown.
-  if ($("tab-compare").hidden) compareStale = items;
-  else {
-    compareStale = null;
-    renderCompare(items, { xaxis: store.xaxis });
-  }
-  setSkyItems(items.filter((it) => !it.error));
-  $("compare-empty").hidden = items.some((it) => !it.error);
+  const ok = items.filter((it) => !it.error);
+  const any = ok.length > 0;
+  // Nothing to show (no complete scenario): one empty state with the stories instead of the sky and the data.
+  $("out-empty").hidden = any || !computed;
+  $("sky-panel").hidden = !any && computed;
+  $("body-bar").hidden = !any;
+  renderCompare(items, { xaxis: store.xaxis });
+  setSkyItems(ok);
+  syncHint();
 }
 
-/** Draw the Compare tab if results arrived while it was hidden. Returns true when it drew. */
-function renderStaleCompare() {
-  if (!compareStale || $("tab-compare").hidden) return false;
-  const items = compareStale;
-  compareStale = null;
-  renderCompare(items, { xaxis: store.xaxis });
-  return true;
+// ---------------------------------------------------------------------------------------------
+// Event hint: one subtle line under the timelapse when the scenarios hold something special (an eclipse, an
+// Earthrise) that the sky is not showing yet, with "Show me" (web/js/app/events.js).
+
+let hint = null;
+
+function syncHint() {
+  const items = lastItems.filter((it) => !it.error).map(decorate);
+  hint = pickHint(items, skyTime().offsetMs);
+  const box = $("event-hint");
+  box.hidden = !hint;
+  if (!hint) return;
+  const text = box.querySelector(".hint-text");
+  if (text && text.textContent === hint.text) return;
+  box.innerHTML = '<span class="hint-text"></span> <button type="button" class="link-btn hint-go">Show me</button>';
+  box.querySelector(".hint-text").textContent = hint.text;
+}
+
+function initHint() {
+  $("event-hint").addEventListener("click", (e) => {
+    if (!e.target.closest(".hint-go") || !hint) return;
+    const h = hint;
+    chooseBody(h.body);
+    if (h.kind === "eclipse-window") {
+      // A single instant with an eclipse ahead: open the eclipse's window at its maximum (the views are rebuilt).
+      openWindow(h.item.s.id, h.t_start_utc, h.t_end_utc, h.atMs);
+    } else jumpTo(h.offsetMs);
+  });
+}
+
+/** Turn the Sun | Earth switch (and with it every sky view) to a body. */
+function chooseBody(body) {
+  if (body !== "sun" && body !== "earth") return;
+  setSkyBody(body);
+  if (store.body !== body) setUi({ body });
 }
 
 // ---------------------------------------------------------------------------------------------
 // Load order: the first results on screen come first. Large things the first screen does not need (the globe's
-// full-resolution textures, Plotly when the page opens on the Sky tab) start once they are drawn.
+// full-resolution textures, Plotly for the charts under the sky) start once the first sky view is drawn.
 
-/** Resolves when the open tab shows its first results (a chart, the instant cards or a sky view), or after maxMs. */
+/** Resolves when the first sky view shows its first frame (or the page has nothing to show), or after maxMs. */
 function whenFirstViewDrawn(maxMs = 15000) {
   return new Promise((resolve) => {
     const t0 = performance.now();
     const drawn = () => {
-      if (!$("tab-compare").hidden) {
-        if ($("tab-compare").querySelector(".js-plotly-plot .main-svg")) return true;
-        return !!$("cards-sun").firstElementChild && $("charts-sun").hidden; // single instants: no charts
-      }
       const v = $("sky-grid").querySelector(".sky-view");
       return !!v && !!v.querySelector("canvas") && !v.querySelector(".sky-loading");
     };
@@ -205,7 +208,19 @@ function whenFirstViewDrawn(maxMs = 15000) {
   });
 }
 
-/** Fetch Plotly into the HTTP cache at idle priority, so a first switch to the Compare tab is quick. */
+/** Resolves when one of the elements comes within 150 px of the window. */
+function whenNear(els) {
+  return new Promise((resolve) => {
+    const io = new IntersectionObserver((entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return;
+      io.disconnect();
+      resolve();
+    }, { rootMargin: "150px" });
+    for (const el of els) io.observe(el);
+  });
+}
+
+/** Fetch Plotly into the HTTP cache at idle priority, so the first chart draw is quick. */
 function prefetchPlotly() {
   const url = document.documentElement.dataset.plotly;
   if (!url || window.Plotly || document.querySelector(`link[href="${url}"]`)) return;
@@ -225,8 +240,8 @@ function scheduleRecompute(delay = 250) {
 // ---------------------------------------------------------------------------------------------
 // URL hash (shareable views)
 
-// Navigation (a quick start, a tab, adding or removing a scenario) makes a new history entry, so Back returns to the
-// previous view; edits in place (a field, a label, the Compare axis) replace the current entry.
+// Navigation (a story, adding or removing a scenario) makes a new history entry, so Back returns to the previous view;
+// edits in place (a field, a label, the time axis, the Sun | Earth switch) replace the current entry.
 
 let hashTimer = 0;
 let pushPending = false;
@@ -234,14 +249,12 @@ let restoring = false; // applying a link or a Back/Forward step: nothing is wri
 let booted = false;
 let lastIds = "";
 
-/** The hash of the current state; on the Sky tab it holds the moment and the view too. */
+/** The hash of the current state, with the sky's moment and camera. */
 function currentHash() {
-  return encodeHash({
-    scenarios: store.scenarios, tab: store.tab, xaxis: store.xaxis, body: store.body, sky: store.tab === "sky" ? skyShareState() : null,
-  });
+  return encodeHash({ scenarios: store.scenarios, xaxis: store.xaxis, body: store.body, sky: skyShareState() });
 }
 
-/** Record the state in the URL (debounced, so one quick start makes one entry). push: a new history entry. */
+/** Record the state in the URL (debounced, so one story makes one entry). push: a new history entry. */
 function writeHash(push = false) {
   if (restoring) return;
   pushPending ||= push && booted;
@@ -261,8 +274,8 @@ function flushHash() {
 
 /**
  * Apply the URL hash: a shared link at start, or a Back/Forward step. A link without scenarios (no hash, "#tab=sky")
- * opens the first-visit story, Apollo 11, on the link's tab if it names one. Scenarios equal to the current ones are
- * kept (their views and the timelapse stay); new ones open at the link's Sky moment and view.
+ * opens the first-visit story, Apollo 11. Scenarios equal to the current ones are kept (their views and the timelapse
+ * stay); new ones open at the link's moment and camera.
  */
 function applyHash() {
   const h = decodeHash(location.hash);
@@ -272,15 +285,14 @@ function applyHash() {
   try {
     if (!h || !h.scenarios.length) {
       runQuickStart(QUICK_STARTS[0].key);
-      if (h?.tabGiven) showTab(h.tab);
       return;
     }
-    applyCompareView(h);
-    if (encodeHash({ scenarios: h.scenarios }) !== encodeHash({ scenarios: store.scenarios })) {
-      queueSkyStart(h.sky);
+    const same = encodeHash({ scenarios: h.scenarios }) === encodeHash({ scenarios: store.scenarios });
+    applyView({ xaxis: h.xaxis, body: hashBody(h) }, { aim: same });
+    if (!same) {
+      queueSkyStart({ offsetMs: h.sky.offsetMs || 0, view: h.sky.view });
       setScenarios(h.scenarios);
     }
-    showTab(h.tab);
   } finally {
     restoring = false;
   }
@@ -299,7 +311,7 @@ function initShare() {
     flushHash();
     try {
       await navigator.clipboard.writeText(location.href);
-      toast(store.tab === "sky" ? "Link copied: it opens this sky, at this moment and in this view." : "Link copied: it opens this exact comparison.");
+      toast("Link copied: it opens these places and times, at this moment and in this view.");
     } catch {
       toast("Copy the address bar to share this view.");
     }
@@ -316,66 +328,66 @@ function toast(msg) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Quick starts, About, x-axis toggle
+// Stories (quick starts), About, x-axis toggle
 
-let showTab = () => {};
-
-/** Quick-start chips (in QUICK_STARTS order: the demo video clicks them by position). Any [data-qs] button runs one. */
+/** Story chips (in QUICK_STARTS order: the demo video clicks them by position). Any [data-qs] button runs one. */
 function initQuickStarts() {
-  const box = $("quickstarts");
-  box.replaceChildren(
-    ...QUICK_STARTS.map((q) => {
-      const b = document.createElement("button");
-      b.className = "chip";
-      b.textContent = q.label;
-      b.title = q.title;
-      b.dataset.qs = q.key;
-      return b;
-    }),
-  );
-  // The same stories in the empty states (after "Clear all"), outside #quickstarts so its chips keep their positions.
-  for (const list of document.querySelectorAll("[data-qs-list]")) {
-    list.replaceChildren(
-      ...QUICK_STARTS.map((q) => {
-        const b = document.createElement("button");
-        b.type = "button";
-        b.className = "chip";
-        b.textContent = q.label;
-        b.title = q.title;
-        b.dataset.qs = q.key;
-        return b;
-      }),
-    );
-  }
+  const chip = (q) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip";
+    b.textContent = q.label;
+    b.title = q.title;
+    b.dataset.qs = q.key;
+    return b;
+  };
+  $("quickstarts").replaceChildren(...QUICK_STARTS.map(chip));
+  // The same stories in the empty state (after "Clear all"), outside #quickstarts so its chips keep their positions.
+  for (const list of document.querySelectorAll("[data-qs-list]")) list.replaceChildren(...QUICK_STARTS.map(chip));
   document.addEventListener("click", (e) => {
     const b = e.target.closest("[data-qs]");
-    if (b) runQuickStart(b.dataset.qs);
+    if (!b) return;
+    runQuickStart(b.dataset.qs);
+    revealSky();
   });
 }
 
 /**
- * Load a quick start: its scenarios, its Compare axis and section, its Sky-tab moment, and its tab when it names one
- * (otherwise the current tab stays).
+ * Load a story: its scenarios, its Sun | Earth choice (the views are built aimed at it), its time axis and its
+ * opening moment.
  */
 function runQuickStart(key) {
   const q = QUICK_STARTS.find((x) => x.key === key);
   if (!q) return;
-  applyCompareView({ xaxis: q.xaxis || "met", body: q.body || "sun" });
-  queueSkyStart({ offsetMs: q.offsetMs || 0, look: q.look || null, view: null });
+  applyView({ xaxis: q.xaxis || "met", body: q.body || "sun" }, { aim: false });
+  queueSkyStart({ offsetMs: q.offsetMs || 0, view: null });
   setScenarios(q.resolve(catalogSites()));
-  if (q.tab) showTab(q.tab);
 }
 
-/** Set the Compare tab's time axis and Sun/Earth section without a separate redraw (a recompute follows). */
-function applyCompareView({ xaxis, body }) {
+/**
+ * On a one-column page (phones, tablets) the sky is under the inputs: after a story is chosen, scroll down to it
+ * (its caption) unless it is already on screen.
+ */
+function revealSky() {
+  const head = document.querySelector(".out-head");
+  if (!head || window.matchMedia("(min-width: 1100px)").matches) return;
+  const r = head.getBoundingClientRect();
+  if (r.top > 60 && r.top < window.innerHeight * 0.5) return;
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  head.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
+}
+
+/** Set the charts' time axis and the Sun | Earth choice without a separate redraw (a recompute follows). */
+function applyView({ xaxis, body }, { aim = true } = {}) {
   store.xaxis = xaxis;
   store.body = body;
+  setSkyBody(body, { aim });
   syncBody();
   syncXAxis();
 }
 
 let qsSigs = null;
-/** The scenario signature (the hash rows) of each quick start, against the loaded catalog. */
+/** The scenario signature (the hash rows) of each story, against the loaded catalog. */
 function quickStartSigs() {
   if (!qsSigs) {
     qsSigs = QUICK_STARTS.map((q) => {
@@ -388,18 +400,20 @@ function quickStartSigs() {
 }
 
 /**
- * While the scenarios are exactly a quick start's (however they were loaded: chip, story link, shared link, Back), its
- * chip is marked and its "what to look for" caption shows. Any edit hides them.
+ * While the scenarios are exactly a story's (however they were loaded: chip, shared link, Back), its chip is marked and
+ * its "what to look for" caption shows. Any edit hides them.
  */
 function syncQuickStartUi() {
   const sig = encodeHash({ scenarios: store.scenarios });
   const q = quickStartSigs().find(([, s]) => s === sig)?.[0] || null;
-  for (const c of $("quickstarts").children) c.classList.toggle("active", !!q && c.dataset.qs === q.key);
-  // The caption describes the story's own tab (the sky, or the charts), so it shows there only.
-  const show = !!q?.caption && (!q.tab || q.tab === store.tab);
+  for (const c of $("quickstarts").children) {
+    const on = !!q && c.dataset.qs === q.key;
+    c.classList.toggle("active", on);
+    c.setAttribute("aria-pressed", String(on));
+  }
   const cap = $("qs-caption");
-  cap.hidden = !show;
-  if (show) cap.querySelector(".qs-cap-text").textContent = q.caption;
+  cap.hidden = !q?.caption;
+  if (q?.caption) cap.querySelector(".qs-cap-text").textContent = q.caption;
 }
 
 /** The introduction line: hidden for good with its ✕ (remembered in localStorage; <head> applies it before paint). */
@@ -448,6 +462,19 @@ function initXAxisToggle() {
   syncXAxis();
 }
 
+/**
+ * A suggested date was chosen in a scenario card (C11): set its window (an eclipse or an Earthrise: a short window
+ * around it, the sky at its maximum) and turn the switch to the body it is about.
+ */
+function onSuggest(s, sug) {
+  const w = suggestWindow(sug);
+  if (!w) return;
+  const body = suggestBody(sug.kind);
+  if (body) chooseBody(body);
+  openWindow(s.id, w.t_start_utc, w.t_end_utc, w.at_utc ? Date.parse(w.at_utc) : null);
+  revealSky();
+}
+
 function showPhysicsError() {
   const err = physicsError();
   if (!err) return;
@@ -460,13 +487,22 @@ function showPhysicsError() {
 
 async function boot() {
   initTheme();
-  showTab = initTabs();
   initIntro();
   initAbout();
   initShare();
   initXAxisToggle();
-  initBodySwitch();
-  initSkyTab();
+  initBodySwitch((body) => setSkyBody(body));
+  initSky({
+    onTime: (offsetMs) => {
+      setChartCursor(offsetMs);
+      if (hint || lastItems.length) syncHint();
+    },
+  });
+  initHint();
+  // The charts (and the 1 MB Plotly download) wait for the first sky view, which is the first thing on screen, unless
+  // the visitor scrolls down to them first (on a phone the sky is below the fold).
+  const firstView = whenFirstViewDrawn();
+  holdChartsUntil(Promise.race([firstView, whenNear([$("charts-sun"), $("charts-earth")]), new Promise((r) => setTimeout(r, 8000))]));
 
   await Promise.all([loadCatalog(), initPhysics("data/ephem")]);
   showPhysicsError();
@@ -474,13 +510,13 @@ async function boot() {
   useLiveTerrain({ ready: readyTerrain, ensure: ensureTerrain });
   onTerrainChange(() => scheduleRecompute(0));
   initQuickStarts();
-  initScenarioUI();
+  initScenarioUI({ onSuggest });
 
   subscribe((kind, detail) => {
     if (kind === "structure" || kind === "field") {
       scheduleRecompute(kind === "structure" ? 0 : 300);
       syncQuickStartUi();
-      // A new set of scenario ids (quick start, add, duplicate, remove, clear) is navigation; a rebuilt card is not.
+      // A new set of scenario ids (story, add, duplicate, remove, clear) is navigation; a rebuilt card is not.
       const ids = store.scenarios.map((s) => s.id).join(",");
       const nav = kind === "structure" && ids !== lastIds;
       lastIds = ids;
@@ -491,31 +527,27 @@ async function boot() {
       writeHash();
     } else if (kind === "ui") {
       if ("theme" in detail) render();
-      if ("xaxis" in detail && !compareStale) rerenderCompare({ xaxis: store.xaxis });
-      if ("tab" in detail) syncQuickStartUi();
-      writeHash("tab" in detail);
+      if ("xaxis" in detail) rerenderCompare({ xaxis: store.xaxis });
+      writeHash();
     }
   });
 
-  // A shared link opens exactly what it encodes; a first visit (no hash) opens Apollo 11 on the Sky tab.
+  // A shared link opens exactly what it encodes; a first visit (no hash) opens Apollo 11.
   applyHash();
   booted = true;
   writeHash(); // the full link of what is shown (replaces the address, e.g. "#tab=sky" or none)
   initHistory();
 
-  // The globe map loads three.js and its images; the rest of the app works without it. On the Sky tab it starts at
-  // once (the sky needs three.js too); on the Compare tab after the first chart, so it does not slow Plotly down.
-  // Its full-resolution textures (4 MB) wait for the first results in both cases.
-  const firstView = whenFirstViewDrawn();
-  (store.tab === "sky" ? Promise.resolve() : firstView)
-    .then(() => import("./map.js"))
+  // The globe loads three.js and its images (the sky needs three.js too); its full-resolution textures (4 MB) wait for
+  // the first sky view.
+  import("./map.js")
     .then((m) => m.initMap({ hiResAfter: firstView }))
     .catch((err) => {
       console.error("[moonat] map failed", err);
       $("map").textContent = "The map could not load. You can still type coordinates or pick a mission.";
       $("map-hint").hidden = true;
     });
-  firstView.then(() => setTimeout(prefetchPlotly, 1500));
+  firstView.then(() => setTimeout(prefetchPlotly, 600));
 }
 
 boot().catch((err) => {

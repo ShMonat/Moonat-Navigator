@@ -1,7 +1,8 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
-// Sky tab: one sky view per scenario in a grid, a shared time slider (time since each scenario's start, so missions
-// are synchronised), play/pause timelapse with a speed selector, and "Look at Earth" / "Look at Sun".
-// Views are created lazily, when the tab is shown and the card scrolls into view.
+// The sky panel: one sky view per scenario in a grid, the timelapse bar under it (a shared time slider: time since each
+// scenario's start, so missions are synchronised; play/pause with a speed selector), and the body every view is aimed
+// at (the page's "☀ Sun | 🌍 Earth" switch, main.js). Each view's card has Focus, Full screen and a "⋯" menu of the
+// rarely used view options (Close-up, Constellations, Exposure). Views are created lazily, when they scroll into view.
 
 import { formatDuration, formatUtc } from "./state.js";
 import { horizonElAt } from "./derive.js";
@@ -17,7 +18,6 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 
 const cards = new Map(); // key (scenario id + physics key) -> card record
 let items = [];
-let visible = false;
 let offsetMs = 0;
 let maxSpan = 0;
 let playing = false;
@@ -35,31 +35,43 @@ const unwatch = (rec) => {
 };
 let pending = false;
 let busy = false;
-let lookTarget = null; // "earth" | "sun" after a Look button; views created later follow it
+let aimBody = "earth"; // "earth" | "sun": the body every view is aimed at (the page's Sun | Earth switch)
 let speedTouched = false; // the user picked a playback speed; until then it follows the longest scenario
+let onTimeChange = () => {};
 
-let pendingStart = null; // { offsetMs, look, view } for the next completely new set of scenarios
+let pendingStart = null; // { offsetMs, view } for the next completely new set of scenarios
 let pendingCamera = null; // { az_deg, el_deg, fov_deg } for the first view of that set, applied when it is built
 
 /**
+ * View options shared by every view (the "⋯" menu of each card; C8 setOption names); views created later get them
+ * too. The HUD is minimal by default: the card footer under each view carries the full readout.
+ */
+const viewOpts = { closeUp: true, constellations: true, exposure: "eye", hudLevel: "minimal" };
+
+/**
  * Open the next completely new set of scenarios (the one main.js is about to load) at a given moment and view:
- * offsetMs = time since the scenarios' start (ms); look = "earth" | "sun" (as the Look buttons); view = the camera
- * of the first view ({ az_deg, el_deg, fov_deg }, deg, local horizon frame). Null fields keep the defaults.
+ * offsetMs = time since the scenarios' start (ms); view = the camera of the first view ({ az_deg, el_deg, fov_deg },
+ * deg, local horizon frame). Null fields keep the defaults (T+0, the views aimed at the selected body).
  */
 export function queueSkyStart(start = null) {
   pendingStart = start;
 }
 
 /**
- * The Sky tab's shareable state: { offsetMs, look, view }. `view` is the first view's camera, only when the user has
- * turned or zoomed it (otherwise the opening framing, which adapts to the window, is kept). A queued start that has
- * not been applied yet is returned as it is.
+ * The sky's shareable state: { offsetMs, view }. `view` is the first view's camera, only when the user has turned or
+ * zoomed it (otherwise the framing of the selected body, which adapts to the window, is kept). A queued start that
+ * has not been applied yet is returned as it is.
  */
 export function skyShareState() {
-  if (pendingStart) return pendingStart;
+  if (pendingStart) return { offsetMs: pendingStart.offsetMs || 0, view: pendingStart.view || null };
   const first = items.length ? cards.get(`${items[0].s.id}|${items[0].key}`) : null;
   const view = first?.view && first.camTouched && first.view.getView ? first.view.getView() : pendingCamera;
-  return { offsetMs: maxSpan > 0 ? offsetMs : 0, look: lookTarget, view: view || null };
+  return { offsetMs: maxSpan > 0 ? offsetMs : 0, view: view || null };
+}
+
+/** Time since the scenarios' start shown now (ms), and the longest span (ms; 0 for single instants). */
+export function skyTime() {
+  return { offsetMs: maxSpan > 0 ? offsetMs : 0, maxSpan };
 }
 
 /** Playback speeds offered (ms of scenario time per real second), as in the #sky-speed options. */
@@ -67,7 +79,9 @@ const SPEEDS = [600000, 3600000, 21600000, 86400000];
 /** A timelapse should last at most about this long (s) at the automatic speed. */
 const TARGET_PLAY_S = 90;
 
-export function initSkyTab() {
+/** opts.onTime(offsetMs): called whenever the time shown changes (slider, playback, a new set, jumpTo). */
+export function initSky({ onTime } = {}) {
+  if (onTime) onTimeChange = onTime;
   observer = new IntersectionObserver((entries) => {
     for (const en of entries) {
       const rec = [...cards.values()].find((r) => r.viewEl === en.target);
@@ -83,7 +97,7 @@ export function initSkyTab() {
       const rec = [...cards.values()].find((r) => r.viewEl === en.target);
       if (!rec) continue;
       rec.inView = en.isIntersecting;
-      if (rec.inView && rec.view && visible) updateCard(rec);
+      if (rec.inView && rec.view) updateCard(rec);
     }
   });
 
@@ -94,22 +108,25 @@ export function initSkyTab() {
   });
   $("btn-play").addEventListener("click", () => (playing ? stop() : play()));
   $("sky-speed").addEventListener("change", () => (speedTouched = true));
-  $("btn-look-earth").addEventListener("click", () => lookAll("earth"));
-  $("btn-look-sun").addEventListener("click", () => lookAll("sun"));
   initFocusKeys();
+  initOptionMenus();
 }
 
-/** Show or hide the tab. Views are only built while it is visible. */
-export function setSkyVisible(v) {
-  visible = v;
-  if (!v) {
-    stop();
-    exitFocus();
-  }
-  if (v) {
-    for (const rec of cards.values()) watch(rec);
-    refresh();
-  }
+/**
+ * Aim every view at a body ("sun" | "earth"), now and for views created later. aim = false only records the body
+ * (a story or a link about to load new views, which aim themselves when they are built).
+ */
+export function setSkyBody(body, { aim = true } = {}) {
+  aimBody = body === "sun" ? "sun" : "earth";
+  if (aim) for (const rec of cards.values()) lookOne(rec, aimBody);
+}
+
+/** Show the moment `ms` after the scenarios' start (e.g. "show me" an eclipse), paused. */
+export function jumpTo(ms) {
+  if (!(maxSpan > 0)) return;
+  offsetMs = Math.max(0, Math.min(maxSpan, ms));
+  stop();
+  refresh();
 }
 
 /**
@@ -119,18 +136,16 @@ export function setSkyVisible(v) {
 export function setSkyItems(newItems) {
   items = newItems;
   const grid = $("sky-grid");
-  $("sky-empty").hidden = items.length > 0;
   $("sky-controls").hidden = items.length === 0;
 
   const keep = new Set();
   const order = [];
-  // A completely new set of scenarios (a quick start, a shared link) starts at T+0 with the default framing, or at the
-  // moment and view queued for it (queueSkyStart).
+  // A completely new set of scenarios (a story, a shared link, a new place) starts at T+0 aimed at the selected body,
+  // or at the moment and camera queued for it (queueSkyStart).
   if (items.length && !items.some((it) => cards.has(`${it.s.id}|${it.key}`))) {
     const start = pendingStart || {};
     pendingStart = null;
     offsetMs = Math.max(0, Number(start.offsetMs) || 0);
-    lookTarget = start.look === "earth" || start.look === "sun" ? start.look : null;
     pendingCamera = start.view || null;
     speedTouched = false;
     stop();
@@ -142,7 +157,7 @@ export function setSkyItems(newItems) {
     if (!rec) {
       rec = buildCard(it, key);
       cards.set(key, rec);
-      if (visible) watch(rec);
+      watch(rec);
     }
     const terrainChanged = rec.it.horizon !== it.horizon || rec.it.patch !== it.patch;
     rec.it = it;
@@ -170,16 +185,13 @@ export function setSkyItems(newItems) {
   maxSpan = Math.max(0, ...items.map((it) => it.span || 0));
   offsetMs = Math.min(offsetMs, maxSpan);
   const hasMission = maxSpan > 0;
+  $("sky-controls").classList.toggle("instant", !hasMission);
   $("sky-slider").disabled = !hasMission;
   $("btn-play").disabled = !hasMission;
   $("sky-speed").disabled = !hasMission;
-  $("sky-note").textContent = hasMission
-    ? `${LOOK_HINT}. Missions are synchronised by time since their start.`
-    : `${LOOK_HINT}. Add an end time to a scenario to play a timelapse.`;
   if (!hasMission) stop();
   if (hasMission && !speedTouched) $("sky-speed").value = String(autoSpeed(maxSpan));
-  syncSlider();
-  if (visible) refresh();
+  refresh();
 }
 
 /** Slowest offered speed that plays the longest scenario in TARGET_PLAY_S seconds or less. */
@@ -187,22 +199,39 @@ function autoSpeed(spanMs) {
   return SPEEDS.find((v) => spanMs / v <= TARGET_PLAY_S) ?? SPEEDS[SPEEDS.length - 1];
 }
 
-const COARSE = window.matchMedia?.("(pointer: coarse)").matches;
-const LOOK_HINT = COARSE ? "Drag a view to look around; pinch to zoom" : "Drag a view to look around; Ctrl + scroll to zoom";
 const LOADING_HTML = '<div class="sky-loading">Loading sky…</div><div class="sky-hint" hidden>Ctrl + scroll to zoom</div>';
+
+const OPTION_ITEMS = [
+  { key: "closeUp", text: "Close-up (6× zoom)", tip: "The round inset that magnifies the Earth (and the Sun while hills or the Earth cover part of it)" },
+  { key: "constellations", text: "Constellations", tip: "Constellation lines and the names of well-known ones" },
+  { key: "exposure", text: "Camera exposure", tip: "Exposed for the sunlit ground, as in the Apollo photographs: the stars vanish while the Sun is up. Off: the eye, with the stars dimmed but visible." },
+  { key: "hudLevel", text: "Numbers in the view", tip: "The full readout in the corner of the view (heights, directions, phase). Off: the time only; the numbers are under the view." },
+];
+function optionOn(key) {
+  if (key === "exposure") return viewOpts.exposure === "camera";
+  if (key === "hudLevel") return viewOpts.hudLevel === "full";
+  return !!viewOpts[key];
+}
 
 function buildCard(it, key) {
   const root = document.createElement("article");
   root.className = "sky-card";
+  const menuItems = OPTION_ITEMS.map((o) => `<button type="button" class="sky-opt" role="menuitemcheckbox" data-opt="${o.key}"
+      aria-checked="${optionOn(o.key)}" title="${esc(o.tip)}"><span class="sky-opt-box" aria-hidden="true"></span>${esc(o.text)}</button>`).join("");
   root.innerHTML = `
     <div class="sky-card-head"><span class="swatch" aria-hidden="true"></span><span class="mcard-title"></span><span class="sky-card-time"></span>
       <span class="sky-card-acts">
-        <button type="button" class="sky-act sky-focus-btn" title="Focus: fill the window with this view (Esc to exit)"><span aria-hidden="true">⤢</span> Focus</button>
+        <button type="button" class="sky-act sky-focus-btn" title="Focus: fill the window with this view (Esc to exit)"><span aria-hidden="true">⤢</span><span class="sky-act-txt"> Focus</span></button>
         <button type="button" class="sky-act sky-fs-btn" title="Full screen (Esc to exit)" aria-label="Full screen"><span aria-hidden="true">⛶</span><span class="sky-act-txt"> Full screen</span></button>
-        <button type="button" class="sky-act sky-exit-btn" title="Back to the grid (Esc)"><span aria-hidden="true">✕</span> Exit focus</button>
+        <button type="button" class="sky-act sky-exit-btn" title="Back to the page (Esc)"><span aria-hidden="true">✕</span> Exit focus</button>
+        <span class="sky-opts">
+          <button type="button" class="sky-act sky-opts-btn" aria-haspopup="menu" aria-expanded="false" title="View options" aria-label="View options"><span aria-hidden="true">⋯</span></button>
+          <span class="sky-opts-menu" role="menu" aria-label="View options" hidden>${menuItems}</span>
+        </span>
       </span></div>
     <div class="sky-view" role="group" aria-roledescription="sky view" aria-label="Sky view">${LOADING_HTML}</div>
     <div class="sky-card-foot"></div>`;
+  root.querySelector(".sky-focus-btn").setAttribute("aria-label", "Focus");
   const rec = { key, it, root, viewEl: root.querySelector(".sky-view"), view: null, creating: false, state: null, engaged: false };
   root.querySelector(".sky-focus-btn").addEventListener("click", () => enterFocus(rec));
   const fs = root.querySelector(".sky-fs-btn");
@@ -226,7 +255,72 @@ function buildCard(it, key) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Focus mode: one view fills the window, with the time controls above it. Esc or "Exit focus" returns to the grid.
+// "⋯" view options: a small menu in each card's head. An option applies to every view (and to views created later).
+
+function closeMenus(except = null, focusButton = false) {
+  for (const m of document.querySelectorAll(".sky-opts-menu:not([hidden])")) {
+    if (m === except) continue;
+    m.hidden = true;
+    const btn = m.parentElement.querySelector(".sky-opts-btn");
+    btn.setAttribute("aria-expanded", "false");
+    if (focusButton) btn.focus();
+  }
+}
+
+function applyOption(key) {
+  if (key === "exposure") viewOpts.exposure = viewOpts.exposure === "camera" ? "eye" : "camera";
+  else if (key === "hudLevel") viewOpts.hudLevel = viewOpts.hudLevel === "full" ? "minimal" : "full";
+  else viewOpts[key] = !viewOpts[key];
+  for (const b of document.querySelectorAll(`.sky-opt[data-opt="${key}"]`)) b.setAttribute("aria-checked", String(optionOn(key)));
+  for (const rec of cards.values()) applyOptions(rec.view);
+}
+
+/** Give a view the shared options (C8 setOption; the 2D fallback has none of them). */
+function applyOptions(view) {
+  if (!view?.setOption) return;
+  for (const [name, value] of Object.entries(viewOpts)) view.setOption(name, value);
+}
+
+function initOptionMenus() {
+  const grid = $("sky-grid");
+  grid.addEventListener("click", (e) => {
+    const btn = e.target.closest(".sky-opts-btn");
+    if (btn) {
+      const menu = btn.parentElement.querySelector(".sky-opts-menu");
+      const open = menu.hidden;
+      closeMenus();
+      menu.hidden = !open;
+      btn.setAttribute("aria-expanded", String(open));
+      if (open) menu.querySelector(".sky-opt")?.focus();
+      return;
+    }
+    const opt = e.target.closest(".sky-opt");
+    if (opt) applyOption(opt.dataset.opt);
+  });
+  grid.addEventListener("keydown", (e) => {
+    const menu = e.target.closest(".sky-opts-menu");
+    if (!menu) return;
+    const opts = [...menu.querySelectorAll(".sky-opt")];
+    const i = opts.indexOf(e.target);
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      closeMenus(null, true);
+    } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      opts[(i + (e.key === "ArrowDown" ? 1 : opts.length - 1)) % opts.length].focus();
+    }
+  });
+  document.addEventListener("pointerdown", (e) => {
+    if (!e.target.closest?.(".sky-opts")) closeMenus();
+  });
+  document.addEventListener("focusin", (e) => {
+    if (!e.target.closest?.(".sky-opts")) closeMenus();
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Focus mode: one view fills the window, with the time controls under it. Esc or "Exit focus" returns to the page.
 // "Full screen" also asks the browser for full screen (Fullscreen API); leaving full screen leaves focus mode too.
 
 let focusRec = null;
@@ -246,8 +340,9 @@ function setViewFocus(view, on) {
 
 function enterFocus(rec, fullscreen = false) {
   if (focusRec && focusRec !== rec) exitFocus({ keepFullscreen: true });
+  closeMenus();
   focusRec = rec;
-  $("tab-sky").classList.add("focus");
+  $("sky-panel").classList.add("focus");
   rec.root.classList.add("is-focus");
   document.body.classList.add("sky-focus");
   if (rec.view) setViewFocus(rec.view, true);
@@ -262,7 +357,7 @@ function exitFocus({ keepFullscreen = false } = {}) {
   if (!focusRec) return;
   const rec = focusRec;
   focusRec = null;
-  $("tab-sky").classList.remove("focus");
+  $("sky-panel").classList.remove("focus");
   rec.root.classList.remove("is-focus");
   document.body.classList.remove("sky-focus");
   if (rec.view) setViewFocus(rec.view, false);
@@ -272,6 +367,11 @@ function exitFocus({ keepFullscreen = false } = {}) {
     rec.root.scrollIntoView({ block: "nearest" });
     rec.root.querySelector(".sky-focus-btn").focus({ preventScroll: true });
   }
+}
+
+/** Leave focus mode (e.g. Back to another story while a view fills the window). */
+export function leaveFocus() {
+  exitFocus();
 }
 
 function initFocusKeys() {
@@ -347,7 +447,7 @@ function swapTerrain(rec) {
   rec.view = null;
   rec.viewEl.replaceChildren();
   rec.viewEl.insertAdjacentHTML("beforeend", LOADING_HTML);
-  if (visible && rec.onScreen && !rec.creating) createView(rec);
+  if (rec.onScreen && !rec.creating) createView(rec);
 }
 
 async function createView(rec) {
@@ -366,6 +466,8 @@ async function createView(rec) {
       site: ride ? { ...ride.site, horizon: ride.horizon } : it.site, terrainPatchUrl: patchUrl,
       terrainPatch: ride ? ridePatch(it, ride) : it.s.site_id ? null : skyPatch(it.patch),
       fovDeg: 70, earthNightTextureUrl: "assets/earth_night.jpg",
+      closeUp: viewOpts.closeUp, showConstellations: viewOpts.constellations, exposure: viewOpts.exposure,
+      hudLevel: viewOpts.hudLevel, buttons: false, // the card's "⋯" menu holds the toggles
       onNotes: (notes) => {
         rec.notes = notes;
         footNote(rec);
@@ -383,7 +485,7 @@ async function createView(rec) {
     rec.viewEl.querySelector(".sky-loading")?.remove();
     rec.lastT = null;
     await updateCard(rec);
-    if (lookTarget) lookOne(rec, lookTarget);
+    lookOne(rec, aimBody);
     // A shared link's camera (az, el, field of view) for the first view.
     const cam = pendingCamera;
     if (cam && items.length && rec.it === items[0] && rec.view.lookAt && rec.view.setFov) {
@@ -394,7 +496,8 @@ async function createView(rec) {
     }
   } catch (err) {
     console.error(err);
-    rec.viewEl.querySelector(".sky-loading").textContent = "The sky view could not start.";
+    const msg = rec.viewEl.querySelector(".sky-loading");
+    if (msg) msg.textContent = "The sky view could not start.";
   } finally {
     rec.creating = false;
   }
@@ -402,6 +505,15 @@ async function createView(rec) {
 
 function timeFor(it) {
   return it.t0 + Math.min(offsetMs, it.span || 0);
+}
+
+/** "Earth covers 81% of the Sun" while the Earth eclipses the Sun (C6 sun.eclipse_frac > 0), else "". */
+function eclipseText(sun) {
+  const e = sun.eclipse_frac ?? 0;
+  if (!(e > 0)) return "";
+  if (e >= 1) return "Total eclipse: the Earth hides the Sun";
+  const p = e * 100;
+  return `Eclipse: the Earth covers ${p > 99 || p < 1 ? (Math.floor(p * 10) / 10).toFixed(1) : Math.round(p)}% of the Sun`;
 }
 
 async function updateCard(rec) {
@@ -435,22 +547,24 @@ async function updateCard(rec) {
   const sunTxt = bodyLine("Sun", st.sun, cs, skyAt(st.sun));
   const earthTxt = bodyLine("Earth", st.earth, ce, skyAt(st.earth), { neverRises: earthNeverRises(it.s.lat_deg, it.s.lon_deg) })
     + (st.earth.vis_frac > 0 ? ` · ${Math.round(st.earth.phase_frac * 100)}% lit` : "");
-  foot.innerHTML = `<span>☀ ${esc(sunTxt)}</span><span>🌍 ${esc(earthTxt)}</span>${
+  const ecl = eclipseText(st.sun);
+  foot.innerHTML = `${ecl ? `<span class="foot-eclipse">🌑 ${esc(ecl)}</span>` : ""}<span>☀ ${esc(sunTxt)}</span><span>🌍 ${esc(earthTxt)}</span>${
     ride ? `<span class="note">${esc(rideNote(it, ride))}</span>` : terrainNote(it)
   }<span class="note sky-foot-note"></span>`;
   footNote(rec);
   // Text alternative for screen readers, and the keys the view takes (C8 view: arrows turn, + and - zoom).
-  rec.viewEl.setAttribute("aria-label", `Sky from ${it.label} at ${formatUtc(t)}. ${sunTxt}. ${earthTxt}. Arrow keys turn the view; plus and minus zoom.`);
+  rec.viewEl.setAttribute("aria-label", `Sky from ${it.label} at ${formatUtc(t)}. ${ecl ? `${ecl}. ` : ""}${sunTxt}. ${earthTxt}. Drag or use the arrow keys to look around; plus and minus zoom.`);
 }
 
 /**
  * The sky view's notes, in the card footer for narrow cards (app.css shows this span only there; the view hides its own
- * note there). The Sun and Earth notes are left out: the footer already says where they are.
+ * note there). The Sun and Earth notes are left out: the footer already says where they are; so is the eclipse note
+ * while the footer names the eclipse.
  */
 function footNote(rec) {
   const span = rec.root.querySelector(".sky-foot-note");
   if (!span) return;
-  span.textContent = (rec.notes || []).filter((n) => n.id !== "sun" && n.id !== "earth").map((n) => n.text).join(" · ");
+  span.textContent = (rec.notes || []).filter((n) => n.id !== "sun" && n.id !== "earth" && n.id !== "eclipse").map((n) => n.text).join(" · ");
 }
 
 function terrainNote(it) {
@@ -463,14 +577,13 @@ function terrainNote(it) {
     return `<span class="note" title="${esc(tip)}">${esc(text)}</span>`;
   }
   if (it.horizon) return '<span class="note">real terrain horizon (LOLA)</span>';
-  if (it.s.site_id) return '<span class="note">flat horizon: terrain profile not loaded yet</span>';
-  return '<span class="note">terrain not included for custom points (yet)</span>';
+  return '<span class="note">flat horizon: terrain profile not loaded yet</span>';
 }
 
 /** Recompute the states of all views for the current slider time (coalesced). */
 async function refresh() {
-  if (!visible) return;
   syncSlider();
+  onTimeChange(maxSpan > 0 ? offsetMs : 0);
   if (busy) {
     pending = true;
     return;
@@ -491,8 +604,14 @@ function syncSlider() {
   const slider = $("sky-slider");
   slider.value = maxSpan > 0 ? String(Math.round((offsetMs / maxSpan) * 1000)) : "0";
   // Plain words for the time since the start (T+): "Start", "5 d 14 h after start".
-  $("sky-clock").textContent = maxSpan > 0 ? (offsetMs < 30e3 ? "Start" : `${formatDuration(offsetMs)} after start`) : "Single instant";
-  $("sky-clock").title = "Time since the start of each scenario (T+); missions are synchronised by it";
+  // On phones the words shorten to "T+5 d 14 h" (app.css).
+  const clock = $("sky-clock");
+  if (!(maxSpan > 0)) clock.textContent = "Single instant: add an end time or a duration to play a timelapse";
+  else if (offsetMs < 30e3) clock.textContent = "Start";
+  else clock.innerHTML = `<span class="clk-num">${formatDuration(offsetMs)}</span><span class="clk-word"> after start</span>`;
+  clock.title = maxSpan > 0
+    ? "Time since the start of each scenario (T+); missions are synchronised by it"
+    : "Add an end time (or a duration) to a scenario to play a timelapse";
 }
 
 function play() {
@@ -531,9 +650,4 @@ function lookOne(rec, body) {
   if (typeof rec.view.lookAtBody === "function") return rec.view.lookAtBody(body);
   const b = rec.state[body];
   rec.view.lookAt(b.az_deg, Math.max(b.el_deg, 5));
-}
-
-function lookAll(body) {
-  lookTarget = body;
-  for (const rec of cards.values()) lookOne(rec, body);
 }

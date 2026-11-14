@@ -1,5 +1,8 @@
 /* AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team. */
-/* Moonat app styles. Dark "space" theme by default, light theme via html[data-theme="light"]. */
+/* Moonat app styles. Dark "space" theme by default, light theme via html[data-theme="light"].
+   One flow: the place and time (globe, scenario cards, stories), then the sky from there with its timelapse, then the
+   Sun | Earth switch and that body's data. Phones and tablets read it top to bottom; from 1100 px the inputs and the
+   results are two columns. */
 
 :root,
 :root[data-theme="dark"] {
@@ -23,6 +26,7 @@
   --sun: #ffc94d;
   --sun-ink: #ffc94d;   /* Sun-coloured text */
   --earth: #5aa9ff;
+  --earth-ink: #7dbbff; /* Earth-coloured text */
   --grid: #2a2e38;
   --axis: #3a3f4b;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.25);
@@ -51,6 +55,7 @@
   --sun: #c98500;
   --sun-ink: #946200;   /* Sun-coloured text: 5.2:1 on white (--sun is 3.1:1, for icons only) */
   --earth: #1f6fd1;
+  --earth-ink: #1b5fb4; /* 5.9:1 on white */
   --grid: #e4e2db;
   --axis: #c3c2b7;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 6px 18px rgba(0, 0, 0, 0.06);
@@ -76,30 +81,27 @@ button { cursor: pointer; }
 [hidden] { display: none !important; }
 .skip { position: absolute; left: -9999px; }
 .skip:focus { left: 12px; top: 12px; z-index: 2000; background: var(--surface); padding: 8px 12px; border-radius: 8px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.muted { color: var(--muted); font-weight: 400; }
 
 /* ---------- Top bar ---------- */
 .topbar {
   position: sticky; top: 0; z-index: 1000;
-  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px;
-  padding: 10px 20px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 10px 24px;
   background: color-mix(in srgb, var(--bg) 82%, transparent);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border);
 }
 .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.brand-text { min-width: 0; }
 .logo { width: 34px; height: 34px; flex: none; }
 .logo-moon { fill: #d9d6cc; }
 .logo-shadow { fill: var(--bg); }
 :root[data-theme="light"] .logo-moon { fill: #8e8b82; }
 .brand h1 { font-size: 20px; line-height: 1.1; }
 .tagline { margin: 2px 0 0; color: var(--text-2); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tabs { display: flex; gap: 4px; padding: 4px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; }
-.tabs button {
-  border: 0; background: transparent; padding: 7px 22px; border-radius: 999px; font-weight: 600; color: var(--text-2);
-}
-.tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); }
-.tabs button:not([aria-selected="true"]):hover { color: var(--text); background: var(--surface-3); }
-.top-actions { display: flex; justify-content: flex-end; align-items: center; gap: 6px; }
+.top-actions { display: flex; justify-content: flex-end; align-items: center; gap: 6px; flex: none; }
 .banner {
   margin: 0 0 14px; padding: 10px 14px; border-radius: 10px; font-size: 14px;
   border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent); background: color-mix(in srgb, var(--danger) 10%, transparent);
@@ -145,46 +147,67 @@ button { cursor: pointer; }
 
 /* ---------- Introduction line (first visits; dismissed state in localStorage, applied in <head>) ---------- */
 .intro {
-  display: flex; align-items: center; gap: 10px; max-width: calc(1880px - 40px); margin: 12px 20px 0; padding: 7px 8px 7px 16px;
-  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border)); border-radius: 12px; background: var(--accent-soft);
+  display: flex; align-items: center; gap: 10px; max-width: calc(1880px - 48px); margin: 12px 24px 0; padding: 6px 8px 6px 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border)); border-radius: 12px; background: var(--accent-soft);
   font-size: 14px; color: var(--text-2);
 }
-@media (min-width: 1920px) { .intro { margin-inline: auto; } }
+@media (min-width: 1928px) { .intro { margin-inline: auto; } }
 .intro p { margin: 0; flex: 1; min-width: 0; }
 .intro strong { color: var(--text); font-weight: 650; }
 .intro .intro-close { width: 30px; height: 30px; flex: none; border-color: transparent; font-size: 13px; }
-.intro-try { white-space: nowrap; }
-.intro-try .link-btn { font-weight: 600; text-decoration-thickness: 1px; }
-@media (max-width: 1500px) { .intro-try { white-space: normal; } }
 :root[data-intro="off"] .intro { display: none; }
-@media (max-width: 860px) { .intro { margin-inline: 16px; } }
-@media (max-width: 520px) {
-  .intro { margin: 10px 12px 0; padding-left: 12px; font-size: 13.5px; }
-  .intro-more { display: none; }
-  .intro strong::after { content: "."; }
-}
-@media (pointer: coarse) { .intro-try .link-btn { min-height: 30px; padding: 2px 3px; } }
 
-/* "What to look for" line of the loaded quick start, above the tabs' content */
-.qs-caption { margin: 0 0 12px; padding: 0 2px; font-size: 14px; line-height: 1.45; color: var(--text-2); }
-.qs-cap-label { color: var(--accent); font-weight: 650; }
-@media (max-width: 520px) { .qs-caption { font-size: 13px; margin-bottom: 10px; } }
-
-/* ---------- Layout ---------- */
+/* ---------- Layout: one flow ---------- */
 .layout {
-  display: grid; grid-template-columns: minmax(330px, 400px) minmax(0, 1fr); gap: 20px;
-  padding: 18px 20px 8px; max-width: 1880px; margin: 0 auto; align-items: start;
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px;
+  padding: 16px 24px 8px; max-width: 1880px; margin: 0 auto; align-items: start;
 }
-.layout > .side {
-  position: sticky; top: 72px; max-height: calc(100vh - 84px); overflow: auto;
-  display: flex; flex-direction: column; gap: 14px; padding-right: 4px;
-  scrollbar-width: thin;
-}
+.inputs, .output { display: flex; flex-direction: column; min-width: 0; }
+.inputs { gap: 18px; }
+.output { gap: 12px; }
 .block-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 650; margin-bottom: 8px; }
-.block-head { display: flex; justify-content: space-between; align-items: baseline; }
+.block-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .block-head .link-btn { font-size: 12.5px; color: var(--muted); }
+.jump-link { display: none; font-size: 12.5px; color: var(--accent); text-underline-offset: 2px; }
 
-/* Quick-start chips */
+/* Desktop: the inputs on the left (sticky, scrolling on their own when taller than the window), the results right. */
+@media (min-width: 1100px) {
+  .layout { grid-template-columns: minmax(340px, 400px) minmax(0, 1fr); gap: 28px; padding-top: 18px; }
+  .layout > .inputs {
+    position: sticky; top: 72px; max-height: calc(100vh - 84px); overflow: auto; padding: 0 6px 12px 0; margin-right: -6px;
+    scrollbar-width: thin;
+  }
+}
+@media (min-width: 1100px) { .sky-controls:not(.instant) { position: sticky; bottom: 10px; } }
+@media (min-width: 1400px) { .layout { grid-template-columns: minmax(380px, 440px) minmax(0, 1fr); } }
+@media (min-width: 1600px) { .layout { grid-template-columns: minmax(400px, 480px) minmax(0, 1fr); } }
+/* Tablets: the globe beside the scenario cards and the stories, the results full width under them. */
+@media (min-width: 700px) and (max-width: 1099.98px) {
+  .inputs { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 16px 20px; align-items: start; }
+  .inputs .map-block { grid-row: 1 / span 2; }
+  .inputs .qs-block { grid-column: 2; }
+}
+@media (max-width: 1099.98px) {
+  .topbar { position: static; }
+  .jump-link { display: inline; }
+}
+
+/* ---------- Globe block: legend and hint (the globe itself: globe.css) ---------- */
+.map-block { position: relative; }
+.map-legend {
+  display: grid; grid-template-columns: repeat(2, max-content); gap: 3px 18px; margin: 8px 2px 0; padding: 0; list-style: none;
+  font-size: 12px; color: var(--text-2);
+}
+@media (min-width: 1600px), (min-width: 520px) and (max-width: 699.98px) { .map-legend { grid-template-columns: repeat(4, max-content); } }
+.map-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.lg { display: inline-block; flex: none; width: 10px; height: 10px; border: 1.5px solid rgba(8, 9, 12, 0.85); background: var(--k); }
+.lg-mission { --k: var(--site-mission); border-radius: 50%; }
+.lg-candidate { --k: var(--site-candidate); border-radius: 2px; transform: rotate(45deg) scale(0.88); }
+.lg-poi { --k: var(--site-poi); border-radius: 2px; transform: scale(0.88); }
+.lg-pin { width: 11px; height: 11px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--accent); border: 1.5px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35); }
+.map-hint { margin: 4px 2px 0; font-size: 12px; color: var(--muted); }
+
+/* ---------- Stories (quick starts) ---------- */
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip {
   border: 1px solid var(--border-strong); background: var(--surface); border-radius: 999px;
@@ -193,10 +216,6 @@ button { cursor: pointer; }
 .chip:hover { background: var(--accent-soft); border-color: var(--accent); }
 .chip.active { background: var(--accent-soft); border-color: var(--accent); }
 .empty-chips { justify-content: center; max-width: 640px; margin: 14px auto 0; }
-
-/* Map: the Moon globe picker (styles in globe.css) */
-.map-block { position: relative; }
-.map-hint { margin: 6px 2px 0; font-size: 12px; color: var(--muted); }
 
 /* Scenario cards */
 .cards { display: flex; flex-direction: column; gap: 10px; }
@@ -244,7 +263,7 @@ button { cursor: pointer; }
 .picker-empty { padding: 10px; color: var(--muted); font-size: 13px; }
 .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.field > span { font-size: 11.5px; color: var(--muted); }
+.field > span, .end-head > span, .end-head > label { font-size: 11.5px; color: var(--muted); }
 .field input {
   width: 100%; min-width: 0; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2);
   font-size: 13.5px; font-variant-numeric: tabular-nums;
@@ -258,7 +277,6 @@ button { cursor: pointer; }
 }
 .fields.times { margin-top: 8px; grid-template-columns: 1fr; }
 .end-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 22px; }
-.end-head > span { font-size: 11.5px; color: var(--muted); }
 .seg.seg-sm { padding: 2px; border-radius: 8px; background: var(--surface-2); }
 .seg.seg-sm button { padding: 2px 9px; font-size: 11.5px; border-radius: 6px; }
 .dur-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
@@ -278,33 +296,222 @@ button { cursor: pointer; }
 .add-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 .add-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
-/* ---------- Output ---------- */
-.output { min-width: 0; }
-.tabpanel { min-width: 0; }
-.empty { text-align: center; padding: 60px 20px; color: var(--text-2); }
+/* "✨ Suggest dates" next to the start time, and its list (scenarios_ui.js) */
+.start-field { position: relative; }
+.suggest-btn {
+  border: 0; background: none; padding: 1px 2px; font-size: 12px; font-weight: 600; color: var(--accent); white-space: nowrap;
+  text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent); text-underline-offset: 3px;
+}
+.suggest-btn:hover { text-decoration-color: currentColor; }
+.suggest-btn .sg-ico { display: inline-block; margin-right: 4px; text-decoration: none; }
+.suggest-btn[aria-expanded="true"] { text-decoration: none; }
+.suggest-pop {
+  position: absolute; z-index: 1150; left: -6px; right: -6px; top: calc(100% + 4px); padding: 8px; border-radius: 12px;
+  background: var(--surface); border: 1px solid var(--border-strong); box-shadow: 0 12px 34px rgba(0, 0, 0, 0.38);
+}
+.suggest-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 2px 2px 6px 6px; }
+.suggest-head strong { display: block; font-size: 13.5px; }
+.suggest-head small { display: block; font-size: 11.5px; color: var(--muted); }
+.suggest-close { width: 28px; height: 28px; border-color: transparent; font-size: 12px; flex: none; }
+.suggest-status { display: flex; align-items: center; gap: 8px; margin: 4px 6px 6px; font-size: 13px; color: var(--text-2); }
+.suggest-list { display: flex; flex-direction: column; gap: 2px; max-height: 340px; overflow: auto; }
+.suggest-item {
+  display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 8px; border: 0; border-radius: 9px; background: none;
+  text-align: left; color: var(--text);
+}
+.suggest-item:hover, .suggest-item:focus-visible { background: var(--accent-soft); outline: none; }
+.suggest-kind { margin: 8px 8px 2px; font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
+.suggest-list > .suggest-kind:first-child { margin-top: 0; }
+.suggest-item.note { cursor: default; padding-block: 4px; }
+.suggest-item.note .si-text b { font-weight: 500; color: var(--text-2); }
+.si-icon { flex: none; min-width: 1.6em; font-size: 16px; line-height: 1.3; text-align: center; }
+.si-text { display: flex; flex-direction: column; min-width: 0; }
+.si-text b { font-size: 13.5px; font-weight: 600; }
+.si-text small { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.si-text .si-detail { color: var(--text-2); }
+
+/* ---------- Results column ---------- */
+.out-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.out-head:has(> :not([hidden])) { min-height: 1.45em; }
+.qs-caption { margin: 0; flex: 1; min-width: 0; padding: 0 2px; font-size: 14px; line-height: 1.45; color: var(--text-2); }
+.qs-cap-label { color: var(--accent); font-weight: 650; }
+.busy { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; margin: 0 0 0 auto; white-space: nowrap; }
+.spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--border-strong); border-top-color: var(--accent); animation: spin 0.8s linear infinite; flex: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.empty { text-align: center; padding: 56px 20px; color: var(--text-2); }
 .empty h2 { color: var(--text); font-size: 20px; margin-bottom: 6px; }
 .empty-art { width: 180px; margin-bottom: 12px; }
 .empty-art .ground { fill: var(--surface-3); }
 .empty-art .earth { fill: var(--earth); opacity: 0.85; }
 .empty-art .sun { fill: var(--sun); }
 
-.compare-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; min-height: 34px; }
+/* ---------- Sky panel: the views, the timelapse bar under them, the event hint ---------- */
+.sky-panel { position: relative; display: flex; flex-direction: column; gap: 10px; container: skypanel / inline-size; }
+.sky-panel:focus { outline: none; }
+/* Sky grid: the panel is a size container, so the grid picks its columns from the width it really has: one view uses
+   the full width (its height is capped by the window, see .sky-view below); 2 and 4 views go two per row; 3, 5 and 6
+   views go three per row on a wide screen (all six Apollo sites on one 1920 × 1080 screen) and two per row below about
+   1150 px; one column on narrow screens. */
+.sky-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 14px; position: relative; }
+.sky-grid[data-n="1"] { grid-template-columns: minmax(0, 1fr); }
+.sky-grid[data-n="2"], .sky-grid[data-n="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.sky-grid[data-n="3"], .sky-grid[data-n="5"], .sky-grid[data-n="6"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@container skypanel (max-width: 1150px) {
+  .sky-grid[data-n="3"], .sky-grid[data-n="5"], .sky-grid[data-n="6"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container skypanel (max-width: 700px) {
+  .sky-grid[data-n] { grid-template-columns: minmax(0, 1fr); }
+}
+/* Before the first results: a dark box the size of one view, so nothing below it jumps when the sky arrives. */
+.sky-grid:empty {
+  aspect-ratio: 16 / 8.2; border-radius: 14px; border: 1px solid var(--border);
+  background: radial-gradient(120% 90% at 50% 30%, #121621 0%, #05060a 75%);
+}
+.sky-grid:empty::after { content: "Loading the sky…"; position: absolute; inset: 0; display: grid; place-items: center; color: #8f97a6; font-size: 13px; }
+/* A slow compute (e.g. a rover route planned from live terrain) dims the previous results and labels the sky
+   (main.js setBusy). */
+#compare-body[data-busy] .body-section, #compare-body[data-busy] .rank-block, .sky-grid[data-busy] > .sky-card { opacity: 0.4; transition: opacity 0.2s; }
+.sky-grid[data-busy]::before {
+  content: attr(data-busy); position: absolute; top: 56px; left: 50%; transform: translateX(-50%); z-index: 6;
+  padding: 7px 14px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border-strong);
+  color: var(--text); font-size: 13px; box-shadow: var(--shadow); white-space: nowrap; pointer-events: none;
+}
+.sky-grid:empty[data-busy]::after { content: none; }
+
+.sky-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); container: skycard / inline-size; min-width: 0; }
+.sky-card-head { display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 12px; min-height: 42px; }
+.sky-card-head .mcard-title { flex: 1; min-width: 0; }
+.sky-card-time { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sky-card-acts { display: flex; gap: 4px; flex: none; align-items: center; }
+.sky-act {
+  border: 1px solid var(--border); background: transparent; color: var(--text-2); border-radius: 7px;
+  padding: 3px 9px; font-size: 12.5px; line-height: 1.35; white-space: nowrap;
+}
+.sky-act:hover { color: var(--text); border-color: var(--border-strong); background: var(--surface-2); }
+.sky-exit-btn { display: none; }
+.sky-opts-btn { min-width: 32px; font-weight: 700; letter-spacing: 0.04em; }
+.sky-opts-btn[aria-expanded="true"] { background: var(--surface-3); color: var(--text); }
+/* In grid cards the buttons are glyphs only; in narrow cards the time gives way to them. */
+.sky-grid:not([data-n="1"]) .sky-act-txt { display: none; }
+@container skycard (max-width: 430px) { .sky-card-time, .sky-act-txt { display: none; } }
+/* "⋯" view options (sky_panel.js) */
+.sky-opts { position: relative; display: inline-flex; }
+.sky-opts-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 230px; display: flex; flex-direction: column; padding: 4px;
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: 10px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+.sky-opt {
+  display: flex; align-items: center; gap: 10px; border: 0; background: none; padding: 8px 10px; border-radius: 7px;
+  font-size: 13px; color: var(--text); text-align: left; white-space: nowrap;
+}
+.sky-opt:hover, .sky-opt:focus-visible { background: var(--accent-soft); outline: none; }
+.sky-opt-box { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--border-strong); display: grid; place-items: center; flex: none; }
+.sky-opt[aria-checked="true"] .sky-opt-box { background: var(--accent); border-color: var(--accent); }
+.sky-opt[aria-checked="true"] .sky-opt-box::after { content: ""; width: 8px; height: 4px; margin-top: -2px; border: solid var(--accent-ink); border-width: 0 0 2px 2px; transform: rotate(-45deg); }
+
+.sky-view { position: relative; aspect-ratio: 16 / 9; background: #000; container-type: inline-size; }
+/* One view: the full width, as high as 16:9 allows but no higher than the window minus the bars around it, so the
+   timelapse bar and the Sun | Earth switch stay in sight on a laptop (the aspect then widens, up to 2.4:1). */
+.sky-grid[data-n="1"] .sky-view { aspect-ratio: auto; height: max(min(56.25cqw, calc(100svh - 340px)), 40cqw, 280px); }
+@media (min-width: 1100px) and (min-height: 521px) {
+  /* The introduction line (first visits) takes a row above the results. */
+  :root:not([data-intro="off"]) .sky-grid[data-n="1"] .sky-view { height: max(min(56.25cqw, calc(100svh - 400px)), 40cqw, 280px); }
+}
+.sky-view canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+.sky-view canvas:active { cursor: grabbing; }
+/* Touch: a vertical swipe over a view scrolls the page and a horizontal drag turns it (axis lock in gestures.js); in
+   focus mode the view takes every gesture. */
+.sky-view.moonat-sky, .sky-view canvas { touch-action: pan-y; }
+/* Keyboard focus on a sky view (arrow keys turn it, + and - zoom): a ring drawn above the canvas. */
+.sky-view:focus-visible { outline: none; }
+.sky-view:focus-visible::after { content: ""; position: absolute; inset: 0; z-index: 6; pointer-events: none; border: 2px solid var(--accent); border-radius: 2px; }
+.sky-loading { position: absolute; inset: 0; display: grid; place-items: center; color: #999; font-size: 13px; }
+.sky-hint {
+  position: absolute; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none;
+  background: rgba(10, 14, 22, 0.82); color: #e8edf5; padding: 7px 14px; border-radius: 9px; font-size: 13px;
+}
+.sky-hint[hidden] { display: none; }
+/* The sky HUD (web/js/sky/hud.js; minimal level, without its own buttons: the card's "⋯" menu has them). In narrow
+   views (a grid of several sites, phones) its time line steps aside (the card head shows it), and so does the note
+   (the card footer shows it). */
+@container (max-width: 560px) {
+  .sky-view .moonat-sky-info { display: none; }
+  .sky-view .moonat-sky-note { display: none; }
+}
+.sky-view .moonat-sky-cap { white-space: normal; width: max-content; max-width: 130px; }
+.sky-card-foot { display: flex; gap: 4px 14px; flex-wrap: wrap; padding: 8px 12px 10px; font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.sky-card-foot .note { color: var(--muted); }
+.sky-card-foot .foot-eclipse { flex-basis: 100%; color: var(--text); font-weight: 600; }
+.sky-foot-note { display: none; }
+@container skycard (max-width: 560px) { .sky-foot-note:not(:empty) { display: inline; } }
+
+/* Timelapse bar, under the views. On a desktop it stays at the bottom of the window while a tall grid of views
+   scrolls by (on one column the sky starts below the fold, where a sticky bar would slide over the views). */
+.sky-controls {
+  position: relative; z-index: 50;
+  display: flex; align-items: center; gap: 12px; padding: 7px 12px;
+  background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: blur(8px);
+  border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow);
+}
+.sky-controls input[type="range"] { flex: 1; min-width: 80px; accent-color: var(--accent); }
+.play svg { fill: currentColor; stroke: none; width: 18px; height: 18px; }
+.play .i-pause { display: none; }
+.play.playing .i-pause { display: block; }
+.play.playing .i-play { display: none; }
+#sky-clock { font-variant-numeric: tabular-nums; min-width: 92px; font-weight: 600; white-space: nowrap; }
+.speed { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+.speed select { padding: 4px 6px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-2); }
+/* A single instant has no timelapse: the bar only says how to get one. */
+.sky-controls.instant { background: transparent; box-shadow: none; border-style: dashed; position: static; }
+.sky-controls.instant #btn-play, .sky-controls.instant #sky-slider, .sky-controls.instant .speed { display: none; }
+.sky-controls.instant #sky-clock { font-weight: 500; color: var(--muted); font-size: 13px; white-space: normal; }
+
+/* "🌑 An eclipse is visible from here …: Show me" (main.js syncHint) */
+.event-hint {
+  margin: 0; padding: 7px 12px; border-radius: 10px; font-size: 13.5px; color: var(--text-2);
+  background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+}
+.event-hint .hint-go { font-weight: 650; margin-left: 4px; }
+
+/* ---------- Focus mode: one sky view fills the window (sky_panel.js) ---------- */
+body.sky-focus { overflow: hidden; }
+#sky-panel.focus {
+  position: fixed; inset: 0; z-index: 1500; display: flex; flex-direction: column; gap: 8px;
+  padding: 8px 10px 10px; background: var(--bg);
+}
+#sky-panel.focus .sky-controls { position: static; }
+#sky-panel.focus .sky-grid { display: flex; flex: 1; min-height: 0; }
+#sky-panel.focus .sky-card:not(.is-focus) { display: none; }
+#sky-panel.focus .sky-card.is-focus { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+#sky-panel.focus .sky-card.is-focus .sky-view { flex: 1; min-height: 0; height: auto; aspect-ratio: auto; }
+#sky-panel.focus .sky-focus-btn { display: none; }
+#sky-panel.focus .sky-exit-btn { display: inline-block; }
+#sky-panel.focus .sky-act-txt { display: inline; }
+#sky-panel.focus .sky-card-time { display: inline; }
+/* A focused view on a phone: the title keeps its room, the other buttons are glyphs. */
+@container skycard (max-width: 520px) {
+  #sky-panel.focus .sky-act-txt, #sky-panel.focus .sky-card-time { display: none; }
+}
+#sky-panel.focus .sky-view.moonat-sky, #sky-panel.focus .sky-view canvas { touch-action: none; }
+
+/* ---------- The Sun | Earth switch and the data under it ---------- */
+.body-bar { display: flex; align-items: center; gap: 6px 16px; flex-wrap: wrap; margin-top: 10px; }
 .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 9px; padding: 3px; background: var(--surface); }
 .seg button { border: 0; background: transparent; padding: 5px 12px; border-radius: 6px; font-size: 13px; color: var(--text-2); }
 .seg button[aria-pressed="true"] { background: var(--surface-3); color: var(--text); font-weight: 600; }
-.seg.seg-lg.body-switch { display: flex; width: 100%; max-width: 420px; margin: 0 0 12px; padding: 4px; border-radius: 12px; background: var(--surface-2); }
+.seg.seg-lg.body-switch { display: flex; width: 100%; max-width: 360px; padding: 4px; border-radius: 12px; background: var(--surface-2); }
 .seg-lg button { flex: 1; padding: 8px 16px; font-size: 15px; border-radius: 9px; }
 .seg-lg button[aria-pressed="true"] { background: var(--surface); box-shadow: 0 0 0 1px var(--border-strong), var(--shadow); }
 .seg-lg button[data-body="sun"][aria-pressed="true"] { color: var(--sun-ink); }
-.busy { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; margin: 0; }
-.spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--border-strong); border-top-color: var(--accent); animation: spin 0.8s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
+.seg-lg button[data-body="earth"][aria-pressed="true"] { color: var(--earth-ink); }
+.body-sub { margin: 0; font-size: 13.5px; color: var(--muted); }
 
-.body-section { margin: 14px 0 26px; }
-.sec-title { display: flex; align-items: baseline; gap: 10px; font-size: 22px; margin-bottom: 12px; }
-.sec-icon { font-size: 20px; }
-.sec-icon.sun { color: var(--sun); }
-.sec-sub { font-size: 13px; font-weight: 500; color: var(--muted); }
+#compare-body { display: flex; flex-direction: column; gap: 14px; }
+.chart-tools { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px 10px; margin: 4px 0 -6px; }
+.chart-tools-label { font-size: 12px; color: var(--muted); }
+.xaxis-note { flex-basis: 100%; text-align: right; margin: 0; font-size: 12px; color: var(--muted); }
+.body-section { margin: 0; display: flex; flex-direction: column; gap: 14px; }
+.sec-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
 
 .metric-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 12px; }
 .mcard {
@@ -315,7 +522,7 @@ button { cursor: pointer; }
 .mcard-head { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
 .mcard-title { font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mcard-when { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
-.mrows { display: grid; grid-template-columns: auto 1fr; gap: 7px 10px; align-items: center; }
+.mrows { display: grid; grid-template-columns: auto 1fr; gap: 9px 10px; align-items: center; }
 .mrow-icon { width: 30px; height: 30px; display: grid; place-items: center; }
 .mrow-icon svg { width: 30px; height: 30px; overflow: visible; }
 .mrow-val { display: flex; flex-direction: column; min-width: 0; }
@@ -335,132 +542,76 @@ button { cursor: pointer; }
 .ico-earth-lit { fill: var(--earth); }
 .ico-dot { fill: var(--c); }
 
-.charts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+.charts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 12px 12px 4px; box-shadow: var(--shadow); min-width: 0; }
 .chart-card.wide { grid-column: 1 / -1; }
-.chart-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 0 4px; }
+.chart-head { display: flex; align-items: baseline; gap: 4px 10px; flex-wrap: wrap; padding: 0 4px; }
 .chart-head h3 { font-size: 15px; }
 .chart-head p { margin: 0; font-size: 12.5px; color: var(--muted); flex: 1; min-width: 180px; }
 .chart-head .seg button { font-size: 12px; padding: 3px 9px; }
-.chart { height: 260px; }
+.chart { height: 260px; position: relative; }
+.chart:empty::after { content: "Loading the chart…"; position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 12.5px; }
 .chart-card.wide .chart { height: 300px; }
 .chart-note { font-size: 12px; color: var(--muted); margin: 4px 6px 8px; }
 
-/* ---------- Sky tab ---------- */
-.sky-controls {
-  display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; align-items: center;
-  background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 10px 14px; margin-bottom: 14px; box-shadow: var(--shadow);
-  position: sticky; top: 64px; z-index: 50;
-}
-.sky-time { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.sky-time input[type="range"] { flex: 1; min-width: 80px; accent-color: var(--accent); }
-.play svg { fill: currentColor; stroke: none; width: 18px; height: 18px; }
-.play .i-pause { display: none; }
-.play.playing .i-pause { display: block; }
-.play.playing .i-play { display: none; }
-#sky-clock { font-variant-numeric: tabular-nums; min-width: 92px; font-weight: 600; }
-.speed { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
-.speed select { padding: 4px 6px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-2); }
-.sky-look { display: flex; gap: 6px; }
-.sky-note { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--muted); }
-/* Sky grid. The tab is a size container, so the grid picks its columns from the width it really has:
-   one view uses the full width (its height is capped by the window, see .sky-view below); 2 and 4 views go two
-   per row; 3, 5 and 6 views go three per row on a wide screen (all six Apollo sites on one 1920 × 1080 screen) and
-   two per row below about 1150 px; one column on narrow screens. */
-#tab-sky { container: skytab / inline-size; }
-.sky-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 14px; position: relative; }
-/* A slow compute (e.g. a rover route planned from live terrain) dims the previous results and labels the Sky tab
-   (main.js setBusy). */
-#compare-body[data-busy] .body-section, #compare-body[data-busy] .rank-block, .sky-grid[data-busy] > .sky-card { opacity: 0.4; transition: opacity 0.2s; }
-.sky-grid[data-busy]::before {
-  content: attr(data-busy); position: absolute; top: 56px; left: 50%; transform: translateX(-50%); z-index: 6;
-  padding: 7px 14px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border-strong);
-  color: var(--text); font-size: 13px; box-shadow: var(--shadow); white-space: nowrap; pointer-events: none;
-}
-.sky-grid[data-n="1"] { grid-template-columns: minmax(0, 1fr); }
-.sky-grid[data-n="2"], .sky-grid[data-n="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.sky-grid[data-n="3"], .sky-grid[data-n="5"], .sky-grid[data-n="6"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-@container skytab (max-width: 1150px) {
-  .sky-grid[data-n="3"], .sky-grid[data-n="5"], .sky-grid[data-n="6"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-@container skytab (max-width: 700px) {
-  .sky-grid[data-n] { grid-template-columns: minmax(0, 1fr); }
-}
-.sky-hint {
-  position: absolute; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none;
-  background: rgba(10, 14, 22, 0.82); color: #e8edf5; padding: 7px 14px; border-radius: 9px; font-size: 13px;
-}
-.sky-hint[hidden] { display: none; }
-/* The sky HUD (web/js/sky/hud.js) in narrow views (grid of several sites, phones): the framing rule puts the Earth
-   near the top centre, so the text readout (repeated in the card footer) and the exposure toggle (the first HUD
-   button) step aside, and the other buttons get smaller. */
-.sky-view { container-type: inline-size; }
-@container (max-width: 560px) {
-  .sky-view .moonat-sky-info { display: none; }
-  /* The note moves to the card footer (sky_tab.js footNote). */
-  .sky-view .moonat-sky-note { display: none; }
-  /* The buttons leave the top of the frame, where the framing rule puts the Earth: bottom left, above the compass. */
-  .sky-view .moonat-sky-bar { top: auto; bottom: 28px; left: 8px; right: auto; }
-  /* Glyphs only (the words stay as accessible names and tooltips), so the bar stays clear of the centre. */
-  .sky-view .moonat-sky-btn .i { display: inline; }
-  .sky-view .moonat-sky-btn .t { display: none; }
-  .sky-view .moonat-sky-btn { min-width: 34px; font-size: 15px; line-height: 1.2; }
-  .sky-view .moonat-sky-bar .moonat-sky-btn:first-child { display: none; }
-  .sky-view .moonat-sky-btn { font-size: 11px; padding: 2px 6px; }
-}
-.sky-view .moonat-sky-cap { white-space: normal; width: max-content; max-width: 130px; }
-.sky-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); container: skycard / inline-size; }
-.sky-foot-note { display: none; }
-@container skycard (max-width: 560px) { .sky-foot-note:not(:empty) { display: inline; } }
-/* Keyboard focus on a sky view (arrow keys turn it, + and - zoom): a ring drawn above the canvas. */
-.sky-view:focus-visible { outline: none; }
-.sky-view:focus-visible::after { content: ""; position: absolute; inset: 0; z-index: 6; pointer-events: none; border: 2px solid var(--accent); border-radius: 2px; }
-.sky-card-head { display: flex; align-items: center; gap: 8px; padding: 7px 8px 7px 12px; min-height: 42px; }
-.sky-card-head .mcard-title { flex: 1; min-width: 0; }
-.sky-card-time { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.sky-card-acts { display: flex; gap: 4px; flex: none; }
-.sky-act {
-  border: 1px solid var(--border); background: transparent; color: var(--text-2); border-radius: 7px;
-  padding: 3px 9px; font-size: 12.5px; line-height: 1.35; white-space: nowrap;
-}
-.sky-act:hover { color: var(--text); border-color: var(--border-strong); background: var(--surface-2); }
-.sky-exit-btn { display: none; }
-/* In grid cards the full-screen button is an icon only; in narrow ones the time gives way to the buttons. */
-.sky-grid:not([data-n="1"]) .sky-act-txt { display: none; }
-@container skytab (max-width: 520px) {
-  .sky-card-time { display: none; }
-}
-.sky-view { position: relative; aspect-ratio: 16 / 9; background: #000; }
-/* One view: the full width, as high as 16:9 allows but no higher than the window minus the controls (the aspect
-   then widens a little, up to 2.4:1, instead of leaving an empty band beside the view). */
-.sky-grid[data-n="1"] .sky-view { aspect-ratio: auto; height: max(min(56.25cqw, calc(100svh - 300px)), 41.6cqw, 300px); }
+/* A lone scenario gets one wide card with its metrics side by side. */
+.metric-cards:has(> .mcard:only-child) { grid-template-columns: 1fr; }
+.metric-cards > .mcard:only-child .mrows { grid-template-columns: repeat(4, auto minmax(0, 1fr)); }
+.metric-cards > .mcard:only-child .mrows:has(> :nth-child(6):last-child) { grid-template-columns: repeat(3, auto minmax(0, 1fr)); }
 
-/* ---------- Focus mode: one sky view fills the window (sky_tab.js) ---------- */
-body.sky-focus { overflow: hidden; }
-#tab-sky.focus {
-  position: fixed; inset: 0; z-index: 1500; display: flex; flex-direction: column; gap: 8px;
-  padding: 8px 10px 10px; background: var(--bg);
+/* Metric cards by count (compare.js sets data-n): one row when they fit, otherwise equal rows (3 + 3, 2 + 2),
+   never a lone card on the last row. The section is the size container, so the column's width counts. */
+.body-section { container: compare-sec / inline-size; }
+.metric-cards[data-n="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.metric-cards[data-n="3"], .metric-cards[data-n="5"], .metric-cards[data-n="6"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.metric-cards[data-n="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@container compare-sec (min-width: 1150px) { .metric-cards[data-n="5"] { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+@container compare-sec (min-width: 1340px) { .metric-cards[data-n="6"] { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+@container compare-sec (max-width: 960px) { .metric-cards[data-n="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container compare-sec (max-width: 860px) {
+  .metric-cards > .mcard:only-child .mrows,
+  .metric-cards > .mcard:only-child .mrows:has(> :nth-child(6):last-child) { grid-template-columns: repeat(2, auto minmax(0, 1fr)); }
+  .charts { grid-template-columns: 1fr; }
 }
-#tab-sky.focus .sky-controls { position: static; margin: 0; padding: 8px 12px; }
-#tab-sky.focus .sky-note { display: none; }
-#tab-sky.focus .sky-grid { display: flex; flex: 1; min-height: 0; }
-#tab-sky.focus .sky-card:not(.is-focus) { display: none; }
-#tab-sky.focus .sky-card.is-focus { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-#tab-sky.focus .sky-card.is-focus .sky-view { flex: 1; min-height: 0; height: auto; aspect-ratio: auto; }
-#tab-sky.focus .sky-focus-btn { display: none; }
-#tab-sky.focus .sky-exit-btn { display: inline-block; }
-#tab-sky.focus .sky-act-txt { display: inline; }
-#tab-sky.focus .sky-card-time { display: inline; }
-#tab-sky.focus #sky-empty { display: none; }
-/* Touch: a vertical swipe over a view scrolls the page and a horizontal drag turns it (axis lock in gestures.js); in
-   focus mode the view takes every gesture. */
-.sky-view.moonat-sky, .sky-view canvas { touch-action: pan-y; }
-#tab-sky.focus .sky-view.moonat-sky, #tab-sky.focus .sky-view canvas { touch-action: none; }
-.sky-view canvas { display: block; width: 100%; height: 100%; cursor: grab; }
-.sky-view canvas:active { cursor: grabbing; }
-.sky-card-foot { display: flex; gap: 14px; flex-wrap: wrap; padding: 8px 12px 10px; font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
-.sky-card-foot .note { color: var(--muted); }
-.sky-loading { position: absolute; inset: 0; display: grid; place-items: center; color: #999; font-size: 13px; }
+@container compare-sec (max-width: 680px) {
+  .metric-cards[data-n="3"] { grid-template-columns: minmax(0, 1fr); }
+  .metric-cards[data-n="5"], .metric-cards[data-n="6"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container compare-sec (max-width: 460px) {
+  .metric-cards[data-n] { grid-template-columns: minmax(0, 1fr); }
+  .metric-cards > .mcard:only-child .mrows,
+  .metric-cards > .mcard:only-child .mrows:has(> :nth-child(6):last-child) { grid-template-columns: auto 1fr; }
+}
+
+/* Ranked summary of several scenarios (compare.js renderRank). */
+.rank-block { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); padding: 12px 14px 10px; }
+.rank-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 6px; }
+.rank-title { font-size: 15px; }
+.rank-sentence { margin: 0; font-size: 13px; color: var(--text-2); flex: 1; min-width: 220px; }
+/* position: relative keeps the absolutely positioned ".sr-only" notes inside the scroll box (otherwise one in the
+   last column widened the page on phones). */
+.rank-scroll { overflow-x: auto; position: relative; }
+.rank-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.rank-table th, .rank-table td { padding: 5px 8px; text-align: left; border-top: 1px solid var(--border); white-space: nowrap; }
+.rank-table thead th { border-top: 0; font-size: 12px; font-weight: 600; color: var(--muted); }
+.rank-table thead button { border: 0; background: none; padding: 2px 0; font: inherit; color: inherit; text-decoration: underline dotted; text-underline-offset: 3px; }
+.rank-table thead button[aria-pressed="true"] { color: var(--text); text-decoration: none; }
+.rank-table tbody th { font-weight: 600; }
+.rank-name { display: inline-block; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+.rank-table tbody th > * { vertical-align: middle; }
+.rank-table .swatch { display: inline-block; margin: 0 8px 0 2px; }
+.rank-n { display: inline-block; min-width: 1.4em; color: var(--muted); font-weight: 500; }
+.rank-table td.best { font-weight: 700; color: var(--text); background: var(--accent-soft); border-radius: 6px; }
+.rank-foot { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
+@media (max-width: 520px) {
+  .rank-block { padding: 10px 8px 8px; }
+  .rank-table th, .rank-table td { padding: 5px 5px; }
+  /* Ranges and headings may wrap, so all five columns fit a phone without sideways scrolling. */
+  .rank-table td, .rank-table thead th { white-space: normal; }
+  .rank-table thead button { text-align: left; }
+  .rank-name { max-width: 96px; }
+  .rank-n { display: none; }
+}
 
 /* ---------- About dialog, footer, toast ---------- */
 .about {
@@ -480,168 +631,82 @@ body.sky-focus { overflow: hidden; }
 .sources { padding-left: 18px; margin: 0; }
 .sources li { margin-bottom: 4px; }
 .fine { font-size: 12px; color: var(--muted) !important; margin-top: 18px; }
-.foot { max-width: 1880px; margin: 0 auto; padding: 10px 20px 24px; font-size: 12px; color: var(--muted); }
+.foot { max-width: 1880px; margin: 0 auto; padding: 18px 24px 26px; font-size: 12px; color: var(--muted); }
 .foot .link-btn { font-size: 12px; }
 .toast {
-  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 3000;
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 3000; max-width: calc(100% - 32px);
   background: var(--text); color: var(--bg); padding: 9px 16px; border-radius: 10px; font-size: 13.5px; box-shadow: var(--shadow);
 }
 
-/* A lone scenario gets one wide card with its metrics side by side. */
-.metric-cards:has(> .mcard:only-child) { grid-template-columns: 1fr; }
-.metric-cards > .mcard:only-child .mrows { grid-template-columns: repeat(4, auto minmax(0, 1fr)); }
-.metric-cards > .mcard:only-child .mrows:has(> :nth-child(6):last-child) { grid-template-columns: repeat(3, auto minmax(0, 1fr)); }
-
-/* Metric cards by count (compare.js sets data-n): one row when they fit, otherwise equal rows (3 + 3, 2 + 2),
-   never a lone card on the last row. The section is the size container, so the side column's width counts. */
-.body-section { container: compare-sec / inline-size; }
-.metric-cards[data-n="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.metric-cards[data-n="3"], .metric-cards[data-n="5"], .metric-cards[data-n="6"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.metric-cards[data-n="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-@container compare-sec (min-width: 1150px) { .metric-cards[data-n="5"] { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
-@container compare-sec (min-width: 1340px) { .metric-cards[data-n="6"] { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
-@container compare-sec (max-width: 960px) { .metric-cards[data-n="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@container compare-sec (max-width: 680px) {
-  .metric-cards[data-n="3"] { grid-template-columns: minmax(0, 1fr); }
-  .metric-cards[data-n="5"], .metric-cards[data-n="6"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-@container compare-sec (max-width: 460px) { .metric-cards[data-n] { grid-template-columns: minmax(0, 1fr); } }
-
-/* Ranked summary of several scenarios (compare.js renderRank). */
-.rank-block { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); padding: 12px 14px 10px; margin: 6px 0 4px; }
-.rank-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 6px; }
-.rank-title { font-size: 15px; }
-.rank-sentence { margin: 0; font-size: 13px; color: var(--text-2); flex: 1; min-width: 220px; }
-/* position: relative keeps the absolutely positioned ".sr-only" notes inside the scroll box (otherwise one in the
-   last column widened the page on phones). */
-.rank-scroll { overflow-x: auto; position: relative; }
-.rank-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
-.rank-table th, .rank-table td { padding: 5px 8px; text-align: left; border-top: 1px solid var(--border); white-space: nowrap; }
-.rank-table thead th { border-top: 0; font-size: 12px; font-weight: 600; color: var(--muted); }
-.rank-table thead button { border: 0; background: none; padding: 2px 0; font: inherit; color: inherit; text-decoration: underline dotted; text-underline-offset: 3px; }
-.rank-table thead button[aria-pressed="true"] { color: var(--text); text-decoration: none; }
-.rank-table tbody th { font-weight: 600; }
-.rank-name { display: inline-block; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
-.rank-table tbody th > * { vertical-align: middle; }
-.rank-table .swatch { display: inline-block; margin: 0 8px 0 2px; }
-.rank-n { display: inline-block; min-width: 1.4em; color: var(--muted); font-weight: 500; }
-.rank-table td.best { font-weight: 700; color: var(--text); background: var(--accent-soft); border-radius: 6px; }
-.rank-foot { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
-.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
-@media (max-width: 520px) {
-  .rank-block { padding: 10px 8px 8px; }
-  .rank-table th, .rank-table td { padding: 5px 5px; }
-  /* Ranges and headings may wrap, so all five columns fit a phone without sideways scrolling. */
-  .rank-table td, .rank-table thead th { white-space: normal; }
-  .rank-table thead button { text-align: left; }
-  .rank-name { max-width: 96px; }
-  .rank-n { display: none; }
-}
-
-/* ---------- Responsive ---------- */
-@media (max-width: 1100px) {
-  .metric-cards > .mcard:only-child .mrows,
-  .metric-cards > .mcard:only-child .mrows:has(> :nth-child(6):last-child) { grid-template-columns: repeat(2, auto minmax(0, 1fr)); }
-  .topbar { grid-template-columns: 1fr auto; }
-  .tabs { grid-row: 2; grid-column: 1 / -1; justify-self: center; }
-  .charts { grid-template-columns: 1fr; }
-  .sky-controls { top: 104px; }
-}
+/* ---------- Narrow screens ---------- */
 @media (max-width: 860px) {
-  .layout { grid-template-columns: 1fr; padding: 12px 16px; }
-  .layout > .side { position: static; max-height: none; overflow: visible; padding-right: 0; }
   .tagline { white-space: normal; }
-  .sky-controls { grid-template-columns: 1fr; position: static; }
-  .sky-time { flex-wrap: wrap; }
+}
+@media (max-width: 700px) {
+  .layout { padding: 12px 16px 8px; gap: 20px; }
+  .intro { margin: 10px 16px 0; }
+  .speed-word { display: none; }
 }
 @media (max-width: 520px) {
   .topbar { padding: 8px 16px; gap: 8px; }
   .tagline { display: none; }
+  .brand h1 { font-size: 19px; }
   .top-actions .ghost { padding: 5px 8px; font-size: 13px; }
+  .intro { padding-left: 12px; font-size: 13.5px; }
+  .intro-more { display: none; }
   .fields { grid-template-columns: 1fr; }
   .glossary { grid-template-columns: 1fr; }
-  .metric-cards > .mcard:only-child .mrows,
-  .metric-cards > .mcard:only-child .mrows:has(> :nth-child(6):last-child) { grid-template-columns: auto 1fr; }
   .about { padding: 20px 18px; }
+  .foot { padding: 14px 16px 24px; }
+  .qs-caption { font-size: 13.5px; }
+  .chart-card { padding: 10px 6px 2px; }
+  .chart, .chart-card.wide .chart { height: 300px; }
+  .seg { max-width: 100%; }
+  .seg.seg-lg.body-switch { max-width: none; }
+  .body-sub { flex-basis: 100%; }
+  .chart-tools { justify-content: flex-start; }
+  .xaxis-note { text-align: left; }
+  .sky-controls { gap: 8px; padding: 6px 8px; }
+  #sky-clock { min-width: 0; font-size: 13px; }
+  .clk-word { display: none; }
+  .clk-num::before { content: "T+"; }
+  .chips { gap: 8px; }
+}
+@media (max-width: 520px) and (orientation: portrait) {
+  .sky-grid[data-n="1"] .sky-view { height: auto; aspect-ratio: 4 / 3; }
+  .sky-grid:empty { aspect-ratio: 4 / 3.6; }
 }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
-.muted { color: var(--muted); font-weight: 400; }
-
-/* ---------- Small screens: output first, builder below; touch targets ---------- */
-.jump-link { display: none; font-size: 12.5px; color: var(--accent); text-underline-offset: 2px; }
-@media (max-width: 860px) {
-  /* The story first: the sky and the charts, then the scenario cards with the quick starts right under them, then the
-     map (a picker, and the tallest block). */
-  .layout { display: flex; flex-direction: column; align-items: stretch; gap: 14px; }
-  .layout > * { min-width: 0; }
-  .layout > .side { display: contents; }
-  .output { order: 1; }
-  .scen-block { order: 2; }
-  .qs-block { order: 3; }
-  .map-block { order: 4; }
-  .jump-link { display: inline; }
-  .topbar { position: static; }
-  .chips { gap: 8px; }
-  .map-block, .scen-block { scroll-margin-top: 8px; }
-}
 /* Touch screens: every control is at least 40 px high. */
 @media (pointer: coarse) {
-  .ghost, .icon-btn, .chip, .add-btn, .sky-act, .seg button, .tabs button { min-height: 40px; }
+  .ghost, .icon-btn, .chip, .add-btn, .sky-act, .seg button, .sky-opt, .suggest-item { min-height: 40px; }
   .icon-btn { width: 40px; height: 40px; }
   .scen-head .icon-btn { width: 40px; height: 40px; }
   .field input, .picker input, .scen-label, .speed select { min-height: 40px; }
   .field .with-clear .clear { width: 32px; height: 32px; line-height: 32px; }
-  .link-btn, .jump-link { padding: 10px 4px; min-height: 40px; display: inline-flex; align-items: center; }
-  .sky-time input[type="range"] { height: 40px; }
+  .link-btn, .jump-link, .suggest-btn { padding: 10px 4px; min-height: 40px; display: inline-flex; align-items: center; }
+  .end-head .suggest-btn, .end-head .seg { margin-block: -8px; }
+  .sky-controls input[type="range"] { height: 40px; }
   .sky-act { padding: 3px 12px; }
   .seg button { padding: 5px 14px; }
+  .seg.seg-sm button { min-height: 34px; }
   .picker-item { padding: 11px 10px; }
+  .event-hint .hint-go { min-height: 0; padding: 4px 2px; display: inline; }
 }
-@media (max-width: 520px) {
-  .topbar { grid-template-columns: 1fr auto; padding: 8px 12px; }
-  .brand h1 { font-size: 19px; }
-  .tabs { width: 100%; }
-  .tabs button { flex: 1; }
-  .layout { padding: 12px; }
-  .foot { padding: 10px 12px 24px; }
-  .sec-title { font-size: 19px; flex-wrap: wrap; row-gap: 0; }
-  .chart-card { padding: 10px 6px 2px; }
-  .chart, .chart-card.wide .chart { height: 320px; }
-  .compare-bar { flex-wrap: wrap; }
-  .seg { max-width: 100%; }
-  .seg button { flex: 1; padding: 5px 8px; font-size: 12.5px; }
-  .sky-controls { padding: 8px 10px; }
-  .sky-time { display: grid; grid-template-columns: auto 1fr auto; gap: 6px 10px; }
-  .sky-time .speed { grid-column: 1 / -1; justify-content: space-between; }
-  .sky-look { display: grid; grid-template-columns: 1fr 1fr; }
-  #sky-clock { min-width: 0; }
-}
-@media (min-width: 640px) and (max-width: 860px) {
-  .sky-controls { grid-template-columns: 1fr auto; }
-}
-@media (pointer: coarse) {
-  .sky-view .moonat-sky-btn { min-height: 34px; padding: 4px 10px; font-size: 12px; }
-}
-/* Phone held sideways (very little height): one slim top bar, a smaller sky view with scrollable gutters, and a focus mode
-   that gives the whole height to the sky. */
+/* Phone held sideways (very little height): a slim top bar, a smaller sky view, and a focus mode that gives the whole
+   height to the sky. */
 @media (max-height: 520px) and (orientation: landscape) {
-  .topbar { grid-template-columns: 1fr auto 1fr; padding: 4px 12px; gap: 8px; }
-  .tabs { grid-row: auto; grid-column: auto; width: auto; }
+  .topbar { padding: 4px 12px; gap: 8px; }
   .tagline { display: none; }
-  .layout { padding-top: 8px; gap: 10px; }
-  .sky-grid[data-n="1"] { max-width: min(100%, calc((100svh - 110px) * 1.78)); margin-inline: auto; }
+  .layout { padding-top: 8px; gap: 12px; }
+  .sky-grid[data-n="1"] { max-width: min(100%, calc((100svh - 110px) * 1.78)); margin-inline: auto; width: 100%; }
   .sky-grid[data-n="1"] .sky-view { height: auto; aspect-ratio: 16 / 9; }
-  #tab-sky.focus { gap: 4px; padding: 4px 8px 6px; }
-  .sky-controls { grid-template-columns: 1fr auto; padding: 4px 8px; gap: 4px 10px; margin-bottom: 8px; }
-  .sky-note { display: none; }
-  .sky-time { flex-wrap: nowrap; gap: 8px; }
+  #sky-panel.focus { gap: 4px; padding: 4px 8px 6px; }
+  .sky-controls { padding: 4px 8px; gap: 8px; }
   .sky-controls .icon-btn { width: 36px; height: 36px; min-height: 0; }
-  .sky-look .ghost, #tab-sky.focus .sky-act { min-height: 34px; padding-block: 2px; }
-  #tab-sky.focus .sky-card-head { min-height: 0; padding: 2px 4px 2px 8px; }
-  #tab-sky.focus .sky-card-foot { display: none; }
-}
-@media (max-width: 520px) and (orientation: portrait) {
-  .sky-grid[data-n="1"] .sky-view { height: auto; aspect-ratio: 4 / 3; }
+  #sky-panel.focus .sky-act { min-height: 34px; padding-block: 2px; }
+  #sky-panel.focus .sky-card-head { min-height: 0; padding: 2px 4px 2px 8px; }
+  #sky-panel.focus .sky-card-foot, #sky-panel.focus .event-hint { display: none; }
 }

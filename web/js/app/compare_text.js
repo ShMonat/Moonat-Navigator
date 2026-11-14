@@ -1,5 +1,5 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
-// Text for the Compare tab that depends only on the numbers (no DOM): eclipse lines, chart captions and the ranked
+// Text for the Sun and Earth data under the sky that depends only on the numbers (no DOM): eclipse lines, chart captions and the ranked
 // summary of several scenarios. Pure functions, tested in web/tests/app_compare_text.test.mjs.
 
 import { formatDuration, formatUtc } from "./state.js";

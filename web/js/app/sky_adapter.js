@@ -54,7 +54,7 @@ export async function makeSkyView(container, opts) {
 const skyPatches = new WeakMap();
 /**
  * The sky view's in-memory patch ({ meta, data }) for a terrainAt patch (C9: C4 fields + z_up_m), or null.
- * The same input object always gives the same output object, so the Sky tab can tell when the terrain changed.
+ * The same input object always gives the same output object, so the sky panel can tell when the terrain changed.
  */
 export function skyPatch(p) {
   if (!p || !p.z_up_m) return null;

@@ -1,5 +1,5 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
-// Riding with the rover in the Sky tab: where the rover is at a time, and the sky site, skyline and 3D ground of the
+// Riding with the rover in the sky view: where the rover is at a time, and the sky site, skyline and 3D ground of the
 // "station" it has reached. Stations are every few horizon samples (at most MAX_STATIONS per traverse, so a
 // timelapse stays smooth); the sky state, the skyline and the ground of a station share one ENU frame (near the
 // pole the azimuth frame turns quickly with position, so they must not be mixed). The 3D ground is a ±8 km patch
@@ -58,7 +58,7 @@ export function frameTurnDeg(a, b) {
   return (Math.atan2(dot(A.north, B.east), dot(A.north, B.north)) * 180) / Math.PI;
 }
 
-/** Footer text of a rover card in the Sky tab. */
+/** Footer text of a rover sky card. */
 export function rideNote(it, ride) {
   const L = it.route.track.length_m / 1000;
   const d = ride.distance_m / 1000;
