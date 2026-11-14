@@ -184,6 +184,21 @@ export function pointLabel(lat, lon) {
   return `Point ${fmtLat(lat, 1)}, ${fmtLon(normalizeLon(lon), 1)}`;
 }
 
+/**
+ * Name of a duplicated scenario: "Apollo 11" -> "Apollo 11 (copy)", then "Apollo 11 (copy 2)", "(copy 3)" ... - the
+ * first that no scenario in `labels` uses. Copying a copy numbers it from the same base name instead of stacking
+ * "(copy) (copy)". An empty label stays empty (the card then shows "Scenario N").
+ */
+export function copyLabel(label, labels = []) {
+  const base = String(label || "").replace(/ \(copy(?: \d+)?\)$/, "");
+  if (!base) return "";
+  const used = new Set(labels);
+  for (let n = 1; ; n++) {
+    const name = n === 1 ? `${base} (copy)` : `${base} (copy ${n})`;
+    if (!used.has(name)) return name;
+  }
+}
+
 /** True for a name made by pointLabel (or the older "Point -36.3°, 119.3°" form), which may be replaced freely. */
 export function isPointLabel(label) {
   return /^Point -?\d+(?:\.\d+)?° ?[NS]?, -?\d+(?:\.\d+)?° ?[EW]?$/.test(String(label || ""));

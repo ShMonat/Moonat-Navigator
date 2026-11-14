@@ -175,7 +175,7 @@ button { cursor: pointer; }
   display: grid; grid-template-columns: minmax(330px, 400px) minmax(0, 1fr); gap: 20px;
   padding: 18px 20px 8px; max-width: 1880px; margin: 0 auto; align-items: start;
 }
-.side {
+.layout > .side {
   position: sticky; top: 72px; max-height: calc(100vh - 84px); overflow: auto;
   display: flex; flex-direction: column; gap: 14px; padding-right: 4px;
   scrollbar-width: thin;
@@ -368,7 +368,15 @@ button { cursor: pointer; }
    per row; 3, 5 and 6 views go three per row on a wide screen (all six Apollo sites on one 1920 × 1080 screen) and
    two per row below about 1150 px; one column on narrow screens. */
 #tab-sky { container: skytab / inline-size; }
-.sky-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 14px; }
+.sky-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 14px; position: relative; }
+/* A slow compute (e.g. a rover route planned from live terrain) dims the previous results and labels the Sky tab
+   (main.js setBusy). */
+#compare-body[data-busy] .body-section, #compare-body[data-busy] .rank-block, .sky-grid[data-busy] > .sky-card { opacity: 0.4; transition: opacity 0.2s; }
+.sky-grid[data-busy]::before {
+  content: attr(data-busy); position: absolute; top: 56px; left: 50%; transform: translateX(-50%); z-index: 6;
+  padding: 7px 14px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border-strong);
+  color: var(--text); font-size: 13px; box-shadow: var(--shadow); white-space: nowrap; pointer-events: none;
+}
 .sky-grid[data-n="1"] { grid-template-columns: minmax(0, 1fr); }
 .sky-grid[data-n="2"], .sky-grid[data-n="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .sky-grid[data-n="3"], .sky-grid[data-n="5"], .sky-grid[data-n="6"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -460,7 +468,7 @@ body.sky-focus { overflow: hidden; }
   background: var(--surface); color: var(--text); padding: 24px 28px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 .about::backdrop { background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(2px); }
-.about h2 { font-size: 22px; margin-bottom: 8px; }
+.about h2 { font-size: 22px; margin-bottom: 8px; padding-right: 44px; } /* clear of the ✕ button (.about-close) */
 .about h3 { font-size: 15px; margin: 18px 0 6px; }
 .about p, .about li, .about dd { color: var(--text-2); }
 .about .lead { color: var(--text); }
@@ -504,7 +512,9 @@ body.sky-focus { overflow: hidden; }
 .rank-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 6px; }
 .rank-title { font-size: 15px; }
 .rank-sentence { margin: 0; font-size: 13px; color: var(--text-2); flex: 1; min-width: 220px; }
-.rank-scroll { overflow-x: auto; }
+/* position: relative keeps the absolutely positioned ".sr-only" notes inside the scroll box (otherwise one in the
+   last column widened the page on phones). */
+.rank-scroll { overflow-x: auto; position: relative; }
 .rank-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
 .rank-table th, .rank-table td { padding: 5px 8px; text-align: left; border-top: 1px solid var(--border); white-space: nowrap; }
 .rank-table thead th { border-top: 0; font-size: 12px; font-weight: 600; color: var(--muted); }
@@ -521,6 +531,9 @@ body.sky-focus { overflow: hidden; }
 @media (max-width: 520px) {
   .rank-block { padding: 10px 8px 8px; }
   .rank-table th, .rank-table td { padding: 5px 5px; }
+  /* Ranges and headings may wrap, so all five columns fit a phone without sideways scrolling. */
+  .rank-table td, .rank-table thead th { white-space: normal; }
+  .rank-table thead button { text-align: left; }
   .rank-name { max-width: 96px; }
   .rank-n { display: none; }
 }
@@ -536,7 +549,7 @@ body.sky-focus { overflow: hidden; }
 }
 @media (max-width: 860px) {
   .layout { grid-template-columns: 1fr; padding: 12px 16px; }
-  .side { position: static; max-height: none; overflow: visible; padding-right: 0; }
+  .layout > .side { position: static; max-height: none; overflow: visible; padding-right: 0; }
   .tagline { white-space: normal; }
   .sky-controls { grid-template-columns: 1fr; position: static; }
   .sky-time { flex-wrap: wrap; }
@@ -563,7 +576,7 @@ body.sky-focus { overflow: hidden; }
      map (a picker, and the tallest block). */
   .layout { display: flex; flex-direction: column; align-items: stretch; gap: 14px; }
   .layout > * { min-width: 0; }
-  .side { display: contents; }
+  .layout > .side { display: contents; }
   .output { order: 1; }
   .scen-block { order: 2; }
   .qs-block { order: 3; }

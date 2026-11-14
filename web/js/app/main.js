@@ -10,7 +10,7 @@ import { loadCatalog, QUICK_STARTS, catalogSites } from "./catalog.js";
 import { initPhysics, physicsError, physicsCoverage, siteFor, stateAt, seriesFor, useLiveTerrain } from "./physics_adapter.js";
 import { readyTerrain, ensureTerrain, keepOnly, onTerrainChange } from "./terrain_live.js";
 import { initScenarioUI } from "./scenarios_ui.js";
-import { renderCompare, rerenderCompare, initBodySwitch, syncBody } from "./compare.js";
+import { renderCompare, rerenderCompare, initBodySwitch, syncBody, resizeShownCharts } from "./compare.js";
 import { initSkyTab, setSkyItems, setSkyVisible, queueSkyStart, skyShareState } from "./sky_tab.js";
 import { routeCore } from "../rover/app.js";
 
@@ -53,7 +53,8 @@ function initTabs() {
     const changed = $("tab-compare").hidden !== (tab !== "compare");
     $("tab-compare").hidden = tab !== "compare";
     $("tab-sky").hidden = tab !== "sky";
-    renderStaleCompare();
+    // Charts drawn earlier keep the width they had: fit them, in case the window changed while the tab was hidden.
+    if (!renderStaleCompare() && changed && tab === "compare") resizeShownCharts();
     // A new tab opens at its top, not at the scroll depth of the previous one.
     if (changed) scrollToOutputTop();
     setSkyVisible(tab === "sky");
@@ -120,17 +121,36 @@ function computeCore(s) {
 let computeSeq = 0;
 let lastItems = [];
 
+let busyTimer = 0;
+/**
+ * Show that results are being computed. A compute that takes longer than a moment (a rover route is planned from
+ * live terrain in several seconds) also dims the results still on screen, which belong to the previous scenarios,
+ * and labels the Sky tab, which has no other progress indicator.
+ */
+function setBusy(on, text = "Computing…") {
+  $("busy").hidden = !on;
+  clearTimeout(busyTimer);
+  const els = [$("compare-body"), $("sky-grid")];
+  if (!on) {
+    for (const e of els) delete e.dataset.busy;
+    return;
+  }
+  busyTimer = setTimeout(() => {
+    for (const e of els) e.dataset.busy = text;
+  }, 400);
+}
+
 async function recompute() {
   const seq = ++computeSeq;
   const valid = store.scenarios
     .map((s, index) => ({ s, index }))
     .filter(({ s }) => validateScenario(s, physicsCoverage()).ok);
-  $("busy").hidden = false;
+  setBusy(true, valid.some(({ s }) => s.route) ? "Planning the rover route…" : "Computing…");
   // Stop fetching real terrain for points no scenario shows any more (rapid map clicks, edited coordinates).
   keepOnly(valid.filter(({ s }) => !s.site_id).map(({ s }) => [s.lat_deg, s.lon_deg]));
   const cores = await Promise.all(valid.map(({ s }) => computeCore(s)));
   if (seq !== computeSeq) return; // a newer request superseded this one
-  $("busy").hidden = true;
+  setBusy(false);
   lastItems = valid.map(({ s, index }, i) => ({ ...cores[i], s, index }));
   render();
 }
@@ -152,12 +172,13 @@ function render() {
   $("compare-empty").hidden = items.some((it) => !it.error);
 }
 
-/** Draw the Compare tab if results arrived while it was hidden. */
+/** Draw the Compare tab if results arrived while it was hidden. Returns true when it drew. */
 function renderStaleCompare() {
-  if (!compareStale || $("tab-compare").hidden) return;
+  if (!compareStale || $("tab-compare").hidden) return false;
   const items = compareStale;
   compareStale = null;
   renderCompare(items, { xaxis: store.xaxis });
+  return true;
 }
 
 // ---------------------------------------------------------------------------------------------

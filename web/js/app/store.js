@@ -8,7 +8,7 @@
 //   "active"    - the selected scenario changed
 //   "ui"        - tab, x-axis or theme changed
 
-import { makeScenario, nextColorSlot } from "./state.js";
+import { makeScenario, nextColorSlot, copyLabel } from "./state.js";
 
 const listeners = new Set();
 
@@ -60,7 +60,8 @@ export function duplicateScenario(id) {
   const i = store.scenarios.findIndex((s) => s.id === id);
   if (i < 0) return null;
   const src = store.scenarios[i];
-  const s = makeScenario({ ...src, id: undefined, color: undefined, label: src.label ? `${src.label} (copy)` : "" }, store.scenarios);
+  const label = copyLabel(src.label, store.scenarios.map((x) => x.label));
+  const s = makeScenario({ ...src, id: undefined, color: undefined, label }, store.scenarios);
   store.scenarios = [...store.scenarios.slice(0, i + 1), s, ...store.scenarios.slice(i + 1)];
   store.activeId = s.id;
   emit("structure", { focus: s.id });

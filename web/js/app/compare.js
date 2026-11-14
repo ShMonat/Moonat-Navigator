@@ -115,9 +115,20 @@ export function syncBody() {
   for (const b of document.querySelectorAll("#body-toggle button")) b.setAttribute("aria-pressed", String(b.dataset.body === body));
   document.getElementById("sec-sun").hidden = body !== "sun";
   document.getElementById("sec-earth").hidden = body !== "earth";
+  resizeShownCharts();
+}
+
+/**
+ * Fit the charts of the visible section to their boxes. Plotly's own window-resize handler cannot measure a hidden
+ * chart, so charts that were hidden during a resize (the other section, or the whole Compare tab while the Sky tab was
+ * open) keep their old width until this runs: when a section or the Compare tab is shown.
+ */
+export function resizeShownCharts() {
   if (!plotlyPromise) return;
   plotlyPromise.then((Plotly) => {
     requestAnimationFrame(() => {
+      if (document.getElementById("tab-compare").hidden) return;
+      const body = store.body === "earth" ? "earth" : "sun";
       for (const c of document.querySelectorAll(`#sec-${body} .chart`)) if (c.classList.contains("js-plotly-plot")) Plotly.Plots.resize(c);
     });
   }).catch(() => {});
@@ -589,4 +600,7 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
     layoutBase("Lit fraction (%)", { range: [-5, 105], ticksuffix: "%" }),
     config,
   );
+  // A chart first drawn in a hidden section gets Plotly's default 700 px width, and Plotly.react keeps it: fit the
+  // shown section to its box (e.g. the Far side story opens the Earth section; 700 px overflows a phone).
+  resizeShownCharts();
 }

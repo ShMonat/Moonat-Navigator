@@ -108,20 +108,24 @@
           document.head.appendChild(l);
         };
         document.documentElement.dataset.plotly = PLOTLY;
+        // A rover traverse (a row with a route) is planned from live terrain for several seconds before anything uses
+        // the data, so its link fetches the data at low priority ("prefetch": no "preloaded but not used" warnings).
+        var dataRel = "preload";
         if (hasScenarios) {
           // A shared link: the ephemeris years and the catalog horizons its scenarios use (format: js/app/state.js).
           var want = {};
           JSON.parse(atob(/(?:^#|&)s=([^&]*)/.exec(h)[1].replace(/-/g, "+").replace(/_/g, "/"))).slice(0, 8).forEach(function (r) {
             [r[3], r[4]].forEach(function (t) { var y = typeof t === "string" ? +t.slice(0, 4) : NaN; if (covered(y)) want["data/ephem/" + y + ".bin"] = 1; });
             if (typeof r[5] === "string" && /^[a-z0-9_]{2,40}$/.test(r[5])) want["data/horizons/" + r[5] + ".json"] = 1;
+            if (Array.isArray(r[7])) dataRel = "prefetch";
           });
-          Object.keys(want).forEach(function (u) { add("preload", u, "fetch", true); });
+          Object.keys(want).forEach(function (u) { add(dataRel, u, "fetch", true); });
         }
         if (!sky) return add("preload", PLOTLY, "script");
         SKY_MODULES.forEach(function (u) { add("modulepreload", u); });
         if (!hasScenarios) FIRST_VISIT.forEach(function (u) { add("preload", u, "fetch", true); });
-        SKY_DATA.forEach(function (u) { add("preload", u, "fetch", true); });
-        SKY_IMAGES.forEach(function (u) { add("preload", u, "image", true); });
+        SKY_DATA.forEach(function (u) { add(dataRel, u, "fetch", true); });
+        SKY_IMAGES.forEach(function (u) { add(dataRel, u, "image", true); });
       } catch (e) { /* preloading is only an optimisation */ }
     })();
   </script>
