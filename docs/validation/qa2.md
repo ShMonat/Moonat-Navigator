@@ -176,3 +176,48 @@ LCP 0.4–0.75 s (unthrottled). CLS 0.12 (1920 × 1080) and 0.21 (1366 × 768): 
   **Shay** change physics wording or presentation and need his review.
 - Q05 and Q07 change what the demo video shows. Check `scripts/video/record_demo.py` after them, because it clicks
   quick starts by position (`#quickstarts .chip:nth-child(n)`), so Q01 (moving the chips) can break it.
+
+## Fix status, part A: first impression, navigation, sharing, content, load
+
+Branch `shay/qa2-fix-a`, 2026-11-14. Checked in Edge (Playwright, a fresh profile each run) at 1920 × 1080, 1366 × 768
+and 390 × 844 (`is_mobile`, `has_touch`), in both themes: no console errors or warnings. Screenshots:
+`docs/figures/fixa_*.png`. The other items are in part B (other branch).
+
+| ID | Status | What changed, or why not |
+|---|---|---|
+| Q01 | fixed, as decided | The quick starts stay under the scenario box (team decision in the fix brief). The map box now has the globe's size before the globe loads, so nothing moves: CLS 0.21 → 0.007 (1366 × 768, 5 Mbit/s). The introduction line links the five stories. The chips keep their order and ids (`#quickstarts .chip:nth-child(n)`). |
+| Q02 | fixed | A first visit (no hash, or a link without scenarios) opens the Apollo 11 quick start on the **Sky** tab. A small inline script paints that tab before the modules run, so the Compare tab never flashes. A link with scenarios opens exactly what it encodes. |
+| Q03 | fixed | One introduction line under the top bar: what Moonat is, and "Try:" links to the stories. Its ✕ hides it for good (`localStorage`, in try/catch, applied in `<head>` so it never jumps). Phones keep its first clause and the links. |
+| Q04 | fixed, wording pending Shay | A "✓ Validated" badge next to the title opens a panel: JPL Horizons 0.09″ (Sun) / 0.12″ (Earth) for the code that runs in the page, worst of 20 random cases, with the 0.49″ leap-second case named (`independent_check.md`); 92.7 % vs 92.5 % (Gläser et al. 2014, `terrain.md`); NASA eclipse contacts within 2.6 s (`eclipse.md`); Moon Trek horizons within 0.07–0.37° RMS at 10 of 12 sites, about 1° on the flat Apollo 11 and 16 plains (`terrain-everywhere.md`). Each line links to its report on GitHub; the footer and About link the source code. |
+| Q05 | fixed | Quick starts gain `tab`, `xaxis`, `body`, `offsetMs` and `caption`. The eclipse opens on the Sky tab at 05:57:30 UTC: 81 % cover, where the default framing shows both close-ups (at totality the default frame shows only a small red ring). Apollo 11 and Far side open on Sky, All Apollo and South pole on Compare. Each story shows a one-line "What to look for" on its tab; the numbers it quotes are tested (`web/tests/app_quickstarts.test.mjs`). |
+| Q09 | fixed | `pushState` for quick starts, tab switches, and adding, duplicating, removing or clearing scenarios (one entry per action); `replaceState` for edits. `popstate` and `hashchange` re-apply the hash; equal scenarios keep their views. Checked: Back and Forward through three stories and a tab switch. |
+| Q10 | fixed | The hash adds `t` (time since start, s), `look` (earth / sun) and `v` (azimuth, elevation and field of view of the first view, written once the user turns or zooms it). Checked: a link at T+12 h 58 min with a turned, zoomed camera reopens identically in a new profile. |
+| Q15 | fixed | See the table below. The whole static module graph is `modulepreload`ed (it loaded import by import); the opening view's data is preloaded per tab; the globe's full-resolution textures and, on the Sky tab, Plotly wait for the first results. |
+| Q25 | fixed in the picker | Same-named entries read "Malapert Massif (Artemis III region)" and "(place of interest)"; places of interest show their one-line description. The names in `sites.json` are unchanged (catalog data, Shahar's domain). |
+| Q26 | fixed | Typed coordinates within 1e-4° of a catalog site make it that site again (name and precomputed LOLA horizon). |
+| Q27 | fixed | Times also accept `YYYY/MM/DD` and English month names ("20 July 1969 20:17", "Jul 20, 1969"); ambiguous numeric orders are still refused, and the message shows the format. |
+| Q28 | fixed | The card lists every problem at once. |
+| Q29 | fixed | `#tab=sky` (no scenarios) opens Apollo 11 on the Sky tab; `#tab=compare` on Compare. |
+| Q34 | fixed | `og:*` and `twitter:*` tags; `web/assets/og.png` (1200 × 630) is a render of the app's own eclipse sky with a title band (`scripts/make_social_images.py`); an SVG crescent favicon and a 180 × 180 apple-touch-icon. |
+| Q35 | fixed (site); repo topics not done | `sky-demo.html` is left out of the Pages artifact (`pages.yml`) and stays in the repo for local work; deployment is Shahar's domain, pending her review. Repo topics are a GitHub setting for the repo owner. |
+| Q36 | fixed | The eclipse story sets the Compare axis to UTC. |
+| Q37 | fixed | "Clear all" (and removing the last scenario) keeps the times, so a map click gives results at once; both empty states list the quick starts. |
+
+Also fixed on the way: the Compare tab is now drawn when it is shown. Charts drawn while it was hidden came out
+narrow (Plotly cannot measure a hidden tab), e.g. after opening a story on the Sky tab and switching to Compare.
+
+**Load after the fixes** (Edge, cold cache, 1366 × 768, CDP throttling; a local HTTP/1.1 server without compression,
+so GitHub Pages with HTTP/2 and gzip should be a little faster; "before" is `origin/main` at 083cd87 on the same server):
+
+| Network | What | Before | After |
+|---|---|---|---|
+| 5 Mbit/s, 150 ms | First visit: sky view drawn | 11.4 s (via a `#tab=sky` link; the first visit opened Compare) | **5.4 s** |
+| 5 Mbit/s, 150 ms | Compare link: first metric / first chart | 3.3 s / 9.2 s | 3.1 s / **3.9 s** |
+| 5 Mbit/s, 150 ms | CLS | 0.21 | 0.007 |
+| Fast 3G (1.44 Mbit/s, 562 ms) | First visit: sky view drawn | 37.6 s (via a `#tab=sky` link) | **20.9 s** |
+| Fast 3G (1.44 Mbit/s, 562 ms) | Compare link: first metric / first chart | 11.4 s / 31.1 s | 11.1 s / **13.0 s** |
+
+**Note for the demo video:** `scripts/video/record_demo.py` was not changed. The chips keep their positions and every
+story opens on the tab the recorder expects next, but its first frames now show the Sky tab, the introduction line and
+a caption. To hide the introduction line in the recording, its init script can set `localStorage` `moonat-intro` to
+`off`.

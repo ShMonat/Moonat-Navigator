@@ -128,23 +128,33 @@ const APOLLO = [11, 12, 14, 15, 16, 17];
 const POLE_START = "2027-01-19T00:00:00Z";
 const POLE_END = "2027-03-22T00:00:00Z";
 
+// Each quick start: key, label (chip), title (tooltip), resolve(list) -> partial scenarios, and how it opens:
+//   tab: "sky" | "compare" (the best tab for its story; omitted: the current tab stays), xaxis: "met" | "utc" (Compare
+//   time axis, default "met"), body: "sun" | "earth" (Compare section, default "sun"), offsetMs: Sky-tab moment, ms after
+//   the start (default 0), caption: one "what to look for" line shown while the quick start is loaded.
 export const QUICK_STARTS = [
   {
     key: "apollo11",
     label: "Apollo 11 · 1969",
     title: "The sky Neil Armstrong and Buzz Aldrin saw from Tranquility Base",
+    tab: "sky",
+    caption: "Earth hangs high in the west, 59° up and 67 % lit; the Sun is low in the east. Drag the sky to look around, or press play.",
     resolve: (list) => [fromMatch(list, ["apollo11", "apollo_11", "a11"], /apollo\s*11\b/i)],
   },
   {
     key: "apollo-all",
     label: "Compare all Apollo landings",
     title: "Which Apollo crew had the best view of Earth and the most sunlight?",
+    tab: "compare",
+    caption: "Every crew landed in a low morning Sun (5–15° up) under a high Earth (44–77° up). Switch to 🌍 Earth to compare their views of home.",
     resolve: (list) => APOLLO.map((n) => fromMatch(list, [`apollo${n}`, `apollo_${n}`, `a${n}`], new RegExp(`apollo\\s*${n}\\b`, "i"))),
   },
   {
     key: "pole",
     label: "South pole ridge",
     title: "Near the south pole the Sun skims the horizon with long shadows, and distant peaks switch the sunlight on and off (two lunar months)",
+    tab: "compare",
+    caption: "On the Shackleton rim the Sun never climbs more than 1°, yet it shines 94 % of the time: distant peaks hide it a few times (see Visible Sun).",
     resolve: (list) => {
       const s = matchSite(["shackleton_rim", "connecting_ridge", "connecting-ridge", "shackleton_ridge"], /connecting ridge|ridge|shackleton/i, null, list) ||
         matchSite([], /south pole/i, null, list) || FALLBACK_SITES.find((x) => x.id === "connecting_ridge");
@@ -155,6 +165,9 @@ export const QUICK_STARTS = [
     key: "farside",
     label: "Far side (Chang'e 4)",
     title: "From the far side, Earth never rises: the first two weeks after Chang'e 4 landed",
+    tab: "sky",
+    body: "earth",
+    caption: "From the far side the Earth never rises (39–51° below the horizon), so Chang'e 4 talks home through a relay satellite. Press play to watch the Sun cross the sky.",
     resolve: (list) => {
       const s = fromMatch(list, ["change4", "change_4", "chang_e_4", "change-4"], /chang.?e.?4/i);
       const t0 = parseUtc(s.t_start_utc);
@@ -165,6 +178,10 @@ export const QUICK_STARTS = [
     key: "eclipse",
     label: "Eclipse from the Moon",
     title: "14 March 2025: Blue Ghost watched the Earth eclipse the Sun from Mare Crisium",
+    tab: "sky",
+    xaxis: "utc",
+    offsetMs: (60 + 27.5) * 60e3, // 05:57:30 UTC: the Earth covers 81 % of the Sun
+    caption: "The Earth covers 81 % of the Sun, seen from Blue Ghost. Press play: totality lasts 2 h 17 min, lit only by the red ring of Earth's atmosphere.",
     resolve: (list) => {
       const s = matchSite(["blueghost1", "blue_ghost_1", "blueghost"], /blue\s*ghost/i, null, list) || BLUE_GHOST;
       return [{ ...scenarioFieldsFromSite(s, { start: ECLIPSE_START, end: ECLIPSE_END }), label: "Blue Ghost eclipse" }];
@@ -175,6 +192,7 @@ export const QUICK_STARTS = [
     key: "rover",
     label: "Rover: Shackleton rim to the ridge",
     title: "A VIPER-class rover drives about 19 km from the south pole, on the rim of Shackleton crater, to the sunny connecting ridge (October 2027): Earth stays in view, while hills shadow the low Sun a few times",
+    caption: "A VIPER-class rover drives 19.3 km from the south pole to the sunny ridge in about 40 h: the low Sun shines 86 % of the drive and Earth stays in view.",
     resolve: () => [{
       label: "VIPER-class: pole to ridge",
       lat_deg: -90,

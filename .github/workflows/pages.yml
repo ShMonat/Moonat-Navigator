@@ -37,6 +37,11 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
+      - name: Leave the developer pages out of the public site
+        # web/sky-demo.html is the sky viewer's test bench (open it locally with `python -m http.server -d web`).
+        # Nothing on the site links to it; the tests do not use it.
+        run: rm -f web/sky-demo.html
+
       - name: Upload the web/ folder
         uses: actions/upload-pages-artifact@v3
         with:

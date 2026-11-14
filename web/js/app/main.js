@@ -3,14 +3,15 @@
 
 import { store, subscribe, setScenarios, setUi } from "./store.js";
 import {
-  colorHex, isWrappedSlot, validateScenario, scenarioTimes, chooseStep, physicsKey, encodeHash, decodeHash, coverageEnd, DAY_MS, HOUR_MS,
+  colorHex, isWrappedSlot, validateScenario, scenarioTimes, chooseStep, physicsKey, encodeHash, decodeHash, coverageEnd, makeScenario, DAY_MS,
+  HOUR_MS,
 } from "./state.js";
 import { loadCatalog, QUICK_STARTS, catalogSites } from "./catalog.js";
 import { initPhysics, physicsError, physicsCoverage, siteFor, stateAt, seriesFor, useLiveTerrain } from "./physics_adapter.js";
 import { readyTerrain, ensureTerrain, keepOnly, onTerrainChange } from "./terrain_live.js";
 import { initScenarioUI } from "./scenarios_ui.js";
 import { renderCompare, rerenderCompare, initBodySwitch, syncBody } from "./compare.js";
-import { initSkyTab, setSkyItems, setSkyVisible } from "./sky_tab.js";
+import { initSkyTab, setSkyItems, setSkyVisible, queueSkyStart, skyShareState } from "./sky_tab.js";
 import { routeCore } from "../rover/app.js";
 
 const $ = (id) => document.getElementById(id);
@@ -52,6 +53,7 @@ function initTabs() {
     const changed = $("tab-compare").hidden !== (tab !== "compare");
     $("tab-compare").hidden = tab !== "compare";
     $("tab-sky").hidden = tab !== "sky";
+    renderStaleCompare();
     // A new tab opens at its top, not at the scroll depth of the previous one.
     if (changed) scrollToOutputTop();
     setSkyVisible(tab === "sky");
@@ -137,11 +139,60 @@ function decorate(it) {
   return { ...it, label: it.s.label || `Scenario ${it.index + 1}`, color: colorHex(it.s.color, store.theme), dash: isWrappedSlot(it.s.color) };
 }
 
+let compareStale = null; // items waiting for the Compare tab to be shown
 function render() {
   const items = lastItems.map(decorate);
-  renderCompare(items, { xaxis: store.xaxis });
+  // Plotly cannot measure a hidden tab, and the Sky tab does not need Plotly: the Compare tab is drawn when shown.
+  if ($("tab-compare").hidden) compareStale = items;
+  else {
+    compareStale = null;
+    renderCompare(items, { xaxis: store.xaxis });
+  }
   setSkyItems(items.filter((it) => !it.error));
   $("compare-empty").hidden = items.some((it) => !it.error);
+}
+
+/** Draw the Compare tab if results arrived while it was hidden. */
+function renderStaleCompare() {
+  if (!compareStale || $("tab-compare").hidden) return;
+  const items = compareStale;
+  compareStale = null;
+  renderCompare(items, { xaxis: store.xaxis });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Load order: the first results on screen come first. Large things the first screen does not need (the globe's
+// full-resolution textures, Plotly when the page opens on the Sky tab) start once they are drawn.
+
+/** Resolves when the open tab shows its first results (a chart, the instant cards or a sky view), or after maxMs. */
+function whenFirstViewDrawn(maxMs = 15000) {
+  return new Promise((resolve) => {
+    const t0 = performance.now();
+    const drawn = () => {
+      if (!$("tab-compare").hidden) {
+        if ($("tab-compare").querySelector(".js-plotly-plot .main-svg")) return true;
+        return !!$("cards-sun").firstElementChild && $("charts-sun").hidden; // single instants: no charts
+      }
+      const v = $("sky-grid").querySelector(".sky-view");
+      return !!v && !!v.querySelector("canvas") && !v.querySelector(".sky-loading");
+    };
+    const poll = () => {
+      if (drawn() || (lastItems.length === 0 && booted && performance.now() - t0 > 3000) || performance.now() - t0 > maxMs) resolve();
+      else setTimeout(poll, 150);
+    };
+    poll();
+  });
+}
+
+/** Fetch Plotly into the HTTP cache at idle priority, so a first switch to the Compare tab is quick. */
+function prefetchPlotly() {
+  const url = document.documentElement.dataset.plotly;
+  if (!url || window.Plotly || document.querySelector(`link[href="${url}"]`)) return;
+  const l = document.createElement("link");
+  l.rel = "prefetch";
+  l.as = "script";
+  l.href = url;
+  document.head.append(l);
 }
 
 let timer = 0;
@@ -153,22 +204,81 @@ function scheduleRecompute(delay = 250) {
 // ---------------------------------------------------------------------------------------------
 // URL hash (shareable views)
 
+// Navigation (a quick start, a tab, adding or removing a scenario) makes a new history entry, so Back returns to the
+// previous view; edits in place (a field, a label, the Compare axis) replace the current entry.
+
 let hashTimer = 0;
-function writeHash() {
+let pushPending = false;
+let restoring = false; // applying a link or a Back/Forward step: nothing is written to the history
+let booted = false;
+let lastIds = "";
+
+/** The hash of the current state; on the Sky tab it holds the moment and the view too. */
+function currentHash() {
+  return encodeHash({
+    scenarios: store.scenarios, tab: store.tab, xaxis: store.xaxis, body: store.body, sky: store.tab === "sky" ? skyShareState() : null,
+  });
+}
+
+/** Record the state in the URL (debounced, so one quick start makes one entry). push: a new history entry. */
+function writeHash(push = false) {
+  if (restoring) return;
+  pushPending ||= push && booted;
   clearTimeout(hashTimer);
-  hashTimer = setTimeout(() => {
-    const h = encodeHash({ scenarios: store.scenarios, tab: store.tab, xaxis: store.xaxis, body: store.body });
-    if (h !== location.hash) history.replaceState(null, "", h);
-  }, 300);
+  hashTimer = setTimeout(flushHash, 300);
+}
+
+function flushHash() {
+  clearTimeout(hashTimer);
+  const push = pushPending;
+  pushPending = false;
+  const h = currentHash();
+  if (h === location.hash) return;
+  if (push) history.pushState(null, "", h);
+  else history.replaceState(null, "", h);
+}
+
+/**
+ * Apply the URL hash: a shared link at start, or a Back/Forward step. A link without scenarios (no hash, "#tab=sky")
+ * opens the first-visit story, Apollo 11, on the link's tab if it names one. Scenarios equal to the current ones are
+ * kept (their views and the timelapse stay); new ones open at the link's Sky moment and view.
+ */
+function applyHash() {
+  const h = decodeHash(location.hash);
+  clearTimeout(hashTimer);
+  pushPending = false;
+  restoring = true;
+  try {
+    if (!h || !h.scenarios.length) {
+      runQuickStart(QUICK_STARTS[0].key);
+      if (h?.tabGiven) showTab(h.tab);
+      return;
+    }
+    applyCompareView(h);
+    if (encodeHash({ scenarios: h.scenarios }) !== encodeHash({ scenarios: store.scenarios })) {
+      queueSkyStart(h.sky);
+      setScenarios(h.scenarios);
+    }
+    showTab(h.tab);
+  } finally {
+    restoring = false;
+  }
+}
+
+function initHistory() {
+  const onNav = () => {
+    if (location.hash !== currentHash()) applyHash();
+  };
+  window.addEventListener("popstate", onNav);
+  window.addEventListener("hashchange", onNav); // a hash typed or pasted into the address bar
 }
 
 function initShare() {
   $("btn-share").addEventListener("click", async () => {
-    clearTimeout(hashTimer);
-    history.replaceState(null, "", encodeHash({ scenarios: store.scenarios, tab: store.tab, xaxis: store.xaxis, body: store.body }));
+    flushHash();
     try {
       await navigator.clipboard.writeText(location.href);
-      toast("Link copied: it opens this exact comparison.");
+      toast(store.tab === "sky" ? "Link copied: it opens this sky, at this moment and in this view." : "Link copied: it opens this exact comparison.");
     } catch {
       toast("Copy the address bar to share this view.");
     }
@@ -187,6 +297,9 @@ function toast(msg) {
 // ---------------------------------------------------------------------------------------------
 // Quick starts, About, x-axis toggle
 
+let showTab = () => {};
+
+/** Quick-start chips (in QUICK_STARTS order: the demo video clicks them by position). Any [data-qs] button runs one. */
 function initQuickStarts() {
   const box = $("quickstarts");
   box.replaceChildren(
@@ -195,37 +308,123 @@ function initQuickStarts() {
       b.className = "chip";
       b.textContent = q.label;
       b.title = q.title;
-      b.addEventListener("click", () => {
-        setScenarios(q.resolve(catalogSites()));
-        for (const c of box.children) c.classList.toggle("active", c === b);
-      });
+      b.dataset.qs = q.key;
       return b;
     }),
   );
+  // The same stories in the empty states (after "Clear all"), outside #quickstarts so its chips keep their positions.
+  for (const list of document.querySelectorAll("[data-qs-list]")) {
+    list.replaceChildren(
+      ...QUICK_STARTS.map((q) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "chip";
+        b.textContent = q.label;
+        b.title = q.title;
+        b.dataset.qs = q.key;
+        return b;
+      }),
+    );
+  }
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-qs]");
+    if (b) runQuickStart(b.dataset.qs);
+  });
 }
 
-function initAbout() {
-  const dlg = $("about");
-  const open = () => (dlg.showModal ? dlg.showModal() : dlg.setAttribute("open", ""));
-  $("btn-about").addEventListener("click", open);
-  for (const b of document.querySelectorAll("[data-open-about]")) b.addEventListener("click", open);
-  dlg.addEventListener("click", (e) => {
-    if (e.target === dlg) dlg.close();
+/**
+ * Load a quick start: its scenarios, its Compare axis and section, its Sky-tab moment, and its tab when it names one
+ * (otherwise the current tab stays).
+ */
+function runQuickStart(key) {
+  const q = QUICK_STARTS.find((x) => x.key === key);
+  if (!q) return;
+  applyCompareView({ xaxis: q.xaxis || "met", body: q.body || "sun" });
+  queueSkyStart({ offsetMs: q.offsetMs || 0, look: q.look || null, view: null });
+  setScenarios(q.resolve(catalogSites()));
+  if (q.tab) showTab(q.tab);
+}
+
+/** Set the Compare tab's time axis and Sun/Earth section without a separate redraw (a recompute follows). */
+function applyCompareView({ xaxis, body }) {
+  store.xaxis = xaxis;
+  store.body = body;
+  syncBody();
+  syncXAxis();
+}
+
+let qsSigs = null;
+/** The scenario signature (the hash rows) of each quick start, against the loaded catalog. */
+function quickStartSigs() {
+  if (!qsSigs) {
+    qsSigs = QUICK_STARTS.map((q) => {
+      const list = [];
+      for (const p of q.resolve(catalogSites())) list.push(makeScenario(p, list));
+      return [q, encodeHash({ scenarios: list })];
+    });
+  }
+  return qsSigs;
+}
+
+/**
+ * While the scenarios are exactly a quick start's (however they were loaded: chip, story link, shared link, Back), its
+ * chip is marked and its "what to look for" caption shows. Any edit hides them.
+ */
+function syncQuickStartUi() {
+  const sig = encodeHash({ scenarios: store.scenarios });
+  const q = quickStartSigs().find(([, s]) => s === sig)?.[0] || null;
+  for (const c of $("quickstarts").children) c.classList.toggle("active", !!q && c.dataset.qs === q.key);
+  // The caption describes the story's own tab (the sky, or the charts), so it shows there only.
+  const show = !!q?.caption && (!q.tab || q.tab === store.tab);
+  const cap = $("qs-caption");
+  cap.hidden = !show;
+  if (show) cap.querySelector(".qs-cap-text").textContent = q.caption;
+}
+
+/** The introduction line: hidden for good with its ✕ (remembered in localStorage; <head> applies it before paint). */
+function initIntro() {
+  const close = $("intro-close");
+  if (!close) return;
+  close.addEventListener("click", () => {
+    document.documentElement.dataset.intro = "off";
+    try {
+      localStorage.setItem("moonat-intro", "off");
+    } catch {
+      /* storage blocked: hidden for this visit only */
+    }
   });
+}
+
+/** The About panel and the "Validated" panel: modal dialogs, closed by ✕, Esc or a click on the backdrop. */
+function initAbout() {
+  for (const [id, btn, attr] of [["about", "btn-about", "data-open-about"], ["validated", "btn-validated", "data-open-validated"]]) {
+    const dlg = $(id);
+    if (!dlg) continue;
+    const open = () => {
+      for (const d of document.querySelectorAll("dialog[open]")) if (d !== dlg) d.close();
+      if (dlg.showModal) dlg.showModal();
+      else dlg.setAttribute("open", "");
+    };
+    $(btn)?.addEventListener("click", open);
+    for (const b of document.querySelectorAll(`[${attr}]`)) b.addEventListener("click", open);
+    dlg.addEventListener("click", (e) => {
+      if (e.target === dlg) dlg.close();
+    });
+  }
+}
+
+function syncXAxis() {
+  for (const b of $("xaxis-toggle").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.x === store.xaxis));
 }
 
 function initXAxisToggle() {
-  const seg = $("xaxis-toggle");
-  const sync = () => {
-    for (const b of seg.querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.x === store.xaxis));
-  };
-  seg.addEventListener("click", (e) => {
+  $("xaxis-toggle").addEventListener("click", (e) => {
     const b = e.target.closest("button");
     if (!b) return;
     setUi({ xaxis: b.dataset.x });
-    sync();
+    syncXAxis();
   });
-  sync();
+  syncXAxis();
 }
 
 function showPhysicsError() {
@@ -240,7 +439,8 @@ function showPhysicsError() {
 
 async function boot() {
   initTheme();
-  const showTab = initTabs();
+  showTab = initTabs();
+  initIntro();
   initAbout();
   initShare();
   initXAxisToggle();
@@ -258,51 +458,43 @@ async function boot() {
   subscribe((kind, detail) => {
     if (kind === "structure" || kind === "field") {
       scheduleRecompute(kind === "structure" ? 0 : 300);
-      writeHash();
+      syncQuickStartUi();
+      // A new set of scenario ids (quick start, add, duplicate, remove, clear) is navigation; a rebuilt card is not.
+      const ids = store.scenarios.map((s) => s.id).join(",");
+      const nav = kind === "structure" && ids !== lastIds;
+      lastIds = ids;
+      writeHash(nav);
     } else if (kind === "label") {
       render();
+      syncQuickStartUi();
       writeHash();
     } else if (kind === "ui") {
       if ("theme" in detail) render();
-      if ("xaxis" in detail) rerenderCompare({ xaxis: store.xaxis });
-      writeHash();
+      if ("xaxis" in detail && !compareStale) rerenderCompare({ xaxis: store.xaxis });
+      if ("tab" in detail) syncQuickStartUi();
+      writeHash("tab" in detail);
     }
   });
 
-  // The globe map loads three.js and its images; the rest of the app works without it.
-  import("./map.js")
-    .then((m) => m.initMap())
+  // A shared link opens exactly what it encodes; a first visit (no hash) opens Apollo 11 on the Sky tab.
+  applyHash();
+  booted = true;
+  writeHash(); // the full link of what is shown (replaces the address, e.g. "#tab=sky" or none)
+  initHistory();
+
+  // The globe map loads three.js and its images; the rest of the app works without it. On the Sky tab it starts at
+  // once (the sky needs three.js too); on the Compare tab after the first chart, so it does not slow Plotly down.
+  // Its full-resolution textures (4 MB) wait for the first results in both cases.
+  const firstView = whenFirstViewDrawn();
+  (store.tab === "sky" ? Promise.resolve() : firstView)
+    .then(() => import("./map.js"))
+    .then((m) => m.initMap({ hiResAfter: firstView }))
     .catch((err) => {
       console.error("[moonat] map failed", err);
       $("map").textContent = "The map could not load. You can still type coordinates or pick a mission.";
       $("map-hint").hidden = true;
     });
-
-  const fromHash = decodeHash(location.hash);
-  if (fromHash && fromHash.scenarios.length) {
-    store.xaxis = fromHash.xaxis;
-    store.body = fromHash.body;
-    syncBody();
-    for (const b of $("xaxis-toggle").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.x === store.xaxis));
-    setScenarios(fromHash.scenarios);
-    showTab(fromHash.tab);
-  } else {
-    // First visit: open on Apollo 11 so there is something to explore immediately.
-    setScenarios(QUICK_STARTS[0].resolve(catalogSites()));
-    $("quickstarts").firstElementChild?.classList.add("active");
-  }
-
-  window.addEventListener("hashchange", () => {
-    const h = decodeHash(location.hash);
-    const cur = encodeHash({ scenarios: store.scenarios, tab: store.tab, xaxis: store.xaxis, body: store.body });
-    if (h && location.hash !== cur) {
-      store.xaxis = h.xaxis;
-      store.body = h.body;
-      syncBody();
-      setScenarios(h.scenarios);
-      showTab(h.tab);
-    }
-  });
+  firstView.then(() => setTimeout(prefetchPlotly, 1500));
 }
 
 boot().catch((err) => {

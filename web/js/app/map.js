@@ -12,9 +12,11 @@ import { consumeMapClick } from "../rover/pick.js";
 let globe;
 let lastFitKey = "";
 
-export async function initMap() {
+/** opts.hiResAfter: a promise that holds back the globe's full-resolution textures (see createGlobe). */
+export async function initMap(opts = {}) {
   globe = await createGlobe(document.getElementById("map"), {
     dataUrl: "data/moonmap/",
+    hiResAfter: opts.hiResAfter,
     // A rover traverse being picked (or selected) takes the click first (web/js/rover/pick.js).
     onPick: (lat, lon) => consumeMapClick(lat, lon) || placeActive(round(lat, 4), round(lon, 4)),
     onSite: (site) => {

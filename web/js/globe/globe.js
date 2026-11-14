@@ -220,6 +220,7 @@ function levelOf(zoom) {
  * @param {(lat: number, lon: number) => void} [opts.onPick] a tap or click on the surface: latitude, east longitude (deg)
  * @param {(site: any) => void} [opts.onSite] a tap or click on a catalog-site marker (receives the item's `data`)
  * @param {string} [opts.ariaLabel]
+ * @param {Promise} [opts.hiResAfter] the full-resolution textures load only after this settles (the preview first)
  * @returns {Promise<object>} the globe API (setSites, setPins, showPoints, goTo, setPreset, resize, getView)
  */
 export async function createGlobe(container, opts = {}) {
@@ -771,7 +772,9 @@ export async function createGlobe(container, opts = {}) {
   uniforms.fadeOuter.value.set(Math.min(...south.fade_psi_deg) * DEG, Math.max(...south.fade_psi_deg) * DEG);
   uniforms.fadeInner.value.set(Math.min(...inner.fade_psi_deg) * DEG, Math.max(...inner.fade_psi_deg) * DEG);
 
-  // Base map: a small preview first (fast first paint on slow connections), then the full image.
+  // Base map: a small preview first (fast first paint on slow connections), then the full image, then the polar caps
+  // one at a time: the 4 MB of detail never competes with the preview (or with the rest of the page) for bandwidth.
+  // opts.hiResAfter (a promise) holds the detail back further, e.g. until the app's first results are drawn.
   let fullBase = false;
   const showBase = (t) => {
     const old = uniforms.tBase.value;
@@ -787,28 +790,36 @@ export async function createGlobe(container, opts = {}) {
         .then((t) => (fullBase ? t.dispose() : showBase(t)))
         .catch(() => {})
     : Promise.resolve();
-  const ready = loadTex(`${dataUrl}${manifest?.base?.url ?? "wac_global.jpg"}`).then((t) => {
-    fullBase = true;
-    showBase(t);
-  });
-  const capLoads = [
-    [north, "tNorth", "x"],
-    [south, "tSouth", "y"],
-    [inner, "tInner", "z"],
-  ].map(([c, u, flag]) =>
-    loadTex(`${dataUrl}${c.url}`)
-      .then((t) => {
-        uniforms[u].value = t;
-        uniforms.uHas.value[flag] = 1;
-        requestRender();
-      })
-      .catch((err) => console.warn("[moonat] globe cap texture failed", c.url, err)),
-  );
+  const hiResGate = Promise.all([preview, Promise.resolve(opts.hiResAfter).catch(() => {})]);
+  const ready = hiResGate
+    .then(() => loadTex(`${dataUrl}${manifest?.base?.url ?? "wac_global.jpg"}`))
+    .then((t) => {
+      fullBase = true;
+      showBase(t);
+    });
   ready.catch((err) => {
     console.error("[moonat] globe base texture failed", err);
     if (uniforms.uHas.value.w < 0.5) loading.textContent = "The Moon map image could not load.";
   });
-  const allLoaded = Promise.allSettled([preview, ready, ...capLoads]).then((r) => {
+  // The south caps first (the polar candidate sites), then the north cap.
+  const capLoads = [
+    [south, "tSouth", "y"],
+    [inner, "tInner", "z"],
+    [north, "tNorth", "x"],
+  ].reduce(
+    (prev, [c, u, flag]) =>
+      prev.then(() =>
+        loadTex(`${dataUrl}${c.url}`)
+          .then((t) => {
+            uniforms[u].value = t;
+            uniforms.uHas.value[flag] = 1;
+            requestRender();
+          })
+          .catch((err) => console.warn("[moonat] globe cap texture failed", c.url, err)),
+      ),
+    ready.catch(() => {}),
+  );
+  const allLoaded = Promise.allSettled([preview, ready, capLoads]).then((r) => {
     root.dataset.loaded = "true"; // for screenshots and tests
     return r;
   });

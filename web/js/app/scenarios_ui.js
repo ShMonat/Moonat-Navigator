@@ -46,7 +46,7 @@ export function initScenarioUI() {
   });
   // Advanced: a rover traverse (web/js/rover/). The button exists when index.html has it.
   $("#btn-add-rover")?.addEventListener("click", () => addRouteScenario());
-  clearBtn.addEventListener("click", () => setScenarios([{}]));
+  clearBtn.addEventListener("click", clearAll);
 
   subscribe((kind, detail) => {
     if (kind === "structure") renderCards(detail.focus);
@@ -62,6 +62,23 @@ export function initScenarioUI() {
       if (card && !s.site_id && !s.route) refreshCard(card, s);
     }
   });
+}
+
+/**
+ * Start again with one empty scenario that keeps the selected scenario's times, so a click on the map (or typed
+ * coordinates) gives results at once.
+ */
+function clearAll() {
+  const src = activeScenario();
+  const ok = src && validateScenario({ ...src, lat_deg: null, lon_deg: null }, physicsCoverage());
+  const keep = ok && !ok.errors.t_start_utc && !ok.errors.t_end_utc;
+  setScenarios([keep ? { t_start_utc: src.t_start_utc, t_end_utc: src.t_end_utc } : {}]);
+}
+
+/** The catalog site at a typed point (within 1e-4° in latitude and longitude), or null. */
+function catalogSiteAt(lat, lon) {
+  const tol = 1e-4 + 1e-9;
+  return catalogSites().find((x) => Math.abs(x.lat_deg - lat) <= tol && Math.abs(normalizeLon(x.lon_deg - lon)) <= tol) || null;
 }
 
 function scenarioColor(s) {
@@ -134,7 +151,7 @@ function buildCard(s, index) {
   const dup = el("button", { class: "icon-btn", title: "Duplicate", "aria-label": "Duplicate scenario", text: "⧉" });
   dup.addEventListener("click", () => duplicateScenario(s.id));
   const rm = el("button", { class: "icon-btn", title: "Remove", "aria-label": "Remove scenario", text: "✕" });
-  rm.addEventListener("click", () => (store.scenarios.length > 1 ? removeScenario(s.id) : setScenarios([{}])));
+  rm.addEventListener("click", () => (store.scenarios.length > 1 ? removeScenario(s.id) : clearAll()));
   card.append(el("div", { class: "scen-head" }, el("span", { class: "swatch", "aria-hidden": "true" }), label, dup, rm));
 
   // Missions and sites picker.
@@ -149,19 +166,16 @@ function buildCard(s, index) {
       let v = f.input.value === "" ? null : Number(f.input.value);
       if (v !== null && !Number.isFinite(v)) v = null;
       const patch = { [f.key]: v };
-      // Typing coordinates turns a catalog site into a custom point, and the catalog name no longer applies.
-      let autoName = !s.label || isPointLabel(s.label);
-      if (s.site_id) {
-        const site = siteById(s.site_id);
-        if (site && Math.abs((f.key === "lat_deg" ? site.lat_deg : site.lon_deg) - (v ?? NaN)) > 1e-6) {
-          patch.site_id = null;
-          if (s.label === shortName(site)) autoName = true;
-        } else autoName = false;
-      }
       const la = f.key === "lat_deg" ? v : s.lat_deg;
       const lo = f.key === "lon_deg" ? v : s.lon_deg;
+      // Typed coordinates on a catalog site (within 1e-4°, a few metres) are that site, with its precomputed horizon;
+      // anywhere else they are a custom point. The name follows the place unless the user typed one.
+      const prev = s.site_id ? siteById(s.site_id) : null;
+      const autoName = !s.label || isPointLabel(s.label) || (!!prev && s.label === shortName(prev));
+      const site = la !== null && lo !== null ? catalogSiteAt(la, lo) : null;
+      patch.site_id = site ? site.id : null;
       if (autoName && la !== null && lo !== null && Math.abs(la) <= 90 && Math.abs(lo) <= 360) {
-        patch.label = pointLabel(la, lo);
+        patch.label = site ? shortName(site) : pointLabel(la, lo);
         label.value = patch.label;
       }
       updateScenario(s.id, patch);
@@ -346,9 +360,10 @@ function refreshCard(card, s) {
   const durInput = card.querySelector('[name="duration"]');
   if (durInput) durInput.setAttribute("aria-invalid", ("t_end_utc" in v.errors || card._endHint?.bad) ? "true" : "false");
   const msg = card.querySelector(".scen-msg");
-  const errs = Object.values(v.errors);
+  // Every problem at once (e.g. a bad latitude and a date outside the tables), not only the first.
+  const errs = [...new Set(Object.values(v.errors))];
   const hint = card._endHint;
-  const text = (hint && hint.bad ? hint.text : "") || errs[0] || (hint ? hint.text : "") || v.warnings[0] || "";
+  const text = [hint && hint.bad ? hint.text : "", ...errs].filter(Boolean).join(" ") || (hint ? hint.text : "") || v.warnings[0] || "";
   msg.textContent = text;
   msg.hidden = !text;
   msg.classList.toggle("warn", !errs.length && !(hint && hint.bad) && !!text);
@@ -391,6 +406,8 @@ function syncCard(id) {
 // Searchable picker ("Historical missions & sites").
 
 let pickerSeq = 0;
+/** Short kind names that tell apart two catalog entries with the same name. */
+const KIND_SHORT = { mission: "mission", candidate: "Artemis III region", poi: "place of interest" };
 
 function buildPicker(s) {
   const id = `pk${++pickerSeq}`;
@@ -420,8 +437,13 @@ function buildPicker(s) {
         const when = site.t_start_utc ? new Date(parseUtc(site.t_start_utc)).getUTCFullYear() : null;
         const metaBits = [site.agency, site.crew && site.crew.length ? site.crew.join(", ") : site.lander, when,
           site.kind === "candidate" ? "approximate location" : null].filter(Boolean);
+        // Places of interest have no agency or crew: their one-line description tells them apart (e.g. the Malapert
+        // Massif summit from the Malapert Massif Artemis III region).
+        if (!metaBits.length && site.blurb) metaBits.push(site.blurb);
+        const twin = results.some((x) => x !== site && x.name.toLowerCase() === site.name.toLowerCase());
+        const name = twin ? `${site.name} (${KIND_SHORT[site.kind] || site.kind})` : site.name;
         const li = el("li", { class: "picker-item", role: "option", id: `${id}-${i}`, "aria-selected": i === sel ? "true" : "false" },
-          el("div", { class: "pi-name", text: site.name }),
+          el("div", { class: "pi-name", text: name }),
           el("div", { class: "pi-meta", text: metaBits.join(" · ") }));
         li.addEventListener("mousedown", (e) => {
           e.preventDefault();

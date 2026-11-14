@@ -37,6 +37,30 @@ let busy = false;
 let lookTarget = null; // "earth" | "sun" after a Look button; views created later follow it
 let speedTouched = false; // the user picked a playback speed; until then it follows the longest scenario
 
+let pendingStart = null; // { offsetMs, look, view } for the next completely new set of scenarios
+let pendingCamera = null; // { az_deg, el_deg, fov_deg } for the first view of that set, applied when it is built
+
+/**
+ * Open the next completely new set of scenarios (the one main.js is about to load) at a given moment and view:
+ * offsetMs = time since the scenarios' start (ms); look = "earth" | "sun" (as the Look buttons); view = the camera
+ * of the first view ({ az_deg, el_deg, fov_deg }, deg, local horizon frame). Null fields keep the defaults.
+ */
+export function queueSkyStart(start = null) {
+  pendingStart = start;
+}
+
+/**
+ * The Sky tab's shareable state: { offsetMs, look, view }. `view` is the first view's camera, only when the user has
+ * turned or zoomed it (otherwise the opening framing, which adapts to the window, is kept). A queued start that has
+ * not been applied yet is returned as it is.
+ */
+export function skyShareState() {
+  if (pendingStart) return pendingStart;
+  const first = items.length ? cards.get(`${items[0].s.id}|${items[0].key}`) : null;
+  const view = first?.view && first.camTouched && first.view.getView ? first.view.getView() : pendingCamera;
+  return { offsetMs: maxSpan > 0 ? offsetMs : 0, look: lookTarget, view: view || null };
+}
+
 /** Playback speeds offered (ms of scenario time per real second), as in the #sky-speed options. */
 const SPEEDS = [600000, 3600000, 21600000, 86400000];
 /** A timelapse should last at most about this long (s) at the automatic speed. */
@@ -99,10 +123,14 @@ export function setSkyItems(newItems) {
 
   const keep = new Set();
   const order = [];
-  // A completely new set of scenarios (a quick start, a shared link) starts at T+0 with the default framing.
+  // A completely new set of scenarios (a quick start, a shared link) starts at T+0 with the default framing, or at the
+  // moment and view queued for it (queueSkyStart).
   if (items.length && !items.some((it) => cards.has(`${it.s.id}|${it.key}`))) {
-    offsetMs = 0;
-    lookTarget = null;
+    const start = pendingStart || {};
+    pendingStart = null;
+    offsetMs = Math.max(0, Number(start.offsetMs) || 0);
+    lookTarget = start.look === "earth" || start.look === "sun" ? start.look : null;
+    pendingCamera = start.view || null;
     speedTouched = false;
     stop();
   }
@@ -182,6 +210,11 @@ function buildCard(it, key) {
   root.querySelector(".sky-exit-btn").addEventListener("click", () => exitFocus());
   guardWheel(rec);
   bindPinchZoom(rec.viewEl, () => rec.view);
+  // A drag, a pinch or a zooming wheel makes the camera the user's own (shared links then keep it, skyShareState).
+  rec.viewEl.addEventListener("pointerdown", () => (rec.camTouched = true));
+  rec.viewEl.addEventListener("wheel", (e) => {
+    if (e.ctrlKey || e.metaKey || rec.engaged) rec.camTouched = true;
+  }, { passive: true });
   return rec;
 }
 
@@ -336,6 +369,14 @@ async function createView(rec) {
     rec.lastT = null;
     await updateCard(rec);
     if (lookTarget) lookOne(rec, lookTarget);
+    // A shared link's camera (az, el, field of view) for the first view.
+    const cam = pendingCamera;
+    if (cam && items.length && rec.it === items[0] && rec.view.lookAt && rec.view.setFov) {
+      pendingCamera = null;
+      rec.view.lookAt(Number(cam.az_deg) || 0, Number(cam.el_deg) || 0);
+      if (Number(cam.fov_deg) > 0) rec.view.setFov(Number(cam.fov_deg));
+      rec.camTouched = true;
+    }
   } catch (err) {
     console.error(err);
     rec.viewEl.querySelector(".sky-loading").textContent = "The sky view could not start.";
@@ -456,6 +497,7 @@ function stop() {
 
 function lookOne(rec, body) {
   if (!rec.view || !rec.state) return;
+  rec.camTouched = false;
   // The 3D view frames the body and the horizon together (C8 framing rule); the 2D fallback just turns to it.
   if (typeof rec.view.lookAtBody === "function") return rec.view.lookAtBody(body);
   const b = rec.state[body];

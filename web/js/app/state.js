@@ -70,15 +70,32 @@ function numOrNull(v) {
   return Number.isFinite(n) ? n : null;
 }
 
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+const MONTH_RE = "(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\\.?";
+const TAIL_RE = "(?:[,\\s]+(?:at\\s+)?(\\d{1,2}:\\d{2}(?::\\d{2}(?:\\.\\d+)?)?))?\\s*(Z|UTC|[+-]\\d{2}:?\\d{2})?";
+// "20 July 1969", "20-Jul-1969 20:17", "July 20, 1969 20:17:40 UTC"
+const DAY_MONTH_YEAR = new RegExp(`^(\\d{1,2})(?:st|nd|rd|th)?[\\s-]+${MONTH_RE}[,\\s-]+(\\d{4})${TAIL_RE}$`, "i");
+const MONTH_DAY_YEAR = new RegExp(`^${MONTH_RE}\\s+(\\d{1,2})(?:st|nd|rd|th)?,?\\s+(\\d{4})${TAIL_RE}$`, "i");
+
+/** English month-name dates and "YYYY/MM/DD" -> the "YYYY-MM-DD hh:mm:ss zone" form parseUtc reads; other text as is. */
+function normalizeDateText(s) {
+  let m = DAY_MONTH_YEAR.exec(s);
+  if (m) return `${m[3]}-${MONTHS.indexOf(m[2].slice(0, 3).toLowerCase()) + 1}-${m[1]}${m[4] ? " " + m[4] : ""}${m[5] ? " " + m[5] : ""}`;
+  m = MONTH_DAY_YEAR.exec(s);
+  if (m) return `${m[3]}-${MONTHS.indexOf(m[1].slice(0, 3).toLowerCase()) + 1}-${m[2]}${m[4] ? " " + m[4] : ""}${m[5] ? " " + m[5] : ""}`;
+  return s.replace(/^(-?\d{4})\/(\d{1,2})\/(\d{1,2})(?=$|[\sT])/, "$1-$2-$3");
+}
+
 /**
  * Parse a UTC time string to epoch milliseconds. Accepts ISO-8601 with or without "Z" and seconds,
- * "YYYY-MM-DD hh:mm[:ss]" with a space (one-digit month, day and hour allowed), and an optional "UTC" suffix.
- * Values without a zone are read as UTC.
+ * "YYYY-MM-DD hh:mm[:ss]" with a space (one-digit month, day and hour allowed), "YYYY/MM/DD", English month names
+ * ("20 July 1969 20:17", "Jul 20, 1969"), and an optional "UTC" suffix. Values without a zone are read as UTC.
+ * Numeric day-month orders such as "07/20/1969" are refused (ambiguous).
  * Returns NaN when the string is not a time.
  */
 export function parseUtc(str) {
   if (typeof str !== "string") return NaN;
-  const s = str.trim();
+  const s = normalizeDateText(str.trim());
   const m = /^(-?\d{4})-(\d{1,2})-(\d{1,2})(?:(?:T|\s+)(\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?)?\s*(Z|UTC|[+-]\d{2}:?\d{2})?$/i.exec(s);
   if (!m) return NaN;
   const [, y, mo, d, h = "0", mi = "0", se = "0", frac = "0", zone] = m;
@@ -178,8 +195,8 @@ export function validateScenario(s, coverage = null) {
   if (s.lon_deg !== null && !(s.lon_deg >= -180 && s.lon_deg <= 180)) errors.lon_deg = "Longitude must be between −180° and 180° (east is positive).";
   const t0 = s.t_start_utc ? parseUtc(s.t_start_utc) : NaN;
   const t1 = s.t_end_utc ? parseUtc(s.t_end_utc) : NaN;
-  if (s.t_start_utc && !Number.isFinite(t0)) errors.t_start_utc = "That start time is not a valid date.";
-  if (s.t_end_utc && !Number.isFinite(t1)) errors.t_end_utc = "That end time is not a valid date.";
+  if (s.t_start_utc && !Number.isFinite(t0)) errors.t_start_utc = "That start time is not a valid date: please write it as YYYY-MM-DD hh:mm (UTC), e.g. 1969-07-20 20:17.";
+  if (s.t_end_utc && !Number.isFinite(t1)) errors.t_end_utc = "That end time is not a valid date: please write it as YYYY-MM-DD hh:mm (UTC).";
   // Coverage first: a date outside the tables is the message that matters, not the span it makes.
   if (coverage && coverage.length) {
     const years = new Set(coverage);
@@ -243,7 +260,12 @@ export function physicsKey(s) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// URL hash: "#tab=sky&s=<base64url(JSON)>". JSON = [[label, lat, lon, start, end|0, site_id|0, color(, route)], ...]
+// URL hash: "#tab=sky&x=utc&b=earth&t=5250&look=sun&v=258.9,12.5,40&s=<base64url(JSON)>"; every key is optional.
+//   tab: "sky" (default Compare); x: Compare time axis ("utc" | "dist", default mission elapsed time); b: "earth" (default
+//   Sun section); Sky tab: t = time since the scenarios' start (whole seconds), look = "earth" | "sun" (the last Look
+//   button), v = camera of the first sky view: azimuth, elevation, horizontal field of view (deg, local horizon frame);
+//   s = the scenarios. Links made before t, look and v existed decode as before.
+// s JSON = [[label, lat, lon, start, end|0, site_id|0, color(, route)], ...]
 // route (rover traverses only): [end_lat, end_lon, preset, speed_mps, max_slope_deg, max_cross_deg, stop_every_km, stop_h]
 
 const ROUTE_FIELDS = ["end_lat_deg", "end_lon_deg", "preset", "speed_mps", "max_slope_deg", "max_cross_deg", "stop_every_km", "stop_h"];
@@ -260,8 +282,11 @@ function b64urlDecode(str) {
   return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
 }
 
-/** Encode the app state into a URL hash string (with the leading "#"). */
-export function encodeHash({ scenarios, tab = "compare", xaxis = "met", body = "sun" }) {
+/**
+ * Encode the app state into a URL hash string (with the leading "#"). `sky` (optional, Sky tab only):
+ * { offsetMs, look, view: { az_deg, el_deg, fov_deg } }, as returned by the Sky tab; null fields are left out.
+ */
+export function encodeHash({ scenarios, tab = "compare", xaxis = "met", body = "sun", sky = null }) {
   const rows = scenarios.map((s) => [
     s.label || "",
     s.lat_deg === null ? null : round(s.lat_deg, 5),
@@ -276,18 +301,31 @@ export function encodeHash({ scenarios, tab = "compare", xaxis = "met", body = "
   if (tab !== "compare") p.set("tab", tab);
   if (xaxis !== "met") p.set("x", xaxis);
   if (body === "earth") p.set("b", body);
+  if (sky) {
+    const t = Math.round((Number(sky.offsetMs) || 0) / 1000);
+    if (t > 0) p.set("t", String(t));
+    if (sky.look === "earth" || sky.look === "sun") p.set("look", sky.look);
+    const v = sky.view;
+    if (v && [v.az_deg, v.el_deg, v.fov_deg].every(Number.isFinite)) {
+      p.set("v", [((v.az_deg % 360) + 360) % 360, v.el_deg, v.fov_deg].map((x) => String(round(x, 2))).join(","));
+    }
+  }
   p.set("s", b64urlEncode(JSON.stringify(rows)));
   return "#" + p.toString();
 }
 
-/** Decode a URL hash. Returns { scenarios, tab, xaxis, body } or null when the hash holds no scenarios. */
+/**
+ * Decode a URL hash. Returns { scenarios, tab, tabGiven, xaxis, body, sky: { offsetMs, look, view } } (sky fields null
+ * when absent), with scenarios = [] for a link without them (e.g. "#tab=sky"). Null when the hash holds nothing
+ * Moonat knows, or broken scenarios.
+ */
 export function decodeHash(hash) {
   if (!hash || hash.length < 2) return null;
   try {
     const p = new URLSearchParams(hash.replace(/^#/, ""));
     const s = p.get("s");
-    if (!s) return null;
-    const rows = JSON.parse(b64urlDecode(s));
+    if (!s && !["tab", "x", "b", "t", "look", "v"].some((k) => p.has(k))) return null;
+    const rows = s ? JSON.parse(b64urlDecode(s)) : [];
     if (!Array.isArray(rows)) return null;
     const scenarios = [];
     for (const r of rows.slice(0, 64)) {
@@ -315,7 +353,12 @@ export function decodeHash(hash) {
     const tab = p.get("tab") === "sky" ? "sky" : "compare";
     const xaxis = ["utc", "dist"].includes(p.get("x")) ? p.get("x") : "met";
     const body = p.get("b") === "earth" ? "earth" : "sun";
-    return { scenarios, tab, xaxis, body };
+    const t = Number(p.get("t"));
+    const look = ["earth", "sun"].includes(p.get("look")) ? p.get("look") : null;
+    const v = (p.get("v") || "").split(",").map(Number);
+    const view = v.length === 3 && v.every(Number.isFinite) && v[2] > 0 ? { az_deg: v[0], el_deg: v[1], fov_deg: v[2] } : null;
+    const sky = { offsetMs: Number.isFinite(t) && t > 0 ? t * 1000 : null, look, view };
+    return { scenarios, tab, tabGiven: p.has("tab"), xaxis, body, sky };
   } catch {
     return null;
   }

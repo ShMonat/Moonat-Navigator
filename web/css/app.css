@@ -117,6 +117,57 @@ button { cursor: pointer; }
 :root[data-theme="light"] #btn-theme .i-sun { display: none; }
 .link-btn { border: 0; background: none; color: var(--accent); padding: 0; text-decoration: underline; text-underline-offset: 2px; }
 
+/* ---------- "Validated" badge (next to the title) and its panel ---------- */
+:root, :root[data-theme="dark"] { --ok: #6fd69a; }
+:root[data-theme="light"] { --ok: #1b7a42; }
+.brand-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.valid-badge {
+  display: inline-flex; align-items: center; gap: 4px; flex: none; padding: 2px 9px 2px 6px; border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--ok) 55%, transparent); background: color-mix(in srgb, var(--ok) 12%, transparent);
+  color: var(--text); font-size: 12px; font-weight: 600; line-height: 1.4;
+}
+.valid-badge svg { width: 13px; height: 13px; fill: none; stroke: var(--ok); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.valid-badge:hover { background: color-mix(in srgb, var(--ok) 22%, transparent); }
+.valid-panel { max-width: 640px; }
+.valid-list { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 12px; }
+.valid-list li { display: grid; grid-template-columns: 7.2em 1fr; gap: 12px; align-items: baseline; }
+.valid-list .v-num { font-size: 17px; font-weight: 700; color: var(--ok); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.valid-list .v-txt { color: var(--text-2); }
+.valid-list strong { color: var(--text); }
+@media (pointer: coarse) { .valid-badge { min-height: 28px; } }
+@media (max-width: 520px) {
+  .brand-row { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .valid-badge { font-size: 11.5px; padding: 1px 8px 1px 5px; }
+  .valid-list li { grid-template-columns: 1fr; gap: 2px; }
+}
+
+/* ---------- Introduction line (first visits; dismissed state in localStorage, applied in <head>) ---------- */
+.intro {
+  display: flex; align-items: center; gap: 10px; max-width: calc(1880px - 40px); margin: 12px 20px 0; padding: 7px 8px 7px 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border)); border-radius: 12px; background: var(--accent-soft);
+  font-size: 14px; color: var(--text-2);
+}
+@media (min-width: 1920px) { .intro { margin-inline: auto; } }
+.intro p { margin: 0; flex: 1; min-width: 0; }
+.intro strong { color: var(--text); font-weight: 650; }
+.intro .intro-close { width: 30px; height: 30px; flex: none; border-color: transparent; font-size: 13px; }
+.intro-try { white-space: nowrap; }
+.intro-try .link-btn { font-weight: 600; text-decoration-thickness: 1px; }
+@media (max-width: 1500px) { .intro-try { white-space: normal; } }
+:root[data-intro="off"] .intro { display: none; }
+@media (max-width: 860px) { .intro { margin-inline: 16px; } }
+@media (max-width: 520px) {
+  .intro { margin: 10px 12px 0; padding-left: 12px; font-size: 13.5px; }
+  .intro-more { display: none; }
+  .intro strong::after { content: "."; }
+}
+@media (pointer: coarse) { .intro-try .link-btn { min-height: 30px; padding: 2px 3px; } }
+
+/* "What to look for" line of the loaded quick start, above the tabs' content */
+.qs-caption { margin: 0 0 12px; padding: 0 2px; font-size: 14px; line-height: 1.45; color: var(--text-2); }
+.qs-cap-label { color: var(--accent); font-weight: 650; }
+@media (max-width: 520px) { .qs-caption { font-size: 13px; margin-bottom: 10px; } }
+
 /* ---------- Layout ---------- */
 .layout {
   display: grid; grid-template-columns: minmax(330px, 400px) minmax(0, 1fr); gap: 20px;
@@ -139,6 +190,7 @@ button { cursor: pointer; }
 }
 .chip:hover { background: var(--accent-soft); border-color: var(--accent); }
 .chip.active { background: var(--accent-soft); border-color: var(--accent); }
+.empty-chips { justify-content: center; max-width: 640px; margin: 14px auto 0; }
 
 /* Map: the Moon globe picker (styles in globe.css) */
 .map-block { position: relative; }

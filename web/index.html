@@ -7,10 +7,27 @@
   <title>Moonat: Lunar Landing Site Navigator</title>
   <meta name="description" content="See the Sun and Earth from anywhere on the Moon. Compare lunar landing sites and mission dates for sunlight and direct-to-Earth contact.">
   <meta name="color-scheme" content="dark light">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%23d9d6cc'/%3E%3Ccircle cx='21' cy='12' r='11' fill='%230b0d12'/%3E%3C/svg%3E">
+  <meta name="theme-color" content="#090b10">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <!-- Link previews (Slack, WhatsApp, LinkedIn, X): og.png is the app's own render (scripts/make_social_images.py). -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Moonat">
+  <meta property="og:url" content="https://shmonat.github.io/Moonat-Navigator/">
+  <meta property="og:title" content="Moonat: Lunar Landing Site Navigator">
+  <meta property="og:description" content="The real sky from anywhere on the Moon, at any moment: the Sun and Earth placed from JPL ephemerides, behind NASA LOLA terrain. Compare landing sites and dates for sunlight and contact with Earth.">
+  <meta property="og:image" content="https://shmonat.github.io/Moonat-Navigator/assets/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Moonat's sky view from the Blue Ghost lander on 14 March 2025: the Earth covers 81 % of the Sun, shown in two close-ups above the lunar horizon.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Moonat: Lunar Landing Site Navigator">
+  <meta name="twitter:description" content="The real sky from anywhere on the Moon, at any moment, from NASA and JPL data.">
+  <meta name="twitter:image" content="https://shmonat.github.io/Moonat-Navigator/assets/og.png">
   <script>
-    // Apply the saved theme before first paint, to avoid a flash.
+    // Apply the saved theme (and a dismissed introduction line) before first paint, to avoid a flash or a jump.
     try { const t = localStorage.getItem("moonat-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) { /* storage blocked */ }
+    try { if (localStorage.getItem("moonat-intro") === "off") document.documentElement.dataset.intro = "off"; } catch (e) { /* storage blocked */ }
   </script>
   <link rel="stylesheet" href="css/app.css">
   <link rel="stylesheet" href="css/globe.css">
@@ -23,6 +40,89 @@
     }
   }
   </script>
+  <!-- Load order (first results first). The app's whole static module graph is fetched in parallel instead of import by
+       import (web/tests/perf_preload.test.mjs keeps this list equal to the graph), with the data every view needs. -->
+  <link rel="preload" href="data/sites.json" as="fetch" crossorigin="anonymous">
+  <link rel="preload" href="data/ephem/manifest.json" as="fetch" crossorigin="anonymous">
+  <link rel="modulepreload" href="js/app/main.js">
+  <link rel="modulepreload" href="js/app/store.js">
+  <link rel="modulepreload" href="js/app/state.js">
+  <link rel="modulepreload" href="js/app/catalog.js">
+  <link rel="modulepreload" href="js/app/physics_adapter.js">
+  <link rel="modulepreload" href="js/physics/index.js">
+  <link rel="modulepreload" href="js/physics/ephem.js">
+  <link rel="modulepreload" href="js/physics/frames.js">
+  <link rel="modulepreload" href="js/physics/visibility.js">
+  <link rel="modulepreload" href="js/physics/eclipse.js">
+  <link rel="modulepreload" href="js/physics/metrics.js">
+  <link rel="modulepreload" href="js/physics/terrain.js">
+  <link rel="modulepreload" href="js/terrain/tiles.js">
+  <link rel="modulepreload" href="js/terrain/geom.js">
+  <link rel="modulepreload" href="js/terrain/march.js">
+  <link rel="modulepreload" href="js/app/terrain_live.js">
+  <link rel="modulepreload" href="js/terrain/index.js">
+  <link rel="modulepreload" href="js/terrain/core.js">
+  <link rel="modulepreload" href="js/terrain/trek.js">
+  <link rel="modulepreload" href="js/terrain/lerc1.js">
+  <link rel="modulepreload" href="js/app/scenarios_ui.js">
+  <link rel="modulepreload" href="js/rover/ui.js">
+  <link rel="modulepreload" href="js/rover/index.js">
+  <link rel="modulepreload" href="js/rover/route.js">
+  <link rel="modulepreload" href="js/rover/terrain.js">
+  <link rel="modulepreload" href="js/rover/planner.js">
+  <link rel="modulepreload" href="js/rover/presets.js">
+  <link rel="modulepreload" href="js/rover/series.js">
+  <link rel="modulepreload" href="js/rover/app.js">
+  <link rel="modulepreload" href="js/rover/pick.js">
+  <link rel="modulepreload" href="js/app/compare.js">
+  <link rel="modulepreload" href="js/app/derive.js">
+  <link rel="modulepreload" href="js/app/icons.js">
+  <link rel="modulepreload" href="js/app/sky_tab.js">
+  <link rel="modulepreload" href="js/app/sky_adapter.js">
+  <link rel="modulepreload" href="js/app/gestures.js">
+  <link rel="modulepreload" href="js/rover/sky_ride.js">
+  <script>
+    // What the opening view needs, by tab: the Sky tab (a first visit, or a "tab=sky" link) gets three.js, the sky
+    // modules, the stars and the Earth images at once, and on a first visit the Apollo 11 quick start's data; the
+    // Compare tab gets Plotly (the 1 MB chart library), which the Sky tab only fetches later, at idle priority.
+    (function () {
+      try {
+        var PLOTLY = "https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"; // = PLOTLY_URL in js/app/compare.js
+        var SKY_MODULES = ["https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "js/sky/index.js", "js/sky/math.js",
+          "js/sky/terrain.js", "js/sky/shaders.js", "js/sky/sky.js", "js/sky/hud.js"];
+        var SKY_DATA = ["data/stars/stars.json", "data/stars/constellations.json"];
+        var SKY_IMAGES = ["assets/earth_daymap.jpg", "assets/earth_night.jpg"];
+        var FIRST_VISIT = ["data/ephem/1969.bin", "data/horizons/apollo11.json", "data/terrain/apollo11.bin"];
+        var covered = function (y) { return (y >= 1966 && y <= 1976) || (y >= 2013 && y <= 2040); }; // = data/ephem/manifest.json
+        var h = location.hash || "";
+        var hasScenarios = /(^#|&)s=/.test(h);
+        var sky = /(^#|&)tab=sky(&|$)/.test(h) || (!hasScenarios && !/(^#|&)tab=/.test(h));
+        var add = function (rel, href, as, cors) {
+          var l = document.createElement("link");
+          l.rel = rel;
+          l.href = href;
+          if (as) l.as = as;
+          if (cors) l.crossOrigin = "anonymous";
+          document.head.appendChild(l);
+        };
+        document.documentElement.dataset.plotly = PLOTLY;
+        if (hasScenarios) {
+          // A shared link: the ephemeris years and the catalog horizons its scenarios use (format: js/app/state.js).
+          var want = {};
+          JSON.parse(atob(/(?:^#|&)s=([^&]*)/.exec(h)[1].replace(/-/g, "+").replace(/_/g, "/"))).slice(0, 8).forEach(function (r) {
+            [r[3], r[4]].forEach(function (t) { var y = typeof t === "string" ? +t.slice(0, 4) : NaN; if (covered(y)) want["data/ephem/" + y + ".bin"] = 1; });
+            if (typeof r[5] === "string" && /^[a-z0-9_]{2,40}$/.test(r[5])) want["data/horizons/" + r[5] + ".json"] = 1;
+          });
+          Object.keys(want).forEach(function (u) { add("preload", u, "fetch", true); });
+        }
+        if (!sky) return add("preload", PLOTLY, "script");
+        SKY_MODULES.forEach(function (u) { add("modulepreload", u); });
+        if (!hasScenarios) FIRST_VISIT.forEach(function (u) { add("preload", u, "fetch", true); });
+        SKY_DATA.forEach(function (u) { add("preload", u, "fetch", true); });
+        SKY_IMAGES.forEach(function (u) { add("preload", u, "image", true); });
+      } catch (e) { /* preloading is only an optimisation */ }
+    })();
+  </script>
   <script type="module" src="js/app/main.js"></script>
 </head>
 <body>
@@ -32,7 +132,11 @@
     <div class="brand">
       <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13" class="logo-moon"/><circle cx="21.5" cy="11.5" r="11" class="logo-shadow"/></svg>
       <div>
-        <h1>Moonat</h1>
+        <div class="brand-row">
+          <h1>Moonat</h1>
+          <button type="button" class="valid-badge" id="btn-validated" aria-haspopup="dialog" title="How we checked the numbers against NASA and JPL references">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 8.4l3 3 6.6-7"/></svg>Validated</button>
+        </div>
         <p class="tagline">Lunar Landing Site Navigator: see the Sun and Earth from anywhere on the Moon</p>
       </div>
     </div>
@@ -49,6 +153,16 @@
       </button>
     </div>
   </header>
+
+  <div class="intro" id="intro" role="note" aria-label="Introduction">
+    <p><strong>The real sky of any place on the Moon, at any moment<span class="intro-more">:</span></strong><span class="intro-more"> the Sun and Earth placed from NASA and JPL data, behind real terrain.</span>
+      <span class="intro-try">Try: <button type="button" class="link-btn" data-qs="apollo11">Apollo 11</button> ·
+        <button type="button" class="link-btn" data-qs="apollo-all">All Apollo landings</button> ·
+        <button type="button" class="link-btn" data-qs="pole">South pole</button> ·
+        <button type="button" class="link-btn" data-qs="farside">Far side</button> ·
+        <button type="button" class="link-btn" data-qs="eclipse">Eclipse</button></span></p>
+    <button type="button" class="icon-btn intro-close" id="intro-close" aria-label="Hide this introduction" title="Hide this introduction">✕</button>
+  </div>
 
   <main class="layout">
     <aside class="side" aria-label="Scenarios">
@@ -81,11 +195,16 @@
     </aside>
 
     <section class="output" id="output" aria-live="polite">
+      <!-- The "what to look for" line of the loaded quick start (main.js). The text below is the first visit's (Apollo 11,
+           as QUICK_STARTS[0].caption), there at first paint so the line does not push the results down later. -->
+      <p class="qs-caption" id="qs-caption"><span class="qs-cap-label">What to look for:</span>
+        <span class="qs-cap-text">Earth hangs high in the west, 59° up and 67 % lit; the Sun is low in the east. Drag the sky to look around, or press play.</span></p>
       <div id="tab-compare" role="tabpanel" aria-labelledby="tab-btn-compare" class="tabpanel">
         <div class="empty" id="compare-empty" hidden>
           <svg viewBox="0 0 120 60" class="empty-art" aria-hidden="true"><path d="M0 52 Q30 38 52 46 T120 40 V60 H0z" class="ground"/><circle cx="88" cy="18" r="9" class="earth"/><circle cx="28" cy="14" r="5" class="sun"/></svg>
           <h2>Pick a place on the Moon and a time</h2>
-          <p>Use the map, type coordinates, or load a historical mission. A quick start is the fastest way in.</p>
+          <p>Click the map, type coordinates, or load a historical mission. A quick start is the fastest way in:</p>
+          <div class="chips empty-chips" data-qs-list></div>
         </div>
         <div id="compare-body">
           <div class="body-switch seg seg-lg" role="group" aria-label="Show Sun data or Earth data" id="body-toggle">
@@ -142,17 +261,65 @@
         </div>
         <div class="empty" id="sky-empty" hidden>
           <h2>No sky to show yet</h2>
-          <p>Add a scenario with a location and a start time.</p>
+          <p>Click the map (or type coordinates) and give a start time, or open a story:</p>
+          <div class="chips empty-chips" data-qs-list></div>
         </div>
         <div class="sky-grid" id="sky-grid"></div>
       </div>
     </section>
   </main>
+  <script>
+    // Paint the tab the app will open on (main.js confirms it): the Sky tab for a first visit (no scenarios in the
+    // link, e.g. no hash) or for a "tab=sky" link; the Compare tab for older links that hold scenarios but no tab.
+    (function () {
+      try {
+        var h = location.hash || "";
+        var hasScenarios = /(^#|&)s=/.test(h);
+        var sky = /(^#|&)tab=sky(&|$)/.test(h) || (!hasScenarios && !/(^#|&)tab=/.test(h));
+        // The Apollo 11 caption is for its Sky tab; for a link's own scenarios main.js decides whether one applies.
+        if (hasScenarios || !sky) document.getElementById("qs-caption").hidden = true;
+        if (!sky) return;
+        document.getElementById("tab-compare").hidden = true;
+        document.getElementById("tab-sky").hidden = false;
+        document.getElementById("tab-btn-compare").setAttribute("aria-selected", "false");
+        document.getElementById("tab-btn-compare").tabIndex = -1;
+        document.getElementById("tab-btn-sky").setAttribute("aria-selected", "true");
+        document.getElementById("tab-btn-sky").tabIndex = 0;
+      } catch (e) { /* main.js sets the tab anyway */ }
+    })();
+  </script>
 
   <footer class="foot">
-    <p>Ephemeris: JPL DE421 (validated against JPL Horizons) · Terrain: NASA LRO LOLA (custom points live from NASA Moon Trek, JPL) · Map: NASA Moon Trek (LRO WAC mosaic) and LOLA polar relief · Earth: NASA Blue Marble · Built for NASA Space Apps 2026.
-      Made with the help of AI (Claude Code). <button class="link-btn" data-open-about>How it works</button></p>
+    <p>Ephemeris: JPL DE421 (<button class="link-btn" data-open-validated>validated</button> against JPL Horizons) · Terrain: NASA LRO LOLA (custom points live from NASA Moon Trek, JPL) · Map: NASA Moon Trek (LRO WAC mosaic) and LOLA polar relief · Earth: NASA Blue Marble · Built for NASA Space Apps 2026.
+      Made with the help of AI (Claude Code). <button class="link-btn" data-open-about>How it works</button> ·
+      <a href="https://github.com/ShMonat/Moonat-Navigator" target="_blank" rel="noopener">Source code</a></p>
   </footer>
+
+  <dialog id="validated" class="about valid-panel" aria-labelledby="valid-title">
+    <form method="dialog" class="about-close"><button class="icon-btn" aria-label="Close">✕</button></form>
+    <h2 id="valid-title">Checked against NASA and JPL</h2>
+    <p class="lead">Every number Moonat shows comes from code that we tested against independent references.</p>
+    <ul class="valid-list">
+      <li><span class="v-num">0.09″ · 0.12″</span><span class="v-txt"><strong>Sun and Earth positions.</strong> The code that runs in this page
+        agrees with <a href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noopener">JPL Horizons</a> to 0.09″ (Sun) and 0.12″ (Earth),
+        worst case over 20 random places and times (1″ = 1/3600°). One case at the 2016 leap second: 0.49″.
+        <a href="https://github.com/ShMonat/Moonat-Navigator/blob/main/docs/validation/independent_check.md" target="_blank" rel="noopener">Details</a></span></li>
+      <li><span class="v-num">92.7 %</span><span class="v-txt"><strong>Sunlight at the south pole.</strong> Average share of the Sun's disk in view at a
+        point on the Shackleton rim (10 m above the ground, over 18.5 years): 92.7 %, against 92.5 % published by Gläser et al. (2014).
+        <a href="https://github.com/ShMonat/Moonat-Navigator/blob/main/docs/validation/terrain.md" target="_blank" rel="noopener">Details</a></span></li>
+      <li><span class="v-num">≤ 2.6 s</span><span class="v-txt"><strong>Eclipse timing.</strong> NASA's contact times of the lunar eclipses of
+        14 March 2025 and 24 April 1967, reproduced to 2.6 s or better.
+        <a href="https://github.com/ShMonat/Moonat-Navigator/blob/main/docs/validation/eclipse.md" target="_blank" rel="noopener">Details</a></span></li>
+      <li><span class="v-num">0.1–0.4°</span><span class="v-txt"><strong>Terrain for any point.</strong> Horizons built in your browser from NASA
+        Moon Trek agree with our precomputed LOLA horizons to 0.07–0.37° (RMS) at 10 of 12 test sites; about 1° on the flat
+        Apollo 11 and 16 plains, where ground within a few hundred metres sets the skyline and Moon Trek's 118 m grid is
+        coarser than our 59 m data.
+        <a href="https://github.com/ShMonat/Moonat-Navigator/blob/main/docs/validation/terrain-everywhere.md" target="_blank" rel="noopener">Details</a></span></li>
+    </ul>
+    <p class="fine">All checks, with the scripts that reproduce them:
+      <a href="https://github.com/ShMonat/Moonat-Navigator/tree/main/docs/validation" target="_blank" rel="noopener">docs/validation</a> ·
+      <a href="https://github.com/ShMonat/Moonat-Navigator" target="_blank" rel="noopener">source code</a></p>
+  </dialog>
 
   <dialog id="about" class="about" aria-labelledby="about-title">
     <form method="dialog" class="about-close"><button class="icon-btn" aria-label="Close">✕</button></form>
@@ -188,7 +355,7 @@
     <ul class="sources">
       <li><strong>Positions:</strong> JPL DE421 planetary ephemeris and the precise lunar orientation (libration included), with light-time and
         aberration. The Sun and Earth directions agree with <a href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noopener">JPL Horizons</a>
-        to better than one arcsecond.</li>
+        to better than one arcsecond (<button class="link-btn" data-open-validated>see the checks</button>).</li>
       <li><strong>Terrain:</strong> NASA Lunar Reconnaissance Orbiter laser altimeter (LOLA) elevation models, from the
         <a href="https://pds-geosciences.wustl.edu/missions/lro/lola.htm" target="_blank" rel="noopener">NASA Planetary Data System</a>.</li>
       <li><strong>Map:</strong> <a href="https://trek.nasa.gov/moon/" target="_blank" rel="noopener">NASA Moon Trek</a>, LRO Wide Angle Camera global mosaic.
@@ -202,7 +369,8 @@
         The eye is 2 m above the ground. The Moon has no air, so there is no refraction.</li>
     </ul>
     <p class="fine">Built for the NASA Space Apps Challenge 2026, "Lunar Landing Site Navigator". The code was written with Claude Code
-      (Anthropic), directed and reviewed by the Moonat team.</p>
+      (Anthropic), directed and reviewed by the Moonat team.
+      <a href="https://github.com/ShMonat/Moonat-Navigator" target="_blank" rel="noopener">Source code and validation reports on GitHub</a>.</p>
   </dialog>
 
   <div class="toast" id="toast" role="status" hidden></div>

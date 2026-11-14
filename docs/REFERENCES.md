@@ -51,6 +51,8 @@ Challenge Resources tab (published 2026-11-13): Quickmap, Moon Trek, JPL Horizon
 ## Images, textures and other media
 - LRO WAC global mosaic 303 ppd v02 (NASA/GSFC/Arizona State University), via the NASA Moon Trek WMTS, 128 tiles at zoom 3 stitched to 4096 x 2048 px (plus a 1024 x 512 preview) — base texture of the Moon globe site picker (web/data/moonmap/wac_global*.jpg) — https://trek.nasa.gov/tiles/Moon/EQ/LRO_WAC_Mosaic_Global_303ppd_v02/1.0.0/WMTSCapabilities.xml — public (NASA)
 - LOLA LDEM_16 and LDEM_75S_240M (NASA LRO LOLA, PDS) rendered as hillshade — polar-cap textures of the globe (web/data/moonmap/cap_*.jpg; 1.3 km/px caps to 68°, a 193 m/px south cap poleward of 83.5° S) — https://pds-geosciences.wustl.edu/missions/lro/lola.htm — public (NASA PDS)
+- Link-preview image web/assets/og.png (1200 x 630) — a browser render of Moonat's own sky view (the 14 March 2025 eclipse from Blue Ghost; LOLA terrain, JPL DE421, NASA Blue Marble and City Lights textures as listed above) with a title band, made by scripts/make_social_images.py; not generative imagery — https://shmonat.github.io/Moonat-Navigator/ — project asset
+- Favicon web/assets/favicon.svg and home-screen icon web/assets/apple-touch-icon.png — the Moonat crescent logo, written as SVG for this project — project asset
 
 ## Tools
 - Claude Code (Anthropic) — AI coding agent used to write the code and docs — https://claude.com/claude-code — see docs/AI_USE.md

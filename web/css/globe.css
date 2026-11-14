@@ -3,6 +3,13 @@
    controls use fixed light-on-dark colours in both themes; only the selected preset uses the theme accent. */
 
 .globe-host { position: relative; }
+/* The globe's box before its module and three.js arrive (the same size rules as .globe below and in the media
+   queries at the end), so nothing under the map moves when the globe appears. */
+.map:not(.globe-host) {
+  width: 100%; aspect-ratio: 1 / 1.1; min-height: 320px; max-height: calc(100vh - 120px);
+  border-radius: 14px; border: 1px solid var(--border);
+  background: radial-gradient(120% 90% at 50% 40%, #121621 0%, #07080c 70%);
+}
 .globe {
   --g-ink: #ecebe5;
   --g-ink-2: rgba(236, 235, 229, 0.72);
@@ -144,10 +151,10 @@ html.globe-locked, html.globe-locked body { overflow: hidden; }
   .layout { grid-template-columns: minmax(400px, 500px) minmax(0, 1fr); }
 }
 @media (max-width: 860px) {
-  .globe { max-height: none; }
+  .globe, .map:not(.globe-host) { max-height: none; }
 }
 @media (max-width: 520px) {
-  .globe { aspect-ratio: 1 / 1.16; }
+  .globe, .map:not(.globe-host) { aspect-ratio: 1 / 1.16; }
   .globe-preset { padding: 5px 9px; font-size: 11.5px; }
   /* A row in the bottom-right corner, clear of most of the disc; the credit may take two lines. */
   .globe-tools { flex-direction: row; bottom: 34px; right: 8px; gap: 5px; }
