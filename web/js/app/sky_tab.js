@@ -9,6 +9,7 @@ import { stateAt } from "./physics_adapter.js";
 import { makeSkyView, terrainPatchUrl, skyPatch } from "./sky_adapter.js";
 import { terrainStatusText } from "./terrain_live.js";
 import { bindPinchZoom } from "./gestures.js";
+import { rideAt, ridePatch, rideNote, frameTurnDeg } from "../rover/sky_ride.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -289,6 +290,10 @@ function recycleViews() {
  */
 function swapTerrain(rec) {
   const it = rec.it;
+  if (it.route && typeof rec.view.setTerrain === "function") {
+    rec.rideStation = null; // the next update gives the rover's current station terrain
+    return;
+  }
   if (typeof rec.view.setTerrain === "function") {
     // Catalog sites keep their C4 patch file; custom points get the live patch (or none yet).
     rec.view.setTerrain(it.s.site_id ? { horizon: it.horizon } : { horizon: it.horizon, patch: skyPatch(it.patch) });
@@ -307,8 +312,15 @@ async function createView(rec) {
     const it = rec.it;
     // Catalog sites: the precomputed C4 patch file. Custom points: the live Moon Trek patch once it has arrived.
     const patchUrl = it.s.site_id ? await terrainPatchUrl(it.s.site_id) : null;
+    // Rover traverses: the view starts where the rover is, with the ground of the route grid (web/js/rover).
+    const ride = it.route ? rideAt(it, timeFor(it)) : null;
+    if (ride) {
+      rec.rideStation = ride.stationK;
+      rec.rideSite = ride.site;
+    }
     const { view, mode } = await makeSkyView(rec.viewEl, {
-      site: it.site, terrainPatchUrl: patchUrl, terrainPatch: it.s.site_id ? null : skyPatch(it.patch),
+      site: ride ? { ...ride.site, horizon: ride.horizon } : it.site, terrainPatchUrl: patchUrl,
+      terrainPatch: ride ? ridePatch(it, ride) : it.s.site_id ? null : skyPatch(it.patch),
       fovDeg: 70, earthNightTextureUrl: "assets/earth_night.jpg",
     });
     if (!cards.has(rec.key)) {
@@ -341,16 +353,29 @@ async function updateCard(rec) {
   const t = timeFor(it);
   rec.root.querySelector(".sky-card-time").textContent = formatUtc(t);
   if (rec.lastT === t && rec.state) return;
-  const st = await stateAt(it.site, t);
+  // Rover traverses: sky, skyline and ground of the station the rover has reached (web/js/rover/sky_ride.js).
+  const ride = it.route ? rideAt(it, t) : null;
+  const st = await stateAt(ride ? ride.site : it.site, t);
   rec.state = st;
   rec.lastT = t;
+  const moved = ride && rec.view?.setTerrain && rec.rideStation !== ride.stationK;
+  if (moved && rec.rideSite && rec.view.getView) {
+    // Keep looking at the same physical direction: the local azimuth frame turns as the rover moves.
+    const v = rec.view.getView();
+    rec.view.lookAt(v.az_deg + frameTurnDeg(rec.rideSite, ride.site), v.el_deg);
+  }
   if (rec.view) rec.view.update(st);
+  if (moved) {
+    rec.rideStation = ride.stationK;
+    rec.view.setTerrain({ horizon: ride.horizon, patch: ridePatch(it, ride) });
+  }
+  if (ride) rec.rideSite = ride.site;
   const foot = rec.root.querySelector(".sky-card-foot");
   const where = (b) => `${deg1(b.el_deg)} ${compassPoint(b.az_deg)}`;
   const sunTxt = st.sun.vis_frac > 0 ? where(st.sun) : `hidden (${where(st.sun)})`;
   const earthTxt = st.earth.vis_frac > 0 ? `${where(st.earth)} · ${Math.round(st.earth.phase_frac * 100)}% lit` : `hidden (${where(st.earth)})`;
   foot.innerHTML = `<span>☀ Sun ${esc(sunTxt)}</span><span>🌍 Earth ${esc(earthTxt)}</span>${
-    terrainNote(it)
+    ride ? `<span class="note">${esc(rideNote(it, ride))}</span>` : terrainNote(it)
   }`;
 }
 

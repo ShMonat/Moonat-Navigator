@@ -14,6 +14,7 @@
   </script>
   <link rel="stylesheet" href="css/app.css">
   <link rel="stylesheet" href="css/globe.css">
+  <link rel="stylesheet" href="css/rover.css">
   <script type="importmap">
   {
     "imports": {
@@ -66,6 +67,8 @@
           <button class="add-btn" id="btn-add-location" title="Same times, new place">+ Add location</button>
           <button class="add-btn" id="btn-add-time" title="Same place, new time">+ Add time</button>
         </div>
+        <button class="rover-add" id="btn-add-rover" title="Plan a rover drive between two points and follow the Sun and Earth along it">
+          <span aria-hidden="true">🛞</span> Advanced: plan a rover traverse</button>
       </section>
 
       <section class="block qs-block">
@@ -93,7 +96,9 @@
             <div class="seg" role="group" aria-label="Time axis" id="xaxis-toggle">
               <button data-x="met" aria-pressed="true">Mission elapsed time</button>
               <button data-x="utc" aria-pressed="false">Calendar time (UTC)</button>
+              <button data-x="dist" aria-pressed="false" hidden title="Rover traverses: distance driven along the path">Distance travelled</button>
             </div>
+            <p class="xaxis-note" id="xaxis-note" hidden>Distance axis: only rover traverses are drawn.</p>
             <p class="busy" id="busy" hidden><span class="spinner" aria-hidden="true"></span>Computing…</p>
           </div>
 

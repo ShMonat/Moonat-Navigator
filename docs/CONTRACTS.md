@@ -206,3 +206,48 @@ await terrainAt(lat_deg, lon_deg, {
 ## C7 `scenario` (producer: `web-app`; internal to the UI)
 `{ id, label, color, site_id | null, lat_deg, lon_deg, t_start_utc, t_end_utc | null }`. No limit on the number of scenarios.
 No end time = a single instant. Scenarios may share or differ in times.
+- **Rover traverses** (C10) add `route: { end_lat_deg, end_lon_deg, preset: "viper" | "lrv" | "custom", speed_mps,
+  max_slope_deg, max_cross_deg, stop_every_km, stop_h }`; `lat_deg`/`lon_deg` is the start, and no end time = end on
+  arrival. URL hash rows get an 8th element `[end_lat, end_lon, preset, speed, max_slope, max_cross, stop_km, stop_h]`
+  (older links have 7 and stay valid); `x=dist` selects the distance axis.
+
+## C10 `rover-traverse` (producer: `rover`; consumer: `web-app`) — **implemented** (advanced mode)
+Plan a rover drive between two points from real terrain, then follow the Sun and Earth along it
+(branch `shay/rover`; validation: docs/validation/rover.md). `web/js/rover/index.js` exports:
+```js
+await planRoute(start {lat_deg, lon_deg}, end {lat_deg, lon_deg},
+                rover {preset, speed_mps, max_slope_deg, max_cross_deg},
+                {onProgress(stage, frac), worker = true, demBaseUrl = "data/dem"}) -> {   // cached per request
+  start, end, centre,                 // centre = great-circle midpoint (the local stereographic plane's tangent point)
+  rover,                              // roverParams(): speed_mps, max_slope_deg, max_cross_deg, mu, power_margin
+  path: { lat[], lon[], x[], y[],     // vertices (grid-cell centres), plane metres (x east, y north at the centre)
+          elev_m[], slope_deg[],      // height above the 1737.4 km sphere; terrain slope of the cell (Horn 3×3)
+          dist_m[], time_s[],         // cumulative surface distance and driving time
+          along_deg[], cross_deg[], speed_mps[] },   // per segment (index i = segment ending at vertex i)
+  samples: { dist_m[], lat[], lon[], elev_m[], horizons[] },   // every 100–250 m; horizons: C3 objects (0.5° step)
+  stats: { length_m, straight_m, drive_s, mean_speed_mps, max_along_deg, max_cross_deg, max_slope_deg,
+           climb_m, descent_m, snapped_start_m, snapped_end_m },
+  preview: { width, height, rgba, x0, x1, y0, y1 },   // hillshade (no-go cells tinted), plane extent of the image
+  terrain: { fine: {half_m, cell_m, n, data}, coarse },   // the route grids (for the sky patches)
+  meta: { sources, bytes, grid_n, fine_cell_m, coarse_cell_m, expanded, ms: {terrain, plan, horizons, total} }
+}
+await routeSeries(route, t0Ms, t1Ms, stepMs, {stop_every_km, stop_h}) -> C6 series() fields + {
+  distance_km[], position[{lat, lon}], sample_index[], sun_hz_el[], earth_hz_el[],
+  route: { arrival_ms, length_km, stops } }
+```
+- **Terrain:** one Moon Trek LOLA grid (C9 layers and projection) covering both points plus max(3 km, 30 %) of margin, in
+  the stereographic plane at the midpoint; ≤ 1001² px (20 m south of 85°S, 30 m poleward of 75°, 118 m elsewhere;
+  coarser cells for long polar routes), and at least the C9 near-field extent (401 px). Plus a 401² mid-field grid out to
+  max(2.2 × the half-width, 64 km polar / 95 km elsewhere), and the C5 tiles beyond. Straight-line length ≤ 60 km.
+- **Planner:** A* on travel time, 16-connected (a move may not cross or cut the corner of a no-go cell). No-go: terrain
+  slope > max slope; per move: |along-track slope| ≤ max slope and cross slope ≤ max cross slope. Speed: level and
+  downhill = `speed_mps`; uphill power-limited, v = speed · min(1, power_margin · μ / (μ cos θ + sin θ)), μ = 0.1.
+  Ends on a no-go cell move to the nearest drivable cell within 300 m (reported as `snapped_*_m`).
+- **Sky along the route:** at each time step the rover's distance follows the drive timeline (stops optional; parked at
+  the end after arrival) and the step uses the horizon sample nearest to it (makeSite + series per run of steps at the
+  same sample, so a zero-length route equals the static series). Eclipse contacts come from the route centre.
+- **Presets:** VIPER-class 0.2 m/s, 15° (NASA VIPER pages); Apollo LRV 2.5 m/s, 20° (Jacob et al., LPSC 2026). Editable.
+- **Runtime:** a module Web Worker fetches the terrain and plans; the horizons are spread over up to 4 short-lived
+  workers. 2–7 s in the browser for 6–20 km routes; 0.9–6 MB downloaded (including C5 tiles on a first visit).
+- **App wiring:** `web/js/rover/app.js` `routeCore(s)` (called by the app's compute for scenarios with `route`), route
+  card `ui.js`, globe two-step pick `pick.js`, Sky-tab ride `sky_ride.js` (sky, skyline and ±8 km ground per station).

@@ -23,6 +23,9 @@ can hide either one. Moonat computes both against the real terrain and lets you 
 - **Eclipses seen from the Moon:** when the Earth crosses the Sun (a lunar eclipse on Earth), the share of sunlight it
   hides is computed and drawn, with the red ring of Earth's atmosphere; quick start "Eclipse from the Moon" replays
   Blue Ghost's 14 March 2025 view ([validation against NASA's contact times](docs/validation/eclipse.md)).
+- **Rover traverses (advanced):** pick a start and an end up to 60 km apart; Moonat fetches LOLA terrain from NASA Moon
+  Trek, finds the fastest drivable path for a VIPER-class rover or the Apollo LRV (slope limits), and charts the Sun and
+  Earth along the drive against time or distance travelled ([validation](docs/validation/rover.md)).
 
 | Compare all Apollo landings | South pole (Shackleton rim) | Far side (Chang'e 4) |
 |---|---|---|

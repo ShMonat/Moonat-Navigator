@@ -33,7 +33,7 @@ test("every quick start resolves to valid scenarios against the real catalog", (
     for (const p of list) {
       const v = validateScenario(makeScenario(p));
       assert.ok(v.ok, `${q.key}: ${JSON.stringify(v.errors)}`);
-      assert.ok(p.site_id, `${q.key} uses a catalog site`);
+      assert.ok(p.site_id || p.route, `${q.key} uses a catalog site (or is a rover traverse)`);
     }
   }
   assert.equal(QUICK_STARTS.find((q) => q.key === "apollo-all").resolve(SITES).length, 6);

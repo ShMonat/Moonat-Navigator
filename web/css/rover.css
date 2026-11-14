@@ -1,0 +1,78 @@
+/* AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team. */
+/* Rover traverse planner (advanced mode): the route card, its map and profiles, the globe pick banner. */
+
+.rover-add {
+  display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 10px; padding: 9px 12px;
+  border: 1px dashed var(--border-strong); border-radius: 10px; background: transparent; color: var(--text-2);
+  font-size: 13px; text-align: left;
+}
+.rover-add:hover { border-color: var(--accent); color: var(--text); background: var(--accent-soft); }
+
+.route-card .route-badge {
+  margin: 2px 0 8px; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 650;
+}
+.route-pts { display: grid; gap: 6px; margin-bottom: 8px; }
+.route-pt { display: grid; grid-template-columns: 44px 1fr 1fr; gap: 8px; align-items: end; }
+.route-pt-tag {
+  align-self: center; justify-self: start; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 6px; color: #fff;
+}
+.route-pt-tag.start { background: #1a8f5a; }
+.route-pt-tag.end { background: #c0392b; }
+.route-pick { justify-self: start; font-size: 12.5px; }
+.route-rover { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.route-rover .route-preset { grid-column: 1 / -1; }
+.route-card select, .route-stops input {
+  padding: 6px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+  font-size: 13.5px; min-width: 0;
+}
+.route-card select:focus, .route-stops input:focus { border-color: var(--accent); outline: none; }
+.route-note { margin: 6px 0 8px; font-size: 11.5px; color: var(--muted); line-height: 1.35; }
+.route-stops { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 8px; font-size: 12.5px; color: var(--text-2); }
+.route-stops input { width: 64px; }
+.route-actions { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.route-plan {
+  border: 0; border-radius: 8px; padding: 7px 14px; font-weight: 650; background: var(--accent); color: var(--accent-ink);
+}
+.route-plan:disabled { opacity: 0.45; cursor: default; }
+.route-status { font-size: 12px; color: var(--muted); }
+.route-bar { height: 4px; border-radius: 4px; background: var(--surface-3); margin-top: 8px; overflow: hidden; }
+.route-bar-fill { height: 100%; width: 0; background: var(--accent); transition: width 0.25s; }
+.route-result { margin-top: 10px; }
+.route-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin-bottom: 6px; }
+.route-stat { display: flex; flex-direction: column; min-width: 0; }
+.route-stat b { font-size: 14px; color: var(--text); font-variant-numeric: tabular-nums; }
+.route-stat span { font-size: 11px; color: var(--muted); line-height: 1.3; }
+.route-arrive { margin: 2px 0 8px; font-size: 11.5px; color: var(--muted); }
+.route-map { display: block; width: 100%; border-radius: 8px; border: 1px solid var(--border); background: #111; }
+.route-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 6px 0 4px; font-size: 11px; color: var(--muted); }
+.route-legend .lg-path { display: inline-block; width: 18px; height: 3px; border-radius: 2px; background: var(--c); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5); }
+.route-legend .lg-steep { display: inline-block; width: 12px; height: 10px; border-radius: 2px; background: rgb(190, 120, 112); margin-left: 6px; }
+.route-legend .lg-start, .route-legend .lg-end {
+  display: inline-grid; place-items: center; width: 15px; height: 15px; border-radius: 50%; color: #fff; font-size: 9px; font-weight: 700;
+  margin-left: 6px;
+}
+.route-legend .lg-start { background: #1a8f5a; }
+.route-legend .lg-end { background: #c0392b; }
+.route-profile-wrap { margin-top: 4px; }
+.route-profile { width: 100%; height: auto; display: block; }
+.route-profile .pf-title { font-size: 10.5px; fill: var(--text-2); }
+.route-profile .pf-tick { font-size: 10px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.route-profile .pf-axis { stroke: var(--border-strong); stroke-width: 1; }
+.route-profile .pf-zero { stroke: var(--border-strong); stroke-width: 1; stroke-dasharray: 2 3; }
+.route-profile .pf-limit { stroke: #c0392b; stroke-width: 1; stroke-dasharray: 4 3; opacity: 0.8; }
+.route-profile .pf-line { fill: none; stroke: var(--c); stroke-width: 1.8; stroke-linejoin: round; }
+
+/* Two-step pick on the globe. */
+.map-block { position: relative; }
+.rover-pick-banner {
+  position: absolute; z-index: 5; left: 50%; top: 10px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px;
+  max-width: calc(100% - 24px); padding: 7px 8px 7px 12px; border-radius: 10px; background: var(--surface); color: var(--text);
+  border: 1px solid var(--accent); box-shadow: var(--shadow, 0 4px 18px rgba(0, 0, 0, 0.35)); font-size: 13px; font-weight: 600;
+}
+.rover-picking .map { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 12px; }
+
+.xaxis-note { margin: 0; font-size: 12px; color: var(--muted); }
+
+@media (max-width: 420px) {
+  .route-pt { grid-template-columns: 40px 1fr 1fr; gap: 6px; }
+}

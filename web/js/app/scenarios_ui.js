@@ -12,6 +12,7 @@ import {
 import { searchSites, scenarioFieldsFromSite, siteById, KIND_LABEL, catalogSites, isTrimmedMission, shortName } from "./catalog.js";
 import { physicsCoverage } from "./physics_adapter.js";
 import { terrainStatusText, onTerrainChange } from "./terrain_live.js";
+import { buildRouteCard, addRouteScenario } from "../rover/ui.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -41,8 +42,10 @@ export function initScenarioUI() {
     if (!src.label) updateScenario(src.id, { label: pointLabel(src.lat_deg, src.lon_deg) }, "label");
     const base = (src.label || "Site").replace(/ #\d+$/, "");
     const n = Math.max(2, store.scenarios.filter((x) => (x.label || "").replace(/ #\d+$/, "") === base).length + 1);
-    addScenario({ lat_deg: src.lat_deg, lon_deg: src.lon_deg, site_id: src.site_id, label: `${base} #${n}`, t_start_utc: null, t_end_utc: null });
+    addScenario({ lat_deg: src.lat_deg, lon_deg: src.lon_deg, site_id: src.site_id, label: `${base} #${n}`, t_start_utc: null, t_end_utc: null, route: src.route });
   });
+  // Advanced: a rover traverse (web/js/rover/). The button exists when index.html has it.
+  $("#btn-add-rover")?.addEventListener("click", () => addRouteScenario());
   clearBtn.addEventListener("click", () => setScenarios([{}]));
 
   subscribe((kind, detail) => {
@@ -56,7 +59,7 @@ export function initScenarioUI() {
   onTerrainChange(() => {
     for (const s of store.scenarios) {
       const card = cardsEl.querySelector(`[data-id="${s.id}"]`);
-      if (card && !s.site_id) refreshCard(card, s);
+      if (card && !s.site_id && !s.route) refreshCard(card, s);
     }
   });
 }
@@ -117,6 +120,7 @@ function el(tag, attrs = {}, ...children) {
 }
 
 function buildCard(s, index) {
+  if (s.route) return buildRouteCard(s, index); // rover traverse (advanced mode, web/js/rover/ui.js)
   const card = el("article", { class: "scen", "data-id": s.id, "aria-label": `Scenario ${index + 1}` });
   card.style.setProperty("--c", scenarioColor(s));
   card.addEventListener("focusin", () => setActive(s.id));
@@ -374,7 +378,7 @@ function refreshCard(card, s) {
 function syncCard(id) {
   const card = cardsEl.querySelector(`[data-id="${id}"]`);
   const s = store.scenarios.find((x) => x.id === id);
-  if (!card || !s) return;
+  if (!card || !s || s.route) return;
   card.querySelector('[name="lat_deg"]').value = s.lat_deg === null ? "" : String(+s.lat_deg.toFixed(5));
   card.querySelector('[name="lon_deg"]').value = s.lon_deg === null ? "" : String(+s.lon_deg.toFixed(5));
   card.querySelector(".scen-label").value = s.label || "";

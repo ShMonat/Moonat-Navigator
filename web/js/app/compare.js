@@ -52,6 +52,16 @@ export function renderCompare(items, opts) {
   document.getElementById("compare-body").hidden = ok.length === 0;
   const anyMission = ok.some((it) => it.series);
   document.getElementById("xaxis-toggle").hidden = !anyMission;
+  // Rover traverses (web/js/rover) can also be drawn against the distance driven; static sites cannot.
+  const anyRoute = ok.some((it) => it.series?.distance_km);
+  const distBtn = document.querySelector('#xaxis-toggle [data-x="dist"]');
+  if (distBtn) distBtn.hidden = !anyRoute;
+  if (opts.xaxis === "dist" && !anyRoute) {
+    opts = { ...opts, xaxis: "met" };
+    for (const b of document.querySelectorAll("#xaxis-toggle button")) b.setAttribute("aria-pressed", String(b.dataset.x === "met"));
+  }
+  const note = document.getElementById("xaxis-note");
+  if (note) note.hidden = !(opts.xaxis === "dist" && ok.some((it) => !it.series?.distance_km));
 
   document.getElementById("cards-sun").innerHTML = ok.map((it) => (it.series ? sunMissionCard(it) : sunInstantCard(it))).join("");
   document.getElementById("cards-earth").innerHTML = ok.map((it) => (it.series ? earthMissionCard(it) : earthInstantCard(it))).join("");
@@ -133,6 +143,7 @@ function whenInstant(it) {
   return formatUtc(it.t0);
 }
 function whenMission(it) {
+  if (it.series?.route) return `${formatUtc(it.t0)} · ${it.series.route.length_km.toFixed(1)} km rover traverse, ${formatDuration(it.span)}`;
   return `${formatUtc(it.t0)} · ${formatDuration(it.span)} stay`;
 }
 
@@ -331,7 +342,7 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
     hovermode: "x unified",
     hoverlabel: { bgcolor: th.hoverBg, bordercolor: th.hoverBorder, font: { color: th.textStrong, size: 12 } },
     xaxis: {
-      title: { text: xaxis === "utc" ? "UTC" : `Time since start (${unitName})`, font: { size: 12, color: th.muted } },
+      title: { text: xaxis === "utc" ? "UTC" : xaxis === "dist" ? "Distance travelled (km)" : `Time since start (${unitName})`, font: { size: 12, color: th.muted } },
       type: xaxis === "utc" ? "date" : "linear",
       gridcolor: th.grid, linecolor: th.axis, zeroline: false, tickfont: { color: th.muted }, showspikes: false,
     },
@@ -342,10 +353,12 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
   });
   const config = { displaylogo: false, responsive: true, displayModeBar: window.matchMedia?.("(pointer: coarse)").matches ? false : "hover", modeBarButtonsToRemove: ["select2d", "lasso2d", "autoScale2d", "toggleSpikelines"] };
 
+  // Rover traverses on the distance axis use the distance driven at each sample (web/js/rover routeSeries).
+  const xSeries = (it) => (xaxis === "dist" ? it.series.distance_km : xValues(it.series.t_ms, it.t0, xaxis, unitMs));
   const line = (it, y, extra = {}) => ({
     type: "scatter",
     mode: "lines",
-    x: xValues(it.series.t_ms, it.t0, xaxis, unitMs),
+    x: xSeries(it),
     y,
     name: it.label,
     legendgroup: it.s.id,
@@ -363,12 +376,20 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
     hovertemplate: `${esc(it.label)}: ${fmt}<extra></extra>`,
   });
 
-  const missions = items.filter((it) => it.series);
-  const instants = items.filter((it) => !it.series);
+  // On the distance axis only rover traverses are drawn (a static site has no distance).
+  const missions = items.filter((it) => it.series && (xaxis !== "dist" || it.series.distance_km));
+  const instants = xaxis === "dist" ? [] : items.filter((it) => !it.series);
 
   // Eclipses of the Sun by the Earth (C6 series().eclipses): a light band for the partial phases, a darker one for
   // totality, labelled once per event.
-  const xOf = (it, ms) => xValues([ms], it.t0, xaxis, unitMs)[0];
+  const xOf = (it, ms) => {
+    if (xaxis !== "dist") return xValues([ms], it.t0, xaxis, unitMs)[0];
+    const t = it.series.t_ms;
+    const i = Math.max(0, Math.min(t.length - 1, Math.round((ms - t[0]) / ((t[1] - t[0]) || 1))));
+    return it.series.distance_km[i];
+  };
+  // Terrain horizon in the body's direction: per sample at the rover's position for traverses, else the site profile.
+  const hzLine = (it, body) => it.series[`${body}_hz_el`] ?? it.series[`${body}_az`].map((az) => horizonElAt(it.horizon, az));
   const eclipseMarks = () => {
     const shapes = [], annotations = [];
     for (const it of missions) {
@@ -395,7 +416,7 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
     (it) => {
       const tr = [line(it, it.series.sun_el, { hovertemplate: "%{y:.1f}°" })];
       if (it.horizon) {
-        tr.push(line(it, it.series.sun_az.map((az) => horizonElAt(it.horizon, az)), {
+        tr.push(line(it, hzLine(it, "sun"), {
           name: `${it.label}: ${it.horizon.approximate ? "approximate terrain (coarse)" : "terrain horizon"}`, showlegend: false, opacity: 0.85,
           line: { color: it.color, width: 1.5, dash: "dot" }, hovertemplate: "terrain %{y:.1f}°",
         }));
@@ -444,7 +465,7 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
     (it) => {
       const tr = [line(it, it.series.earth_el, { hovertemplate: "%{y:.1f}°" })];
       if (it.horizon) {
-        tr.push(line(it, it.series.earth_az.map((az) => horizonElAt(it.horizon, az)), {
+        tr.push(line(it, hzLine(it, "earth"), {
           name: `${it.label}: ${it.horizon.approximate ? "approximate terrain (coarse)" : "terrain horizon"}`, showlegend: false, opacity: 0.85,
           line: { color: it.color, width: 1.5, dash: "dot" }, hovertemplate: "terrain %{y:.1f}°",
         }));

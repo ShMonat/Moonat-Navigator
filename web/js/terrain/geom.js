@@ -68,8 +68,11 @@ export function stereoWkt(lat_deg, lon_deg) {
  * no data), row 0 = north edge, col 0 = west edge, pixel centres at x = −half + (c + 0.5)·cell,
  * y = half − (r + 0.5)·cell (Esri exportImage bbox = outer pixel edges). With n odd the centre
  * pixel sits exactly on the site.
+ * A grid that is not centred on the site (a rover route grid, web/js/rover/terrain.js gridView)
+ * supplies its own sampler `g.at(x, y)` in the same site-plane coordinates; it is used instead.
  */
 export function gridBilinear(g, x, y) {
+  if (g.at) return g.at(x, y);
   const c = (x + g.half_m) / g.cell_m - 0.5;
   const r = (g.half_m - y) / g.cell_m - 0.5;
   const n = g.n;

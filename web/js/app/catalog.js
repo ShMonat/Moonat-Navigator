@@ -170,7 +170,30 @@ export const QUICK_STARTS = [
       return [{ ...scenarioFieldsFromSite(s, { start: ECLIPSE_START, end: ECLIPSE_END }), label: "Blue Ghost eclipse" }];
     },
   },
+  {
+    // Rover traverse (advanced mode, web/js/rover): planned live from NASA Moon Trek terrain when chosen.
+    key: "rover",
+    label: "Rover: Shackleton rim to the ridge",
+    title: "A VIPER-class rover drives about 19 km from the south pole, on the rim of Shackleton crater, to the sunny connecting ridge (October 2027): Earth stays in view, while hills shadow the low Sun a few times",
+    resolve: () => [{
+      label: "VIPER-class: pole to ridge",
+      lat_deg: -90,
+      lon_deg: 0,
+      t_start_utc: ROVER_START,
+      t_end_utc: null,
+      route: {
+        end_lat_deg: -89.4395, end_lon_deg: -137.1934, preset: "viper", speed_mps: 0.2, max_slope_deg: 15, max_cross_deg: 15,
+        stop_every_km: 0, stop_h: 0,
+      },
+    }],
+  },
 ];
+
+// Rover quick start: from the exact south pole (on the Shackleton rim) to the Shackleton rim / connecting-ridge point of
+// the catalog (Gläser et al. 2014). Start time from a scan of Dec 2026 to Nov 2027 every 6 h (the planned 19.3 km path,
+// VIPER-class, 40 h of driving): this window has the most sunlight along the drive (86 %) with Earth in view all the
+// way; the rover starts in the pole's shadow and drives into the Sun within the first 300 m.
+const ROVER_START = "2027-10-15T00:00:00Z";
 
 // The total lunar eclipse of 14 March 2025 seen from Blue Ghost (Mare Crisium): the Earth starts to cover the Sun at
 // 05:00:42 UTC (the site enters the Earth's penumbra), hides it completely 06:17:25-08:34:23 (the site in the umbra;

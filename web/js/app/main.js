@@ -11,6 +11,7 @@ import { readyTerrain, ensureTerrain, keepOnly, onTerrainChange } from "./terrai
 import { initScenarioUI } from "./scenarios_ui.js";
 import { renderCompare, rerenderCompare, initBodySwitch, syncBody } from "./compare.js";
 import { initSkyTab, setSkyItems, setSkyVisible } from "./sky_tab.js";
+import { routeCore } from "../rover/app.js";
 
 const $ = (id) => document.getElementById(id);
 const LOOKAHEAD_MS = 30 * DAY_MS;
@@ -81,7 +82,7 @@ function scrollToOutputTop() {
 const cache = new Map();
 
 /** Custom points are computed again once their real (Moon Trek) terrain arrives. */
-const terrainTag = (s) => (!s.site_id && readyTerrain(s.lat_deg, s.lon_deg) ? "|trek" : "");
+const terrainTag = (s) => (!s.site_id && !s.route && readyTerrain(s.lat_deg, s.lon_deg) ? "|trek" : "");
 
 function computeCore(s) {
   const key = physicsKey(s);
@@ -89,6 +90,8 @@ function computeCore(s) {
   if (!cache.has(ckey)) {
     if (cache.size > 80) cache.delete(cache.keys().next().value);
     const p = (async () => {
+      // Rover traverse (advanced mode): planned route, the sky along it (web/js/rover/app.js).
+      if (s.route) return routeCore(s);
       const { site, horizon, patch } = await siteFor(s);
       const { t0, t1, span } = scenarioTimes(s);
       const state0 = await stateAt(site, t0);
@@ -103,7 +106,7 @@ function computeCore(s) {
       }
       return { key, site, horizon, patch, t0, t1, span, state0, series, look, error: null };
     })().catch((error) => {
-      console.error("[moonat] compute failed", error);
+      if (!error?.code) console.error("[moonat] compute failed", error); // route problems (code) show on the route card
       cache.delete(ckey);
       return { key, error };
     });

@@ -1,0 +1,237 @@
+{
+ "_generated_by": "AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.",
+ "date": "2026-11-14T15:04:01.715Z",
+ "az_step_deg": 0.5,
+ "routes": [
+  {
+   "id": "ridge",
+   "label": "Shackleton rim -> de Gerlache rim (connecting ridge)",
+   "start": {
+    "lat_deg": -89.4395,
+    "lon_deg": -137.1934
+   },
+   "end": {
+    "lat_deg": -89.0056,
+    "lon_deg": -96.6455
+   },
+   "rover": {
+    "preset": "viper",
+    "speed_mps": 0.2,
+    "max_slope_deg": 15,
+    "max_cross_deg": 15,
+    "mu": 0.1,
+    "power_margin": 1
+   },
+   "straight_km": 20.48,
+   "length_km": 22.25,
+   "drive_h": 43.26,
+   "mean_speed_mps": 0.143,
+   "max_along_deg": 14.4,
+   "max_cross_deg": 12.8,
+   "max_terrain_slope_deg": 14.9,
+   "climb_m": 896,
+   "descent_m": 1302,
+   "grid_n": 1001,
+   "fine_cell_m": 27.24,
+   "coarse_cell_m": 319.2,
+   "fine_layer": "south20",
+   "n_samples": 201,
+   "expanded_cells": 205571,
+   "bytes": 6315583,
+   "ms": {
+    "terrain": 2709,
+    "plan": 191,
+    "horizons": 8893,
+    "total": 11796
+   },
+   "wall_ms": 11797,
+   "horizon_check": [
+    {
+     "k": 0,
+     "dist_km": 0,
+     "lat_deg": -89.43946,
+     "lon_deg": -137.18819,
+     "rms_deg": 0.049,
+     "bias_deg": -0.026,
+     "max_deg": 0.163,
+     "ground_route_m": 1958.54,
+     "ground_terrainAt_m": 1958.53,
+     "mean_el_route_deg": -1.697,
+     "mean_el_terrainAt_deg": -1.671,
+     "terrainAt_cell_m": 20
+    },
+    {
+     "k": 50,
+     "dist_km": 5.563,
+     "lat_deg": -89.35219,
+     "lon_deg": -126.17121,
+     "rms_deg": 0.081,
+     "bias_deg": -0.036,
+     "max_deg": 0.453,
+     "ground_route_m": 1317.6,
+     "ground_terrainAt_m": 1317.55,
+     "mean_el_route_deg": 3.685,
+     "mean_el_terrainAt_deg": 3.721,
+     "terrainAt_cell_m": 20
+    },
+    {
+     "k": 101,
+     "dist_km": 11.237,
+     "lat_deg": -89.27013,
+     "lon_deg": -112.65612,
+     "rms_deg": 0.145,
+     "bias_deg": -0.073,
+     "max_deg": 0.598,
+     "ground_route_m": 1626.18,
+     "ground_terrainAt_m": 1626.15,
+     "mean_el_route_deg": 1.092,
+     "mean_el_terrainAt_deg": 1.166,
+     "terrainAt_cell_m": 20
+    },
+    {
+     "k": 151,
+     "dist_km": 16.8,
+     "lat_deg": -89.13378,
+     "lon_deg": -104.06525,
+     "rms_deg": 0.028,
+     "bias_deg": -0.008,
+     "max_deg": 0.156,
+     "ground_route_m": 1076.81,
+     "ground_terrainAt_m": 1076.79,
+     "mean_el_route_deg": 1.888,
+     "mean_el_terrainAt_deg": 1.896,
+     "terrainAt_cell_m": 20
+    },
+    {
+     "k": 200,
+     "dist_km": 22.252,
+     "lat_deg": -89.00566,
+     "lon_deg": -96.64631,
+     "rms_deg": 0.044,
+     "bias_deg": -0.014,
+     "max_deg": 0.16,
+     "ground_route_m": 1551.95,
+     "ground_terrainAt_m": 1551.99,
+     "mean_el_route_deg": -1.179,
+     "mean_el_terrainAt_deg": -1.165,
+     "terrainAt_cell_m": 20
+    }
+   ]
+  },
+  {
+   "id": "apollo15",
+   "label": "Apollo 15 landing site -> 9 km south-east (Hadley plain)",
+   "start": {
+    "lat_deg": 26.13222,
+    "lon_deg": 3.63386
+   },
+   "end": {
+    "lat_deg": 26.06,
+    "lon_deg": 3.85
+   },
+   "rover": {
+    "preset": "lrv",
+    "speed_mps": 2.5,
+    "max_slope_deg": 20,
+    "max_cross_deg": 20,
+    "mu": 0.1,
+    "power_margin": 1
+   },
+   "straight_km": 6.28,
+   "length_km": 6.43,
+   "drive_h": 0.71,
+   "mean_speed_mps": 2.499,
+   "max_along_deg": 1.3,
+   "max_cross_deg": 1.3,
+   "max_terrain_slope_deg": 2.2,
+   "climb_m": 0,
+   "descent_m": 65,
+   "grid_n": 401,
+   "fine_cell_m": 118.45,
+   "coarse_cell_m": 473.8,
+   "fine_layer": "global118",
+   "n_samples": 65,
+   "expanded_cells": 353,
+   "bytes": 930187,
+   "ms": {
+    "terrain": 992,
+    "plan": 10,
+    "horizons": 811,
+    "total": 1816
+   },
+   "wall_ms": 1816,
+   "horizon_check": [
+    {
+     "k": 0,
+     "dist_km": 0,
+     "lat_deg": 26.13127,
+     "lon_deg": 3.63319,
+     "rms_deg": 0.039,
+     "bias_deg": 0.009,
+     "max_deg": 0.231,
+     "ground_route_m": -1925.36,
+     "ground_terrainAt_m": -1925.41,
+     "mean_el_route_deg": 4.914,
+     "mean_el_terrainAt_deg": 4.906,
+     "terrainAt_cell_m": 118.45
+    },
+    {
+     "k": 16,
+     "dist_km": 1.607,
+     "lat_deg": 26.10935,
+     "lon_deg": 3.68644,
+     "rms_deg": 0.029,
+     "bias_deg": 0.007,
+     "max_deg": 0.209,
+     "ground_route_m": -1948.45,
+     "ground_terrainAt_m": -1948.49,
+     "mean_el_route_deg": 5.49,
+     "mean_el_terrainAt_deg": 5.483,
+     "terrainAt_cell_m": 118.45
+    },
+    {
+     "k": 33,
+     "dist_km": 3.314,
+     "lat_deg": 26.09816,
+     "lon_deg": 3.74618,
+     "rms_deg": 0.008,
+     "bias_deg": 0.001,
+     "max_deg": 0.049,
+     "ground_route_m": -1964.22,
+     "ground_terrainAt_m": -1964.2,
+     "mean_el_route_deg": 6.032,
+     "mean_el_terrainAt_deg": 6.031,
+     "terrainAt_cell_m": 118.45
+    },
+    {
+     "k": 49,
+     "dist_km": 4.92,
+     "lat_deg": 26.07661,
+     "lon_deg": 3.7995,
+     "rms_deg": 0.039,
+     "bias_deg": -0.009,
+     "max_deg": 0.192,
+     "ground_route_m": -1982.41,
+     "ground_terrainAt_m": -1982.51,
+     "mean_el_route_deg": 6.666,
+     "mean_el_terrainAt_deg": 6.675,
+     "terrainAt_cell_m": 118.45
+    },
+    {
+     "k": 64,
+     "dist_km": 6.426,
+     "lat_deg": 26.06095,
+     "lon_deg": 3.85067,
+     "rms_deg": 0.01,
+     "bias_deg": 0,
+     "max_deg": 0.095,
+     "ground_route_m": -1990.62,
+     "ground_terrainAt_m": -1990.6,
+     "mean_el_route_deg": 7.145,
+     "mean_el_terrainAt_deg": 7.145,
+     "terrainAt_cell_m": 118.45
+    }
+   ]
+  }
+ ]
+}

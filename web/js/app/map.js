@@ -7,6 +7,7 @@ import { store, subscribe, activeScenario, updateScenario, addScenario } from ".
 import { colorHex, pointLabel, isPointLabel } from "./state.js";
 import { catalogSites } from "./catalog.js";
 import { applySite } from "./scenarios_ui.js";
+import { consumeMapClick } from "../rover/pick.js";
 
 let globe;
 let lastFitKey = "";
@@ -14,8 +15,10 @@ let lastFitKey = "";
 export async function initMap() {
   globe = await createGlobe(document.getElementById("map"), {
     dataUrl: "data/moonmap/",
-    onPick: (lat, lon) => placeActive(round(lat, 4), round(lon, 4)),
+    // A rover traverse being picked (or selected) takes the click first (web/js/rover/pick.js).
+    onPick: (lat, lon) => consumeMapClick(lat, lon) || placeActive(round(lat, 4), round(lon, 4)),
     onSite: (site) => {
+      if (consumeMapClick(site.lat_deg, site.lon_deg)) return;
       let s = activeScenario();
       if (!s) s = addScenario({});
       applySite(s.id, site);
@@ -73,6 +76,10 @@ function drawScenarios(fit) {
       label: s.label || `Scenario ${i + 1}`,
       active: multi && s.id === store.activeId,
     });
+    // Rover traverse: a second pin at the end point.
+    if (s.route && Number.isFinite(s.route.end_lat_deg) && Number.isFinite(s.route.end_lon_deg)) {
+      pins.push({ lat: s.route.end_lat_deg, lon: s.route.end_lon_deg, color: colorHex(s.color, store.theme), label: `${s.label || `Scenario ${i + 1}`} (end)`, active: false });
+    }
   });
   globe.setPins(pins);
   const key = pins.map((p) => `${p.lat},${p.lon}`).join(";");

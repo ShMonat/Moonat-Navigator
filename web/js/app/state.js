@@ -59,6 +59,8 @@ export function makeScenario(partial = {}, existing = []) {
     lon_deg: numOrNull(partial.lon_deg),
     t_start_utc: partial.t_start_utc || null,
     t_end_utc: partial.t_end_utc || null,
+    // Rover traverse (contract C10, web/js/rover/): lat/lon is the start; the field exists only for traverses.
+    ...(partial.route ? { route: { ...partial.route } } : {}),
   };
 }
 
@@ -237,11 +239,14 @@ export function chooseStep(spanMs) {
 
 /** Signature of everything that changes the physics result of a scenario (not label or colour). */
 export function physicsKey(s) {
-  return [s.site_id || "", s.lat_deg, s.lon_deg, s.t_start_utc, s.t_end_utc || ""].join("|");
+  return [s.site_id || "", s.lat_deg, s.lon_deg, s.t_start_utc, s.t_end_utc || ""].join("|") + (s.route ? `|${JSON.stringify(s.route)}` : "");
 }
 
 // ---------------------------------------------------------------------------------------------
-// URL hash: "#tab=sky&s=<base64url(JSON)>". JSON = [[label, lat, lon, start, end|0, site_id|0, color], ...]
+// URL hash: "#tab=sky&s=<base64url(JSON)>". JSON = [[label, lat, lon, start, end|0, site_id|0, color(, route)], ...]
+// route (rover traverses only): [end_lat, end_lon, preset, speed_mps, max_slope_deg, max_cross_deg, stop_every_km, stop_h]
+
+const ROUTE_FIELDS = ["end_lat_deg", "end_lon_deg", "preset", "speed_mps", "max_slope_deg", "max_cross_deg", "stop_every_km", "stop_h"];
 
 function b64urlEncode(str) {
   const bytes = new TextEncoder().encode(str);
@@ -265,6 +270,7 @@ export function encodeHash({ scenarios, tab = "compare", xaxis = "met", body = "
     s.t_end_utc || 0,
     s.site_id || 0,
     s.color,
+    ...(s.route ? [ROUTE_FIELDS.map((k) => s.route[k] ?? 0)] : []),
   ]);
   const p = new URLSearchParams();
   if (tab !== "compare") p.set("tab", tab);
@@ -286,7 +292,10 @@ export function decodeHash(hash) {
     const scenarios = [];
     for (const r of rows.slice(0, 64)) {
       if (!Array.isArray(r)) continue;
-      const [label, lat, lon, start, end, site, color] = r;
+      const [label, lat, lon, start, end, site, color, rt] = r;
+      const route = Array.isArray(rt)
+        ? Object.fromEntries(ROUTE_FIELDS.map((k, i) => [k, k === "preset" ? String(rt[i] || "viper").slice(0, 16) : Number(rt[i]) || 0]))
+        : null;
       scenarios.push(
         makeScenario(
           {
@@ -297,13 +306,14 @@ export function decodeHash(hash) {
             t_end_utc: typeof end === "string" ? end : null,
             site_id: typeof site === "string" ? site : null,
             color: Number.isInteger(color) && color >= 0 && color < 256 ? color : undefined,
+            route,
           },
           scenarios,
         ),
       );
     }
     const tab = p.get("tab") === "sky" ? "sky" : "compare";
-    const xaxis = p.get("x") === "utc" ? "utc" : "met";
+    const xaxis = ["utc", "dist"].includes(p.get("x")) ? p.get("x") : "met";
     const body = p.get("b") === "earth" ? "earth" : "sun";
     return { scenarios, tab, xaxis, body };
   } catch {
