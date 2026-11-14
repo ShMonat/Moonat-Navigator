@@ -36,6 +36,7 @@ Every claim below is backed by a validation report you can rerun.
 | Sun and Earth direction vs **JPL Horizons** (3 sites, 3 epochs, 399 rows) | max 0.055″ (target was 36″) | [ephem.md](docs/validation/ephem.md) |
 | Browser tables vs Horizons (the exact code path the app uses) | Sun 0.049″, Earth 0.13″ at worst | [ephem.md](docs/validation/ephem.md) |
 | Browser JavaScript vs Python reference | 3e-11° (ephemeris, 288 cases); visible fraction within 5e-14 (87 cases) | [physics.md](docs/validation/physics.md) |
+| **Independent:** browser JavaScript directly vs **JPL Horizons**, no Python in between (20 random sites incl. both poles and the far side, 1966–2040; two eclipses; light time and aberration) | Sun 0.086″, Earth 0.124″ at worst (0.49″ inside the 2016 leap-second interval); all above 0.05″ explained | [independent_check.md](docs/validation/independent_check.md) |
 | Disk-vs-horizon visibility vs analytic circular segment | max error 0.0025 | [physics.md](docs/validation/physics.md) |
 | LOLA georeferencing: Shackleton floor, Apollo 11 ground | −2769 m (published −2.77 km); −1929.5 m (published −1926 m) | [terrain.md](docs/validation/terrain.md) |
 | South-pole illumination vs **Gläser et al. 2014** (18.5 yr) | 92.7 % / 95.8 % lit at the 10 m point (published 92.5 % / 95.6 %); 86.0 % / 90.6 % at the 2 m point (published 88.1 % / 92 %) | [terrain.md](docs/validation/terrain.md) §5 |

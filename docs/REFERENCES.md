@@ -10,6 +10,7 @@ Challenge Resources tab (published 2026-11-13): Quickmap, Moon Trek, JPL Horizon
 - ★ Moon Trek (NASA) — LRO WAC map tiles stitched into the base texture of the Moon globe site picker — https://trek.nasa.gov/moon/ — public
 - LROC Quickmap (ASU / NASA LRO) — cross-checking landing-site coordinates and terrain — https://quickmap.lroc.asu.edu/ — public
 - JPL Horizons API (NASA/JPL) — cached topocentric lunar-site tables used as test fixtures (tests/fixtures/horizons/) — https://ssd-api.jpl.nasa.gov/doc/horizons.html — public
+- JPL Horizons API (NASA/JPL), observer and vector tables (geometric, LT, LT+S) — independent cross-check of the browser physics, cached in tests/fixtures/horizons_cache/ (docs/validation/independent_check.md) — https://ssd-api.jpl.nasa.gov/doc/horizons.html — public
 - JPL DE421 planetary ephemeris `de421.bsp` (NASA/JPL, via NAIF) — positions of the Sun, Earth, Moon and planets — https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/a_old_versions/de421.bsp — public
 - Lunar orientation kernel `moon_pa_de421_1900-2050.bpc` (NASA/JPL NAIF) — lunar principal-axes orientation (physical libration) — https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/moon_pa_de421_1900-2050.bpc — public
 - Lunar frame kernel `moon_080317.tf` (NASA/JPL NAIF) — MOON_ME_DE421 = PA + fixed rotation — https://naif.jpl.nasa.gov/pub/naif/generic_kernels/fk/satellites/moon_080317.tf — public
