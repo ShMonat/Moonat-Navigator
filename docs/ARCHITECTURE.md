@@ -21,7 +21,10 @@ Decisions in Shahar's domain are marked *(pending Shahar's review)*.
    stitched from **Moon Trek** WMTS tiles (a challenge resource), with LOLA hillshade polar caps (to 68° from LDEM_16 and
    LDEM_75S_240M, plus a 193 m/px south cap poleward of 83.5° S) so the poles look right top-down. Replaces the earlier
    Leaflet map with live Moon Trek tiles, which was too small and could not show the poles *(UI change by Shay's agent,
-   pending Shahar's review)*.
+   pending Shahar's review)*. It works like a web map (2026-11-14, Shay's request): click markers to select several
+   places (click a selected pin to remove it, click the ground to drop a pin, drag a dropped pin), a "Search the Moon"
+   box with Home (StarHab), missions, Artemis III regions, places and typed coordinates, a place card, and a globe API
+   for routes, fly-to and fit-to-points (contract C8b, `web/js/app/globe_api.js`).
 5. **Observer eye height:** 2 m. **Azimuth:** true azimuth everywhere (see docs/CONTRACTS.md §0).
    **Rover traverses (advanced mode):** `web/js/rover/` plans a drive between two points (≤ 60 km) on one live Moon Trek
    LOLA grid (A* on travel time with slope limits, VIPER-class / Apollo LRV presets) and runs the C6 physics along it,

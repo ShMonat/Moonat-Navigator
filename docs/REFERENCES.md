@@ -71,6 +71,7 @@ Challenge Resources tab (published 2026-11-13): Quickmap, Moon Trek, JPL Horizon
 - Wikipedia mission and crater articles — coordinates, dates — https://en.wikipedia.org/ — CC BY-SA 4.0
 - NASA, Artemis III candidate landing regions (Oct 2024) — candidate names — https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/ — public
 - Mazarico et al. 2011, Icarus 211, "Illumination conditions of the lunar polar regions using LOLA topography" — Shackleton connecting-ridge POI — https://doi.org/10.1016/j.icarus.2011.03.025 — paper (cited only)
+- Monat, S. (2021), StarHab lunar base concept, 72nd International Astronautical Congress (IAC 2021, Dubai) — the app's home base (catalog site `starhab`, the globe's Home entry and button; its site is a placeholder until set) — IAC 2021 proceedings (no link here) — paper by a team member (cited only)
 - Yale Bright Star Catalogue, 5th rev. ed. (Hoffleit & Warren 1991; CDS V/50, copy at Harvard TDC) — stars.json (vmag <= 6) — http://tdc-www.harvard.edu/catalogs/bsc5.html — public data
 - d3-celestial (Olaf Frohn) — constellation lines and names — https://github.com/ofrohn/d3-celestial — BSD-3-Clause
 - NASA Visible Earth, Blue Marble: Land Surface, Shallow Water, and Shaded Topography (id 57752, NASA Earth Observatory / R. Stockli) — earth_daymap.jpg, downsampled to 2048x1024 — https://visibleearth.nasa.gov/images/57752/ — public domain (NASA)

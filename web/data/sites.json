@@ -754,6 +754,26 @@
     "https://en.wikipedia.org/wiki/Lunar_south_pole"
    ],
    "notes": "Longitude arbitrary at the pole."
+  },
+  {
+   "id": "starhab",
+   "name": "StarHab (home base)",
+   "kind": "home",
+   "agency": null,
+   "lander": null,
+   "crew": null,
+   "lat_deg": -89.4395,
+   "lon_deg": -137.1934,
+   "t_start_utc": null,
+   "t_end_utc": null,
+   "blurb": "Our home base: StarHab, a lunar base concept by Shay Monat (IAC 2021), on the sunlit rim of Shackleton crater near the south pole.",
+   "sources": [
+    "https://doi.org/10.1016/j.icarus.2014.08.013",
+    "https://elib.dlr.de/94242/1/EPSC2014-136-1.pdf",
+    "https://doi.org/10.1016/j.icarus.2011.03.025",
+    "https://en.wikipedia.org/wiki/Shackleton_(lunar_crater)"
+   ],
+   "notes": "StarHab lunar base concept (S. Monat, 72nd International Astronautical Congress, 2021). PLACEHOLDER[starhab-coords]: the exact site is not set yet; these are the coordinates of the Shackleton rim reference point (shackleton_rim)."
   }
  ]
 }

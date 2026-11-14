@@ -38,13 +38,18 @@ Precomputed solar-system state for the browser, one binary file per year.
 
 ## C2 `site-catalog` (producer: `catalog`; consumers: `web-app`, `terrain`)
 - `web/data/sites.json`: `{ "_generated_by": "...", "sites": [ {
-    "id": "apollo11", "name": "Apollo 11 (Tranquility Base)", "kind": "mission" | "candidate" | "poi",
+    "id": "apollo11", "name": "Apollo 11 (Tranquility Base)", "kind": "mission" | "candidate" | "poi" | "home",
     "agency": "NASA", "lander": "Eagle", "crew": ["Neil Armstrong", "Buzz Aldrin"] | null,
     "lat_deg": 0.67416, "lon_deg": 23.47314,
     "t_start_utc": "1969-07-20T20:17:40Z", "t_end_utc": "1969-07-21T17:54:00Z" | null,
     "blurb": "one or two plain sentences for the public",
     "sources": ["https://..."] } ] }`
 - `t_start_utc`/`t_end_utc` for missions = landing → liftoff (or end of surface operations). Candidates and POIs have none.
+- **Added 2026-11-14:** kind `"home"`: one site, the home base `starhab` (StarHab, Shay's lunar base concept, IAC 2021),
+  shown as the "Home" entry of the globe search and the globe's Home button (`HOME_SITE_ID` in web/js/app/catalog.js). No
+  times. Its coordinates are a placeholder until Shay sets them: the Shackleton rim reference point (`shackleton_rim`),
+  set by the one constant `STARHAB_LAT_LON` in scripts/catalog/build_sites.py (`PLACEHOLDER[starhab-coords]`); after a
+  change, run that script and `scripts/data/build_terrain.py starhab`.
 - Every coordinate and time is sourced (NSSDCA, LROC, mission pages). Coordinates in MOON_ME (LROC-measured where available).
 
 ## C3 `horizon-profile` (producer: `terrain`; consumers: `physics-js`, `sky-viewer`)
@@ -233,6 +238,43 @@ await createSkyView(container /* HTMLElement */, {
   `"three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"`; Plotly `plotly.js-dist-min@2.35.2`.
 - ENU → three.js mapping: three.x = east, three.y = up, three.z = −north (right-handed). Units: metres near the site.
 
+## C8b `globe-view` (producer: `web-app` globe; consumers: `rover`, trip planner) — JS ES module API — **implemented**
+Route lines, fly-to and fit-to-points on the Moon globe (web/js/globe/). Import from `web/js/app/globe_api.js` (no
+imports of its own; calls made before the globe has loaded are kept and applied when it arrives: every route is drawn
+and the last move is played). Points are `{ lat_deg, lon_deg }` (MOON_ME, east-positive, §0).
+```js
+import { showRoute, clearRoute, fitTo, flyTo, setMarker, clearMarker, globeReady } from "../app/globe_api.js";
+showRoute(id, [{ lat_deg, lon_deg }, ...], { color, width })  // draw or replace route `id`
+clearRoute(id)
+fitTo([{ lat_deg, lon_deg }, ...], { padding, maxZoom })      // turn and zoom so all points are in view
+flyTo(lat_deg, lon_deg, zoom)                                 // zoom 1 = the whole disc; omitted = keep the zoom
+setMarker(id, { lat, lon, color, label, ahead: { lat, lon } | null })  // a moving dot, e.g. the rover
+clearMarker(id)
+await globeReady()                                            // the globe object below, once it exists
+```
+- `showRoute`: a polyline along the great circles between consecutive points (densified to ≤ 0.5° steps), drawn
+  0.001 Moon radii (1.7 km) above the reference sphere, hidden where it passes behind the Moon (`greatCirclePath`,
+  `visibleRuns` in web/js/globe/geo.js). `color`: any CSS colour (default the theme accent); `width`: CSS px (default 4).
+  It is drawn on a dark casing, under the markers and pins. A route stays until `clearRoute` (or `showRoute` again with
+  the same id); routes do not follow the scenarios by themselves.
+- `fitTo`: like a web map's "fit bounds": the centre and zoom that put every point inside `padding` (CSS px, a number
+  or `{ top, right, bottom, left }`; default: clear of the search box, the tools and an open place card), north up
+  (top-down poleward of 75°), animated. One point: a fly-to at max(current zoom, 4). `maxZoom` default 60, the
+  globe's limit (about 60 km across). Points that cannot all face the camera give the whole disc (`fitView` in geo.js;
+  tested near the poles, across 180° and with asymmetric padding in web/tests/globe_routes.test.mjs).
+- `setMarker`: a dot in `color` with a white ring, above the pins, not clickable; with `ahead` (a point further on) a
+  small arrow on it points that way on screen. Call it again to move it. `lat_deg`/`lon_deg` work too.
+- `flyTo`: a smooth turn and zoom (0.45–1.6 s, zooming out half-way on a long hop, `flightZoom`/`flightMs` in geo.js).
+  `prefers-reduced-motion` jumps instead.
+- The globe object (`createGlobe` in web/js/globe/globe.js, also returned by `globeReady`) has the same six functions
+  plus `setSites`, `setPins`, `showPoints`, `goTo`, `setPreset`, `addTool`, `slots` (top and bottom elements for the
+  page's own controls), `getView`, `setView`. Its view is centred in the map frame below the top bar, so an overlay
+  that projects points itself with geo.js `projectPx(view, v, width, height)` on the whole canvas is off by that inset:
+  use `setMarker` and `showRoute` instead. The app wires it in web/js/app/map.js (pins = scenarios) and
+  web/js/app/places.js (search box, place card, Home).
+- The view is centred in the **map frame**: the canvas minus the top bar (search box, preset chips) and the credit line;
+  zoom 1 fits the whole disc in it.
+
 ## C9 `terrain-at` (producer: `terrain-everywhere`; consumers: `web-app`, `sky-viewer`, `rover`) — **implemented**
 Real LOLA terrain for any point, computed in the browser. Research and validation: docs/research/terrain-everywhere.md,
 docs/validation/terrain-everywhere.md. `web/js/terrain/index.js` exports (stable API; add options, never change these):
@@ -266,6 +308,11 @@ await terrainAt(lat_deg, lon_deg, {
 ## C7 `scenario` (producer: `web-app`; internal to the UI)
 `{ id, label, color, site_id | null, lat_deg, lon_deg, t_start_utc, t_end_utc | null }`. No limit on the number of scenarios.
 No end time = a single instant. Scenarios may share or differ in times.
+- **Places on the globe (2026-11-14, web/js/app/places.js):** each selected place is one scenario. A catalog marker or a
+  search result adds its site (missions bring their times, other places take the selected scenario's times; an empty
+  card is filled first); a click on a selected pin removes its scenario (the last one leaves an empty card, as "Clear
+  all"; the toast offers Undo); a click on the ground adds a custom point; a dragged custom pin moves it. The map adds
+  at most 6 places (one per palette colour); "+ Add location" in the cards keeps no limit.
 - **Rover traverses** (C10) add `route: { end_lat_deg, end_lon_deg, preset: "viper" | "lrv" | "custom", speed_mps,
   max_slope_deg, max_cross_deg, stop_every_km, stop_h }`; `lat_deg`/`lon_deg` is the start, and no end time = end on
   arrival. URL hash rows get an 8th element `[end_lat, end_lon, preset, speed, max_slope, max_cross, stop_km, stop_h]`

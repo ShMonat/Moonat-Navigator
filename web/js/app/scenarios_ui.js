@@ -1,7 +1,8 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
-// Scenario cards: progressive builder (location three ways, start and optional end time in UTC), validation,
-// the "+ Add location" / "+ Add time" buttons, the searchable missions-and-sites picker, and "✨ Suggest dates" next to
-// the start time (dates with the most sunlight, the best Earth contact or an eclipse, from web/js/suggest/).
+// Scenario cards: progressive builder (the place from the globe or typed coordinates, start and optional end time in
+// UTC), validation, the "+ Add location" / "+ Add time" buttons, and "✨ Suggest dates" next to the start time (dates
+// with the most sunlight, the best Earth contact or an eclipse, from web/js/suggest/). Missions and sites are chosen on
+// the globe (its "Search the Moon" box and pins, web/js/app/places.js).
 
 import {
   store, subscribe, addScenario, duplicateScenario, removeScenario, updateScenario, setActive, setScenarios, activeScenario,
@@ -10,7 +11,7 @@ import {
   colorHex, validateScenario, parseUtc, toUtcText, isoUtc, normalizeLon, formatDuration, formatUtc, scenarioTimes, pointLabel,
   isPointLabel, parseDuration, durationUnit, durationValueText, endFromDuration, coverageEnd, DAY_MS,
 } from "./state.js";
-import { searchSites, scenarioFieldsFromSite, siteById, KIND_LABEL, catalogSites, isTrimmedMission, shortName } from "./catalog.js";
+import { scenarioFieldsFromSite, siteById, catalogSites, isTrimmedMission, shortName } from "./catalog.js";
 import { physicsCoverage, siteFor } from "./physics_adapter.js";
 import { suggestDates, suggestIcon, SUGGEST_KINDS } from "./suggest_adapter.js";
 import { terrainStatusText, onTerrainChange } from "./terrain_live.js";
@@ -76,7 +77,7 @@ export function initScenarioUI({ onSuggest } = {}) {
  * Start again with one empty scenario that keeps the selected scenario's times, so a click on the map (or typed
  * coordinates) gives results at once.
  */
-function clearAll() {
+export function clearAll() {
   const src = activeScenario();
   const ok = src && validateScenario({ ...src, lat_deg: null, lon_deg: null }, physicsCoverage());
   const keep = ok && !ok.errors.t_start_utc && !ok.errors.t_end_utc;
@@ -100,9 +101,9 @@ function renderCards(focusId) {
   if (focusId) {
     const card = cardsEl.querySelector(`[data-id="${focusId}"]`);
     if (card) {
-      card.scrollIntoView({ block: "nearest", behavior: "smooth" });
       const s = store.scenarios.find((x) => x.id === focusId);
-      const target = s && s.lat_deg === null ? card.querySelector(".picker input") : card.querySelector('[name="t_start_utc"]');
+      const target = s && s.lat_deg === null ? placeFocusTarget(card) : card.querySelector('[name="t_start_utc"]');
+      if (target?.id !== "globe-search") card.scrollIntoView({ block: "nearest", behavior: "smooth" });
       if (target && !(s && s.lat_deg !== null && s.t_start_utc)) target.focus({ preventScroll: true });
     }
   }
@@ -161,9 +162,6 @@ function buildCard(s, index) {
   const rm = el("button", { class: "icon-btn", title: "Remove", "aria-label": "Remove scenario", text: "✕" });
   rm.addEventListener("click", () => (store.scenarios.length > 1 ? removeScenario(s.id) : clearAll()));
   card.append(el("div", { class: "scen-head" }, el("span", { class: "swatch", "aria-hidden": "true" }), label, dup, rm));
-
-  // Missions and sites picker.
-  card.append(buildPicker(s));
 
   // Coordinates.
   const lat = numberField("Latitude (° north +)", "lat_deg", s.lat_deg, -90, 90, "e.g. 0.674");
@@ -378,7 +376,7 @@ function refreshCard(card, s) {
 
   const meta = card.querySelector(".scen-meta");
   const parts = [];
-  if (s.lat_deg === null || s.lon_deg === null) parts.push("Pick a mission or site, type coordinates, or click the map.");
+  if (s.lat_deg === null || s.lon_deg === null) parts.push("Search the Moon or click the globe, or type coordinates here.");
   else if (!s.t_start_utc) parts.push("Now pick a start time (UTC).");
   else if (v.ok) {
     const { span } = scenarioTimes(s);
@@ -532,95 +530,25 @@ function syncCard(id) {
   card.querySelector('[name="lat_deg"]').value = s.lat_deg === null ? "" : String(+s.lat_deg.toFixed(5));
   card.querySelector('[name="lon_deg"]').value = s.lon_deg === null ? "" : String(+s.lon_deg.toFixed(5));
   card.querySelector(".scen-label").value = s.label || "";
-  const pick = card.querySelector(".picker input");
-  if (pick) pick.value = "";
   refreshCard(card, s);
 }
 
 // ---------------------------------------------------------------------------------------------
-// Searchable picker ("Historical missions & sites").
+// Places: catalog sites go into a card from the globe's "Search the Moon" box and its pins (web/js/app/places.js).
 
-let pickerSeq = 0;
-/** Short kind names that tell apart two catalog entries with the same name. */
-const KIND_SHORT = { mission: "mission", candidate: "Artemis III region", poi: "place of interest" };
-
-function buildPicker(s) {
-  const id = `pk${++pickerSeq}`;
-  const input = el("input", {
-    type: "search", placeholder: "Historical missions & sites…", "aria-label": "Search historical missions and sites",
-    role: "combobox", "aria-expanded": "false", "aria-controls": id, "aria-autocomplete": "list", autocomplete: "off",
-  });
-  // tabindex -1: the scrolling list is not a Tab stop of its own (the input drives it with the arrow keys).
-  const list = el("ul", { class: "picker-list", id, role: "listbox", hidden: true, tabindex: "-1" });
-  const wrap = el("div", { class: "picker" }, input, list);
-  let items = [];
-  let sel = -1;
-
-  const open = () => {
-    const results = searchSites(input.value, catalogSites());
-    items = results;
-    sel = results.length ? 0 : -1;
-    list.replaceChildren();
-    if (!results.length) {
-      list.append(el("li", { class: "picker-empty", text: "No match. Try “Apollo”, “pole” or a crew name." }));
-    } else {
-      let lastKind = null;
-      results.forEach((site, i) => {
-        if (site.kind !== lastKind) {
-          lastKind = site.kind;
-          list.append(el("li", { class: "picker-group", role: "presentation", text: KIND_LABEL[site.kind] || "Other" }));
-        }
-        const when = site.t_start_utc ? new Date(parseUtc(site.t_start_utc)).getUTCFullYear() : null;
-        const metaBits = [site.agency, site.crew && site.crew.length ? site.crew.join(", ") : site.lander, when,
-          site.kind === "candidate" ? "approximate location" : null].filter(Boolean);
-        // Places of interest have no agency or crew: their one-line description tells them apart (e.g. the Malapert
-        // Massif summit from the Malapert Massif Artemis III region).
-        if (!metaBits.length && site.blurb) metaBits.push(site.blurb);
-        const twin = results.some((x) => x !== site && x.name.toLowerCase() === site.name.toLowerCase());
-        const name = twin ? `${site.name} (${KIND_SHORT[site.kind] || site.kind})` : site.name;
-        const li = el("li", { class: "picker-item", role: "option", id: `${id}-${i}`, "aria-selected": i === sel ? "true" : "false" },
-          el("div", { class: "pi-name", text: name }),
-          el("div", { class: "pi-meta", text: metaBits.join(" · ") }));
-        li.addEventListener("mousedown", (e) => {
-          e.preventDefault();
-          choose(i);
-        });
-        list.append(li);
-      });
-    }
-    list.hidden = false;
-    input.setAttribute("aria-expanded", "true");
-  };
-  const close = () => {
-    list.hidden = true;
-    input.setAttribute("aria-expanded", "false");
-  };
-  const highlight = () => {
-    list.querySelectorAll(".picker-item").forEach((li, i) => li.setAttribute("aria-selected", i === sel ? "true" : "false"));
-    const cur = list.querySelector(`#${id}-${sel}`);
-    if (cur) {
-      cur.scrollIntoView({ block: "nearest" });
-      input.setAttribute("aria-activedescendant", cur.id);
-    }
-  };
-  const choose = (i) => {
-    const site = items[i];
-    if (!site) return;
-    close();
-    input.value = "";
-    applySite(s.id, site);
-  };
-
-  input.addEventListener("focus", open);
-  input.addEventListener("input", open);
-  input.addEventListener("blur", () => setTimeout(close, 120));
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "ArrowDown") { e.preventDefault(); if (list.hidden) open(); sel = Math.min(items.length - 1, sel + 1); highlight(); }
-    else if (e.key === "ArrowUp") { e.preventDefault(); sel = Math.max(0, sel - 1); highlight(); }
-    else if (e.key === "Enter") { e.preventDefault(); if (sel >= 0) choose(sel); }
-    else if (e.key === "Escape") { close(); }
-  });
-  return wrap;
+/**
+ * Where a new card without a place sends the keyboard: the globe's search box, brought into view (its list of places
+ * opens on focus), or the card's latitude field when the globe is not there.
+ */
+function placeFocusTarget(card) {
+  const search = document.getElementById("globe-search");
+  if (!search || !search.getClientRects().length) return card.querySelector('[name="lat_deg"]');
+  const r = search.getBoundingClientRect();
+  if (r.top < 0 || r.bottom > window.innerHeight) {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    (search.closest(".globe") || search).scrollIntoView({ block: "nearest", behavior: reduce ? "auto" : "smooth" });
+  }
+  return search;
 }
 
 /**

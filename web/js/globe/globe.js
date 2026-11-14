@@ -1,14 +1,17 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
 // Moon globe location picker: a three.js sphere with the LRO WAC mosaic (NASA Moon Trek) and LOLA hillshade polar caps,
-// an orthographic camera, preset views, drag / wheel / pinch navigation, a lat/lon graticule, catalog-site markers and
-// scenario pins. Tapping or clicking the surface reports selenographic latitude and east longitude (MOON_ME).
-// Geometry lives in geo.js (tested in web/tests/globe_geo.test.mjs). The scene uses MOON_ME coordinates directly.
+// an orthographic camera, preset views, drag / wheel / pinch navigation, a lat/lon graticule, catalog-site markers,
+// scenario pins (click, and drag for the draggable ones), route lines, fly-to and fit-to-points animations.
+// Tapping or clicking the surface reports selenographic latitude and east longitude (MOON_ME).
+// Geometry lives in geo.js (tested in web/tests/globe_geo.test.mjs and globe_routes.test.mjs). The scene uses MOON_ME
+// coordinates directly.
 
 import * as THREE from "three";
 import { bindAxisLock } from "../app/gestures.js";
 import {
   DEG, PRESETS, latLonToVec, vecToLatLon, pickPx, projectPx, dragView, rotateView, quatAxisAngle, viewRight,
-  radiusPx, frustumHalf, northUp, fitPoints, norm, dot,
+  radiusPx, frustumHalf, northUp, fitPoints, norm, dot, angleDeg, greatCirclePath, visibleRuns, fitView, flightZoom,
+  flightMs, padBox,
 } from "./geo.js";
 
 const MIN_ZOOM = 0.9;
@@ -153,8 +156,20 @@ const smooth = (a, b, x) => {
   return t * t * (3 - 2 * t);
 };
 
-const PIN_SVG =
-  '<svg viewBox="0 0 24 32" aria-hidden="true"><path d="M12 31c-1-4.4-9.5-11-9.5-18.2a9.5 9.5 0 0 1 19 0C21.5 20 13 26.6 12 31z"/><circle cx="12" cy="12.6" r="3.6"/></svg>';
+/** House outline (24 x 24 box), for the home marker, the home pin and the Home button. */
+export const HOUSE_PATH = "M4 11.2 12 4.5l8 6.7M6.5 9.4V19.5h4v-5h3v5h4V9.4";
+
+/** Teardrop pin (tip at the bottom centre) with a white glyph for the kind of place inside the head. */
+function pinSvg(glyph) {
+  const g = {
+    mission: '<circle class="pin-g" cx="12" cy="12.4" r="3.7"/>',
+    candidate: '<rect class="pin-g" x="9.3" y="9.7" width="5.4" height="5.4" rx="0.8" transform="rotate(45 12 12.4)"/>',
+    poi: '<rect class="pin-g" x="8.8" y="9.2" width="6.4" height="6.4" rx="1"/>',
+    home: '<path class="pin-g pin-house" d="M7.2 12.6 12 8.4l4.8 4.2M8.7 11.5v4.6h6.6v-4.6"/>',
+  }[glyph] ?? '<circle class="pin-g" cx="12" cy="12.4" r="3.7"/>';
+  return '<svg viewBox="0 0 24 34" aria-hidden="true"><ellipse class="pin-shadow" cx="12" cy="32.6" rx="4.2" ry="1.4"/>' +
+    '<path class="pin-body" d="M12 32c-1-4.6-9.6-11.2-9.6-18.6a9.6 9.6 0 0 1 19.2 0C21.6 20.8 13 27.4 12 32z"/>' + g + "</svg>";
+}
 
 const ICONS = {
   expand: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>',
@@ -162,6 +177,9 @@ const ICONS = {
   plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
   minus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>',
 };
+const SVG_NS = "http://www.w3.org/2000/svg";
+/** Default padding (CSS px) of fitTo: clear of the search box at the top and the tools on the right. */
+const FIT_PAD = { top: 64, right: 56, bottom: 36, left: 20 };
 
 /**
  * Graticule labels: [lat, lon, text, kind, level, when(view)].
@@ -220,9 +238,14 @@ function levelOf(zoom) {
  * @param {string} [opts.dataUrl] folder of moonmap.json and the textures (default "data/moonmap/")
  * @param {(lat: number, lon: number) => void} [opts.onPick] a tap or click on the surface: latitude, east longitude (deg)
  * @param {(site: any) => void} [opts.onSite] a tap or click on a catalog-site marker (receives the item's `data`)
+ * @param {(pin: any) => void} [opts.onPin] a tap or click on a scenario pin (receives the pin's `data`); without it the
+ *   pin shows its tooltip
+ * @param {(pin: any, lat: number, lon: number) => void} [opts.onPinDrag] a draggable pin was dropped at lat, lon (deg)
  * @param {string} [opts.ariaLabel]
  * @param {Promise} [opts.hiResAfter] the full-resolution textures load only after this settles (the preview first)
- * @returns {Promise<object>} the globe API (setSites, setPins, showPoints, goTo, setPreset, resize, getView)
+ * @returns {Promise<object>} the globe API (setSites, setPins, showPoints, goTo, flyTo, fitTo, showRoute, clearRoute,
+ *   setMarker, clearMarker,
+ *   setPreset, addTool, slots, resize, getView, setView)
  */
 export async function createGlobe(container, opts = {}) {
   const dataUrl = opts.dataUrl ?? "data/moonmap/";
@@ -234,14 +257,17 @@ export async function createGlobe(container, opts = {}) {
   const stage = el("div", "globe-stage", {
     tabindex: "0",
     role: "application",
-    "aria-label": opts.ariaLabel ?? "Moon globe. Drag to turn, scroll or pinch to zoom, click to place the selected scenario. Arrow keys turn, plus and minus zoom.",
+    "aria-label": opts.ariaLabel ?? "Moon globe. Drag to turn, scroll or pinch to zoom, click a pin to add or remove a place, click the surface to drop a pin. Arrow keys turn, plus and minus zoom.",
   });
   const canvas = el("canvas", "globe-canvas");
   const overlay = el("div", "globe-overlay", { "aria-hidden": "true" });
   const gridLayer = el("div", "globe-grid");
+  const routeLayer = document.createElementNS(SVG_NS, "svg");
+  routeLayer.setAttribute("class", "globe-routes");
   const siteLayer = el("div", "globe-sites");
   const pinLayer = el("div", "globe-pins");
-  overlay.append(gridLayer, siteLayer, pinLayer);
+  const markerLayer = el("div", "globe-markers");
+  overlay.append(gridLayer, routeLayer, siteLayer, pinLayer, markerLayer);
   const tip = el("div", "globe-tip", { role: "tooltip" });
   tip.hidden = true;
   const loading = el("div", "globe-loading", { text: "Loading the Moon…" });
@@ -257,8 +283,8 @@ export async function createGlobe(container, opts = {}) {
   }
   const tools = el("div", "globe-tools");
   const btnExpand = el("button", "globe-btn globe-expand", { type: "button", "aria-label": "Enlarge the map", title: "Enlarge the map (Esc to close)", html: ICONS.expand });
-  const btnIn = el("button", "globe-btn", { type: "button", "aria-label": "Zoom in", title: "Zoom in", html: ICONS.plus });
-  const btnOut = el("button", "globe-btn", { type: "button", "aria-label": "Zoom out", title: "Zoom out", html: ICONS.minus });
+  const btnIn = el("button", "globe-btn globe-zoom-in", { type: "button", "aria-label": "Zoom in", title: "Zoom in", html: ICONS.plus });
+  const btnOut = el("button", "globe-btn globe-zoom-out", { type: "button", "aria-label": "Zoom out", title: "Zoom out", html: ICONS.minus });
   tools.append(btnExpand, btnIn, btnOut);
   const readout = el("div", "globe-readout", { "aria-live": "off" });
   readout.hidden = true;
@@ -267,10 +293,19 @@ export async function createGlobe(container, opts = {}) {
       'Imagery: NASA/GSFC/ASU LRO WAC via <a href="https://trek.nasa.gov/moon/" target="_blank" rel="noopener">NASA Moon Trek</a>' +
       " · Polar relief: NASA LRO LOLA",
   });
-  root.append(stage, presets, tools, readout, credit);
+  // Slots for the page's own controls: the top one (above the preset chips) holds the search box, the bottom one
+  // (above the credit line) a place card.
+  const top = el("div", "globe-top");
+  const slotTop = el("div", "globe-slot-top");
+  top.append(slotTop, presets);
+  const slotBottom = el("div", "globe-slot-bottom");
+  root.append(stage, top, tools, readout, slotBottom, credit);
   // Touch: in the page, a vertical swipe scrolls the page and a horizontal drag turns the globe (globe.css: touch-action
-  // pan-y); two fingers pan and zoom. The enlarged globe (touch-action none) takes every gesture.
-  bindAxisLock(root, { active: () => !expanded && /pan-y/.test(getComputedStyle(stage).touchAction) });
+  // pan-y); two fingers pan and zoom. The enlarged globe (touch-action none) takes every gesture, and so does a finger
+  // that starts on a draggable pin (it moves the pin).
+  bindAxisLock(root, {
+    active: (e) => !expanded && /pan-y/.test(getComputedStyle(stage).touchAction) && !e?.target?.closest?.(".globe-pin.draggable"),
+  });
   container.append(root);
 
   // ----- three.js -----
@@ -313,6 +348,9 @@ export async function createGlobe(container, opts = {}) {
   let frame = 0;
   let sites = [];
   let pins = [];
+  const routes = new Map(); // id -> { path: [[x, y, z]], g: SVGGElement, casing, line }
+  const markers = new Map(); // id -> { v, ahead, el, dir, shown }: moving dots such as a rover on its route
+  let markerScale = 0;
   const labels = buildLabels().map((l) => {
     const e = el("div", `globe-label ${l.kind}`, { text: l.text });
     if (l.align) e.dataset.align = l.align;
@@ -323,6 +361,40 @@ export async function createGlobe(container, opts = {}) {
 
   function requestRender() {
     if (!frame) frame = requestAnimationFrame(render);
+  }
+
+  // The map frame: the part of the canvas below the top bar (search box, preset chips) and above the credit line.
+  // The view is centred in it and zoom 1 fits the whole disc in it, so the controls never cover the Moon at rest, as a
+  // web map pads its view for its own panels. FT, FB: its top and bottom insets in CSS px.
+  let FT = 0;
+  let FB = 0;
+  const FH = () => Math.max(1, H - FT - FB);
+  /** Surface point under a canvas position (CSS px), or null off the disc. */
+  const pick = (x, y) => pickPx(view, x, y - FT, W, FH());
+  /** Canvas position (CSS px) and depth of a point. */
+  const proj = (v) => {
+    const p = projectPx(view, v, W, FH());
+    p.y += FT;
+    return p;
+  };
+  /** Moon radius on screen, CSS px. */
+  const rpx = () => radiusPx(view.zoom, W, FH());
+
+  function measureFrame() {
+    const sr = stage.getBoundingClientRect();
+    if (!sr.height) return false;
+    const tb = top.getBoundingClientRect();
+    const cr = credit.getBoundingClientRect();
+    const ft = tb.height ? Math.max(0, Math.round(tb.bottom - sr.top) + 4) : 0;
+    const fb = cr.height ? Math.max(0, Math.round(sr.bottom - cr.top) + 2) : 0;
+    // A very short map keeps at least 60 % of its height for the Moon.
+    const scale = Math.min(1, (0.4 * sr.height) / Math.max(1, ft + fb));
+    const nt = Math.round(ft * scale);
+    const nb = Math.round(fb * scale);
+    const changed = nt !== FT || nb !== FB;
+    FT = nt;
+    FB = nb;
+    return changed;
   }
 
   function resize() {
@@ -336,6 +408,8 @@ export async function createGlobe(container, opts = {}) {
       uniforms.uDpr.value = dpr();
       renderer.setSize(W, H, false);
     }
+    measureFrame();
+    root.classList.toggle("globe-short", H < 560); // a short map: compact overlays (globe.css)
     requestRender();
   }
 
@@ -348,16 +422,19 @@ export async function createGlobe(container, opts = {}) {
       const m = new THREE.Matrix4().makeRotationFromQuaternion(q);
       const up = new THREE.Vector3().setFromMatrixColumn(m, 1);
       const dir = new THREE.Vector3().setFromMatrixColumn(m, 2);
-      view = { dir: dir.toArray(), up: up.toArray(), zoom: Math.exp(Math.log(anim.z0) + (Math.log(anim.z1) - Math.log(anim.z0)) * e) };
+      view = { dir: dir.toArray(), up: up.toArray(), zoom: flightZoom(anim.z0, anim.z1, anim.turn, e) };
       if (t >= 1) anim = null;
       else requestRender();
     }
     if (W < 2 || H < 2) return;
-    const { halfW, halfH } = frustumHalf(view.zoom, W / H);
+    // The frame's view volume (frustumHalf of the frame), extended to the whole canvas: same scale, centre in the frame.
+    const fh = FH();
+    const { halfW } = frustumHalf(view.zoom, W / fh);
+    const s = W / (2 * halfW); // CSS px per Moon radius
     camera.left = -halfW;
     camera.right = halfW;
-    camera.top = halfH;
-    camera.bottom = -halfH;
+    camera.top = (FT + fh / 2) / s;
+    camera.bottom = -(H - FT - fh / 2) / s;
     camera.position.set(view.dir[0] * 5, view.dir[1] * 5, view.dir[2] * 5);
     camera.up.set(view.up[0], view.up[1], view.up[2]);
     camera.lookAt(0, 0, 0);
@@ -371,7 +448,7 @@ export async function createGlobe(container, opts = {}) {
   }
 
   function place(item, minDepth) {
-    const p = projectPx(view, item.v, W, H);
+    const p = proj(item.v);
     const show = p.depth > minDepth && p.x > -20 && p.x < W + 20 && p.y > -20 && p.y < H + 20;
     if (show !== item.shown) {
       item.el.style.display = show ? "" : "none";
@@ -396,10 +473,41 @@ export async function createGlobe(container, opts = {}) {
       const p = place(l, d0);
       if (l.shown) l.el.style.opacity = String(smooth(d0, d0 + 0.22, p.depth));
     }
-    for (const s of sites) place(s, 0.03);
-    for (const p of pins) place(p, 0.0);
+    // Markers grow a little as the view zooms in (CSS: --zs scales their size).
+    const zs = Math.round(Math.min(1.45, 1 + 0.13 * Math.log2(Math.max(1, view.zoom))) * 20) / 20;
+    if (zs !== markerScale) {
+      markerScale = zs;
+      overlay.style.setProperty("--zs", String(zs));
+    }
+    drawRoutes();
+    for (const s of sites) if (!s.hidden) place(s, 0.03);
+    for (const p of pins) if (p !== dragPin) place(p, 0.0);
+    for (const m of markers.values()) placeMarker(m);
     if (tipFor && tipFor.shown) positionTip(tipFor);
     else if (tipFor) hideTip();
+  }
+
+  /** Route lines: the visible runs of each route's great-circle path, as SVG polylines in CSS px. */
+  function drawRoutes() {
+    if (!routes.size) return;
+    routeLayer.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    const r = viewRight(view);
+    const s = rpx(); // CSS px per Moon radius
+    const cy = FT + FH() / 2;
+    for (const rt of routes.values()) {
+      let d = "";
+      for (const [a, b] of visibleRuns(view, rt.path)) {
+        for (let i = a; i <= b; i++) {
+          const v = rt.path[i];
+          const x = W / 2 + dot(v, r) * s;
+          const y = cy - dot(v, view.up) * s;
+          d += `${i === a ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
+        }
+        if (a === b) d += "l0.01 0"; // a single visible vertex still draws a dot
+      }
+      rt.casing.setAttribute("d", d);
+      rt.line.setAttribute("d", d);
+    }
   }
 
   function syncPresetButtons() {
@@ -421,16 +529,22 @@ export async function createGlobe(container, opts = {}) {
     return new THREE.Quaternion().setFromRotationMatrix(m);
   }
 
-  /** Animate to a view {dir, up, zoom}. */
+  /**
+   * Animate to a view {dir, up, zoom}. The zoom follows a fly-to path (geo.js flightZoom): a long hop between two
+   * close-ups zooms out half-way. dur "auto" scales with the turn and the zoom change (geo.js flightMs).
+   */
   function animateTo(target, dur = 700) {
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const zoom = clamp(target.zoom, MIN_ZOOM, MAX_ZOOM);
+    const turn = angleDeg(view.dir, norm(target.dir)) * DEG;
+    if (dur === "auto") dur = flightMs(turn, view.zoom, zoom);
     if (reduce || dur <= 0) {
       anim = null;
-      view = { dir: norm(target.dir), up: norm(target.up), zoom: target.zoom };
+      view = { dir: norm(target.dir), up: norm(target.up), zoom };
       requestRender();
       return;
     }
-    anim = { q0: quatOf(view), q1: quatOf(target), z0: view.zoom, z1: target.zoom, t0: performance.now(), dur };
+    anim = { q0: quatOf(view), q1: quatOf(target), z0: view.zoom, z1: zoom, turn, t0: performance.now(), dur };
     requestRender();
   }
 
@@ -445,10 +559,163 @@ export async function createGlobe(container, opts = {}) {
     animateTo({ dir, up: northUp(dir), zoom: zoom ?? Math.max(1, view.zoom) });
   }
 
+  /**
+   * Fly to a latitude / east longitude (deg): a smooth turn (north up; top-down near the poles) and zoom, zooming out
+   * on the way for a long hop. zoom: 1 = the whole disc (default: keep the zoom, at least 1). avoidControls: land the
+   * place in the middle of the area the tools and an open place card leave free, instead of the frame's centre.
+   */
+  function flyTo(lat, lon, zoom, { duration = "auto", avoidControls = false } = {}) {
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+    const z = clamp(Number.isFinite(zoom) ? zoom : Math.max(1, view.zoom), MIN_ZOOM, MAX_ZOOM);
+    const v = latLonToVec(lat, lon);
+    if (avoidControls) {
+      const f = fitView([v], { width: W, height: FH(), minZoom: z, maxZoom: z, padding: framePad(controlsPad()) });
+      if (f) {
+        animateTo(f, duration);
+        return;
+      }
+    }
+    animateTo({ dir: v, up: northUp(v), zoom: z }, duration);
+  }
+
+  /** Canvas padding (CSS px) as padding of the map frame, at most a quarter of each side. */
+  function framePad(padding) {
+    const pad = padBox(padding);
+    const fh = FH();
+    return {
+      top: clamp(pad.top - FT, 0, fh / 4), bottom: clamp(pad.bottom - FB, 0, fh / 4),
+      left: Math.min(pad.left, W / 4), right: Math.min(pad.right, W / 4),
+    };
+  }
+
+  /**
+   * Turn and zoom smoothly so that every point [{lat_deg, lon_deg}] is in view, inside `padding` (CSS px: a number or
+   * {top, right, bottom, left}; default clear of the search box and the tools), like a web map's "fit bounds".
+   * One point: fly to it at min(maxZoom, max(current zoom, 4)). maxZoom default MAX_ZOOM (60: about 60 km across).
+   */
+  function fitTo(points, { padding = null, maxZoom = MAX_ZOOM, duration = "auto" } = {}) {
+    const ok = (points ?? []).filter((p) => Number.isFinite(p?.lat_deg) && Number.isFinite(p?.lon_deg));
+    if (!ok.length) return;
+    if (ok.length === 1) {
+      flyTo(ok[0].lat_deg, ok[0].lon_deg, Math.min(maxZoom, Math.max(view.zoom, 4)), { duration });
+      return;
+    }
+    // The padding is measured on the canvas; the view is centred in the map frame (below the top bar), so convert.
+    // A small map keeps at least half of each side for the points.
+    const f = fitView(ok.map((p) => latLonToVec(p.lat_deg, p.lon_deg)), {
+      width: W, height: FH(), minZoom: 1, maxZoom: clamp(maxZoom, 1, MAX_ZOOM), padding: framePad(padding ?? controlsPad()),
+    });
+    if (f) animateTo(f, duration);
+  }
+
+  /** Padding (CSS px) that keeps fitted points clear of the controls: the top bar, the tools, the place card. */
+  function controlsPad() {
+    const rr = root.getBoundingClientRect();
+    if (!rr.height) return FIT_PAD;
+    const topEdge = top.getBoundingClientRect().bottom - rr.top;
+    const card = slotBottom.getBoundingClientRect();
+    const bottomEdge = card.height > 4 ? rr.bottom - card.top : 30;
+    const t = tools.getBoundingClientRect();
+    const right = t.width && t.height > t.width * 1.5 ? rr.right - t.left : 16; // a tool column (not the phone's tool row)
+    return { top: Math.max(topEdge + 10, 24), bottom: bottomEdge + 10, right: right + 6, left: 18 };
+  }
+
+  /**
+   * Draw (or replace) route `id`: a line along the great circles through points [{lat_deg, lon_deg}], just above
+   * the surface, hidden where it passes behind the Moon. color: any CSS colour (default the theme accent).
+   */
+  function showRoute(id, points, { color = null, width = 4 } = {}) {
+    const vs = (points ?? []).filter((p) => Number.isFinite(p?.lat_deg) && Number.isFinite(p?.lon_deg)).map((p) => latLonToVec(p.lat_deg, p.lon_deg));
+    if (!vs.length) {
+      clearRoute(id);
+      return;
+    }
+    let rt = routes.get(String(id));
+    if (!rt) {
+      const g = document.createElementNS(SVG_NS, "g");
+      g.setAttribute("class", "globe-route");
+      g.dataset.route = String(id);
+      const casing = document.createElementNS(SVG_NS, "path");
+      casing.setAttribute("class", "route-casing");
+      const line = document.createElementNS(SVG_NS, "path");
+      line.setAttribute("class", "route-line");
+      g.append(casing, line);
+      routeLayer.append(g);
+      rt = { g, casing, line, path: [] };
+      routes.set(String(id), rt);
+    }
+    rt.path = greatCirclePath(vs, { maxStepDeg: 0.5, lift: 1.001 });
+    rt.g.style.setProperty("--route-c", color || "var(--accent, #8fb4ff)");
+    rt.g.style.setProperty("--route-w", `${width}px`);
+    requestRender();
+  }
+
+  /** Remove route `id` (no-op when there is none). */
+  function clearRoute(id) {
+    const rt = routes.get(String(id));
+    if (!rt) return;
+    rt.g.remove();
+    routes.delete(String(id));
+    requestRender();
+  }
+
+  /**
+   * Show (or move) dot `id`, e.g. a rover on its route: { lat, lon (deg), color (CSS), label, ahead: {lat, lon} | null }.
+   * With `ahead` (a point further along), a small arrow on the dot points that way on screen. The dot does not take
+   * clicks. lat_deg / lon_deg are accepted too.
+   */
+  function setMarker(id, m = {}) {
+    const lat = m.lat ?? m.lat_deg;
+    const lon = m.lon ?? m.lon_deg;
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+      clearMarker(id);
+      return;
+    }
+    let mk = markers.get(String(id));
+    if (!mk) {
+      const e = el("div", "globe-marker", { "data-marker": String(id) });
+      const dir = el("div", "globe-marker-dir");
+      e.append(dir);
+      markerLayer.append(e);
+      mk = { el: e, dir, shown: true };
+      markers.set(String(id), mk);
+    }
+    const a = m.ahead;
+    mk.v = latLonToVec(lat, lon);
+    mk.ahead = a && Number.isFinite(a.lat ?? a.lat_deg) && Number.isFinite(a.lon ?? a.lon_deg) ? latLonToVec(a.lat ?? a.lat_deg, a.lon ?? a.lon_deg) : null;
+    mk.el.style.setProperty("--c", m.color || "var(--accent, #8fb4ff)");
+    if (m.label) mk.el.title = m.label;
+    requestRender();
+  }
+
+  /** Remove dot `id` (no-op when there is none). */
+  function clearMarker(id) {
+    const mk = markers.get(String(id));
+    if (!mk) return;
+    mk.el.remove();
+    markers.delete(String(id));
+    requestRender();
+  }
+
+  function placeMarker(mk) {
+    const p = place(mk, 0.0);
+    if (!mk.shown) return;
+    let on = false;
+    if (mk.ahead) {
+      const q = proj(mk.ahead);
+      if (Math.hypot(q.x - p.x, q.y - p.y) > 0.01) {
+        on = true;
+        mk.dir.style.transform = `rotate(${((Math.atan2(q.y - p.y, q.x - p.x) * 180) / Math.PI).toFixed(1)}deg)`;
+      }
+    }
+    mk.el.classList.toggle("has-dir", on);
+  }
+
+  /** True when a point is on the visible side and inside the map frame (not under the top bar), with a margin. */
   function isVisible(v, margin = 0.08) {
-    const p = projectPx(view, v, W, H);
-    const m = margin * Math.min(W, H);
-    return p.depth > 0.12 && p.x > m && p.x < W - m && p.y > m && p.y < H - m;
+    const p = proj(v);
+    const m = margin * Math.min(W, FH());
+    return p.depth > 0.12 && p.x > m && p.x < W - m && p.y > FT + m && p.y < FT + FH() - m;
   }
 
   /** Bring points [{lat, lon}] into view if any is hidden: centre on them, zooming out if needed. */
@@ -466,16 +733,16 @@ export async function createGlobe(container, opts = {}) {
 
   function zoomAbout(px, py, factor) {
     stopAnim();
-    const before = pickPx(view, px, py, W, H);
+    const before = pick(px, py);
     view = { ...view, zoom: clamp(view.zoom * factor, MIN_ZOOM, MAX_ZOOM) };
-    const after = before && pickPx(view, px, py, W, H);
+    const after = before && pick(px, py);
     if (before && after) view = dragView(view, before, after);
     requestRender();
   }
 
   /** Free rotation by a screen-space drag (px) when the grab point is off the disc. */
   function trackball(dxPx, dyPx) {
-    const R = radiusPx(view.zoom, W, H);
+    const R = rpx();
     const a = dxPx / R;
     const b = -dyPx / R; // screen y grows downwards
     const r = viewRight(view);
@@ -487,11 +754,31 @@ export async function createGlobe(container, opts = {}) {
 
   // ----- Pointer input -----
   const pointers = new Map();
-  let gesture = null; // {x0, y0, px, py, grabbed, moved, target, type, multi}
+  let gesture = null; // {x0, y0, px, py, grabbed, moved, target, type, multi, pin: {item, dx, dy, v0, lat, lon} | null}
+  let dragPin = null; // the pin being dragged (placeOverlay leaves it where the pointer puts it)
 
   function localXY(e) {
     const r = stage.getBoundingClientRect();
     return [e.clientX - r.left, e.clientY - r.top];
+  }
+
+  /** The draggable pin item under a pointerdown target, with the offset from the pointer to the pin's tip. */
+  function pinGrab(target, x, y) {
+    if (target?.dataset?.pin === undefined) return null;
+    const item = pins[Number(target.dataset.pin)];
+    if (!item || !item.draggable) return null;
+    const p = proj(item.v);
+    return { item, dx: p.x - x, dy: p.y - y, v0: item.v, lat: item.lat, lon: item.lon };
+  }
+
+  /** Put a dragged pin back where it was (a second finger turned the drag into a pinch, or the drag was cancelled). */
+  function revertPinDrag(g) {
+    if (!g?.pin) return;
+    g.pin.item.v = g.pin.v0;
+    g.pin.item.el.classList.remove("dragging");
+    g.pin = null;
+    dragPin = null;
+    requestRender();
   }
 
   stage.addEventListener("pointerdown", (e) => {
@@ -506,12 +793,14 @@ export async function createGlobe(container, opts = {}) {
     }
     hideTip();
     if (pointers.size === 1) {
+      const target = e.target.closest?.("[data-site], [data-pin]") ?? null;
       gesture = {
-        x0: x, y0: y, px: x, py: y, grabbed: pickPx(view, x, y, W, H), moved: false,
-        target: e.target.closest?.("[data-site], [data-pin]") ?? null, type: e.pointerType, multi: false,
+        x0: x, y0: y, px: x, py: y, grabbed: pick(x, y), moved: false,
+        target, type: e.pointerType, multi: false, pin: pinGrab(target, x, y),
       };
       stage.classList.add("dragging");
     } else if (pointers.size === 2 && gesture) {
+      revertPinDrag(gesture);
       gesture.multi = true;
       gesture.moved = true;
       const [a, b] = [...pointers.values()];
@@ -534,8 +823,8 @@ export async function createGlobe(container, opts = {}) {
       const mid = [(a.x + b.x) / 2, (a.y + b.y) / 2];
       const dist = Math.hypot(a.x - b.x, a.y - b.y);
       // Pan: the point under the previous midpoint follows the fingers; then zoom about the new midpoint.
-      const before = pickPx(view, gesture.mid[0], gesture.mid[1], W, H);
-      const now = pickPx(view, mid[0], mid[1], W, H);
+      const before = pick(gesture.mid[0], gesture.mid[1]);
+      const now = pick(mid[0], mid[1]);
       if (before && now) view = dragView(view, before, now);
       else trackball(mid[0] - gesture.mid[0], mid[1] - gesture.mid[1]);
       if (gesture.dist > 0 && dist > 0) zoomAbout(mid[0], mid[1], dist / gesture.dist);
@@ -546,8 +835,29 @@ export async function createGlobe(container, opts = {}) {
     }
     const slop = TAP_SLOP_PX[gesture.type] ?? 5;
     if (!gesture.moved && Math.hypot(x - gesture.x0, y - gesture.y0) > slop) gesture.moved = true;
+    if (gesture.moved && gesture.pin) {
+      // Drag a pin: its tip follows the pointer (keeping the grab offset); off the disc it stays where it was.
+      const g = gesture.pin;
+      if (!dragPin) {
+        dragPin = g.item;
+        g.item.el.classList.add("dragging");
+      }
+      const hit = pick(x + g.dx, y + g.dy);
+      if (hit) {
+        const ll = vecToLatLon(hit);
+        g.item.v = hit;
+        g.lat = ll.lat;
+        g.lon = ll.lon;
+        g.item.el.style.transform = `translate(${(x + g.dx).toFixed(1)}px, ${(y + g.dy).toFixed(1)}px)`;
+        readout.textContent = fmtLatLon(ll.lat, ll.lon, view.zoom > 8 ? 3 : 2);
+        readout.hidden = false;
+      }
+      gesture.px = x;
+      gesture.py = y;
+      return;
+    }
     if (gesture.moved) {
-      const now = pickPx(view, x, y, W, H);
+      const now = pick(x, y);
       if (gesture.grabbed && now) view = dragView(view, gesture.grabbed, now);
       else {
         trackball(x - gesture.px, y - gesture.py);
@@ -568,13 +878,24 @@ export async function createGlobe(container, opts = {}) {
     if (pointers.size === 1) {
       // Two fingers -> one: continue as a drag from the remaining finger, never as a tap.
       const [p] = [...pointers.values()];
-      gesture = { ...gesture, x0: p.x, y0: p.y, px: p.x, py: p.y, grabbed: pickPx(view, p.x, p.y, W, H), moved: true };
+      gesture = { ...gesture, x0: p.x, y0: p.y, px: p.x, py: p.y, grabbed: pick(p.x, p.y), moved: true };
       return;
     }
     if (pointers.size > 0) return;
     const g = gesture;
     gesture = null;
     stage.classList.remove("dragging");
+    if (g.pin && g.moved && !g.multi) {
+      // A pin drop: the pin stays at its new place until the page redraws the pins (setPins).
+      const { item, lat, lon } = g.pin;
+      item.el.classList.remove("dragging");
+      dragPin = null;
+      if (g.type !== "mouse") readout.hidden = true; // the mouse readout follows the pointer; a finger has none
+      if (cancelled) revertPinDrag(g);
+      else if (opts.onPinDrag) opts.onPinDrag(item.data, lat, lon);
+      requestRender();
+      return;
+    }
     if (cancelled || g.moved || g.multi) return;
     if (g.target?.dataset.site !== undefined) {
       const s = sites[Number(g.target.dataset.site)];
@@ -583,10 +904,11 @@ export async function createGlobe(container, opts = {}) {
     }
     if (g.target?.dataset.pin !== undefined) {
       const p = pins[Number(g.target.dataset.pin)];
-      if (p) showTip(p);
+      if (p && opts.onPin) opts.onPin(p.data);
+      else if (p) showTip(p);
       return;
     }
-    const hit = pickPx(view, x, y, W, H);
+    const hit = pick(x, y);
     if (hit && opts.onPick) {
       const { lat, lon } = vecToLatLon(hit);
       opts.onPick(lat, lon);
@@ -614,11 +936,11 @@ export async function createGlobe(container, opts = {}) {
   stage.addEventListener("keydown", (e) => {
     const step = 6 / Math.max(1, view.zoom);
     const k = e.key;
-    if (k === "+" || k === "=") zoomAbout(W / 2, H / 2, 1.4);
-    else if (k === "-" || k === "_") zoomAbout(W / 2, H / 2, 1 / 1.4);
+    if (k === "+" || k === "=") zoomAbout(W / 2, FT + FH() / 2, 1.4);
+    else if (k === "-" || k === "_") zoomAbout(W / 2, FT + FH() / 2, 1 / 1.4);
     else if (k.startsWith("Arrow")) {
       stopAnim();
-      const R = radiusPx(view.zoom, W, H);
+      const R = rpx();
       const d = R * step * DEG;
       if (k === "ArrowLeft") trackball(d, 0);
       if (k === "ArrowRight") trackball(-d, 0);
@@ -635,7 +957,7 @@ export async function createGlobe(container, opts = {}) {
   // ----- Readout and tooltips -----
 
   function updateReadout(x, y) {
-    const hit = pickPx(view, x, y, W, H);
+    const hit = pick(x, y);
     if (!hit) {
       readout.hidden = true;
       return;
@@ -657,8 +979,8 @@ export async function createGlobe(container, opts = {}) {
     tip.hidden = true;
   }
   function positionTip(item) {
-    const p = projectPx(view, item.v, W, H);
-    const off = item.kind === "pin" ? 30 : 10;
+    const p = proj(item.v);
+    const off = item.kind === "pin" ? item.el.offsetHeight + 4 : 12; // above the pin's head, or the marker
     const tw = tip.offsetWidth;
     const x = clamp(p.x - tw / 2, 4, Math.max(4, W - tw - 4));
     const below = p.y - off - tip.offsetHeight < 4;
@@ -679,27 +1001,44 @@ export async function createGlobe(container, opts = {}) {
 
   // ----- Markers -----
 
-  /** Catalog sites: [{lat, lon, name, sub, kind, data}]. `data` is passed back to onSite. */
+  /**
+   * Catalog sites: [{lat, lon, name, sub, kind, data, hidden}]. `data` is passed back to onSite. kind ("mission",
+   * "candidate", "poi", "home") sets the marker's colour and shape; a hidden site has no marker (a pin stands there).
+   * The home marker is drawn on top.
+   */
   function setSites(list) {
     siteLayer.replaceChildren();
+    const nodes = [];
     sites = list.map((s, i) => {
       const e = el("div", `globe-site${s.kind ? ` k-${s.kind}` : ""}`, { "data-site": String(i) });
-      siteLayer.append(e);
+      if (s.kind === "home") e.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${HOUSE_PATH}"/></svg>`;
+      // Drawn in reverse list order, so where two markers overlap the one listed first is on top (Apollo 12 over
+      // Surveyor 3, 180 m apart); the home marker above all.
+      if (s.hidden) e.style.display = "none";
+      else nodes.push([s.kind === "home" ? 1e6 : -i, e]);
       const tipHtml = `<strong>${esc(s.name)}</strong>${s.sub ? `<br><small>${esc(s.sub)}</small>` : ""}`;
-      return { ...s, kind: "site", v: latLonToVec(s.lat, s.lon), el: e, shown: true, tipHtml };
+      return { ...s, siteKind: s.kind, kind: "site", v: latLonToVec(s.lat, s.lon), el: e, shown: !s.hidden, tipHtml };
     });
+    siteLayer.append(...nodes.sort((a, b) => a[0] - b[0]).map((n) => n[1]));
     hideTip();
     requestRender();
   }
 
-  /** Scenario pins: [{lat, lon, color, label, active}]. */
+  /**
+   * Scenario pins: [{lat, lon, color, label, sub, active, draggable, glyph, data}]. glyph: the kind of place drawn in
+   * the pin's head ("mission", "candidate", "poi", "home"; default a dot). `data` is passed back to onPin / onPinDrag.
+   * The active pin is larger and drawn on top.
+   */
   function setPins(list) {
     pinLayer.replaceChildren();
+    if (dragPin) dragPin = null;
     pins = list.map((p, i) => {
-      const e = el("div", `globe-pin${p.active ? " active" : ""}`, { "data-pin": String(i), html: PIN_SVG });
+      const cls = `globe-pin${p.active ? " active" : ""}${p.draggable ? " draggable" : ""}`;
+      const e = el("div", cls, { "data-pin": String(i), html: pinSvg(p.glyph) });
       e.style.setProperty("--c", p.color);
       pinLayer.append(e);
-      const tipHtml = `<strong>${esc(p.label)}</strong><br><small>${esc(fmtLatLon(p.lat, p.lon))}</small>`;
+      const sub = [fmtLatLon(p.lat, p.lon), p.sub].filter(Boolean).join(" · ");
+      const tipHtml = `<strong>${esc(p.label)}</strong><br><small>${esc(sub)}</small>`;
       return { ...p, kind: "pin", v: latLonToVec(p.lat, p.lon), el: e, shown: true, tipHtml };
     });
     // Active pin on top.
@@ -828,14 +1167,36 @@ export async function createGlobe(container, opts = {}) {
     return r;
   });
 
-  new ResizeObserver(resize).observe(stage);
+  // The top bar grows when the page puts its search box in (and with the font); the frame follows it.
+  const ro = new ResizeObserver(resize);
+  ro.observe(stage);
+  ro.observe(top);
   resize();
+
+  /**
+   * Add a round button to the tool column (above the zoom buttons): { html, label, title, onClick, className }.
+   * Returns the button.
+   */
+  function addTool({ html, label, title, onClick, className = "" }) {
+    const b = el("button", `globe-btn ${className}`.trim(), { type: "button", "aria-label": label, title: title ?? label, html });
+    b.addEventListener("click", () => onClick?.());
+    tools.insertBefore(b, btnIn);
+    return b;
+  }
 
   return {
     setSites,
     setPins,
     showPoints,
     goTo,
+    flyTo,
+    fitTo,
+    showRoute,
+    clearRoute,
+    setMarker,
+    clearMarker,
+    addTool,
+    slots: { top: slotTop, bottom: slotBottom },
     setPreset,
     resize,
     getView: () => ({ ...view }),

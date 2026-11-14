@@ -54,8 +54,10 @@ export function shortName(site) {
   return String(site.name || site.id).replace(/\s*\(.*\)\s*$/, "");
 }
 
-const KIND_ORDER = { mission: 0, candidate: 1, poi: 2 };
-export const KIND_LABEL = { mission: "Missions", candidate: "Artemis III candidate regions", poi: "Places of interest" };
+const KIND_ORDER = { home: -1, mission: 0, candidate: 1, poi: 2 };
+export const KIND_LABEL = { home: "Home", mission: "Missions", candidate: "Artemis III candidate regions", poi: "Places of interest" };
+/** The catalog id of the home base (kind "home"): StarHab. Its coordinates come from web/data/sites.json. */
+export const HOME_SITE_ID = "starhab";
 
 /**
  * Search sites by free text over name, agency, lander, crew, blurb and group name (so "Artemis" finds the candidate

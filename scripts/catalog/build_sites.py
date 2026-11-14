@@ -579,6 +579,34 @@ sites = [
     ),
 ]
 
+# Home base (kind "home"): StarHab, the lunar base concept Shay Monat presented at IAC 2021. The app's "Home" entry
+# and button open it. Its terrain files are built like any catalog site (scripts/data/build_terrain.py starhab).
+_REF = next(s for s in sites if s["id"] == "shackleton_rim")
+# PLACEHOLDER[starhab-coords]: StarHab's exact site is not set yet, so the home uses the Shackleton rim reference
+# point. To set it: put (latitude, east longitude) in degrees here, check the blurb, then run this script and
+# `uv run python scripts/data/build_terrain.py starhab`.
+STARHAB_LAT_LON = (_REF["lat_deg"], _REF["lon_deg"])
+sites.append(
+    dict(
+        id="starhab",
+        name="StarHab (home base)",
+        kind="home",
+        agency=None,
+        lander=None,
+        crew=None,
+        lat_deg=STARHAB_LAT_LON[0],
+        lon_deg=STARHAB_LAT_LON[1],
+        t_start_utc=None,
+        t_end_utc=None,
+        blurb="Our home base: StarHab, a lunar base concept by Shay Monat (IAC 2021), "
+        "on the sunlit rim of Shackleton crater near the south pole.",
+        sources=_REF["sources"],
+        notes="StarHab lunar base concept (S. Monat, 72nd International Astronautical Congress, 2021). "
+        "PLACEHOLDER[starhab-coords]: the exact site is not set yet; these are the coordinates of the "
+        "Shackleton rim reference point (shackleton_rim).",
+    )
+)
+
 out = pathlib.Path(__file__).resolve().parents[2] / "web/data/sites.json"
 out.write_text(
     json.dumps({"_generated_by": GEN, "sites": sites}, indent=1, ensure_ascii=False),

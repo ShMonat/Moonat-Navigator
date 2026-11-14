@@ -195,16 +195,19 @@ button { cursor: pointer; }
 /* ---------- Globe block: legend and hint (the globe itself: globe.css) ---------- */
 .map-block { position: relative; }
 .map-legend {
-  display: grid; grid-template-columns: repeat(2, max-content); gap: 3px 18px; margin: 8px 2px 0; padding: 0; list-style: none;
+  display: flex; flex-wrap: wrap; gap: 3px 16px; margin: 8px 2px 0; padding: 0; list-style: none;
   font-size: 12px; color: var(--text-2);
 }
-@media (min-width: 1600px), (min-width: 520px) and (max-width: 699.98px) { .map-legend { grid-template-columns: repeat(4, max-content); } }
 .map-legend li { display: inline-flex; align-items: center; gap: 6px; }
 .lg { display: inline-block; flex: none; width: 10px; height: 10px; border: 1.5px solid rgba(8, 9, 12, 0.85); background: var(--k); }
 .lg-mission { --k: var(--site-mission); border-radius: 50%; }
 .lg-candidate { --k: var(--site-candidate); border-radius: 2px; transform: rotate(45deg) scale(0.88); }
 .lg-poi { --k: var(--site-poi); border-radius: 2px; transform: scale(0.88); }
-.lg-pin { width: 11px; height: 11px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--accent); border: 1.5px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35); }
+.lg-home { --k: var(--site-home); width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45); position: relative; }
+.lg-home::after { content: ""; position: absolute; left: 2.2px; top: 2.2px; width: 5.6px; height: 5.6px; background: #fff; clip-path: polygon(50% 0, 100% 45%, 100% 100%, 0 100%, 0 45%); }
+/* Selected places: a pin in the scenario colours (here the first two). */
+.lg-pin { width: 11px; height: 11px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: linear-gradient(90deg, #356ac9 50%, #d47276 50%); border: 1.5px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35); }
+:root[data-theme="light"] .lg-pin { background: linear-gradient(90deg, #3a68a2 50%, #ed667f 50%); }
 .map-hint { margin: 4px 2px 0; font-size: 12px; color: var(--muted); }
 
 /* ---------- Stories (quick starts) ---------- */
@@ -237,30 +240,6 @@ button { cursor: pointer; }
 .scen-label:focus { border-color: var(--accent); background: var(--surface-2); outline: none; }
 .scen-head .icon-btn { width: 28px; height: 28px; border-color: transparent; font-size: 14px; }
 .scen-head .icon-btn:hover { border-color: var(--border); }
-.picker { position: relative; margin-bottom: 8px; }
-.picker input {
-  width: 100%; padding: 7px 10px 7px 30px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2);
-  font-size: 13.5px;
-}
-.picker::before {
-  content: ""; position: absolute; left: 10px; top: 50%; width: 11px; height: 11px; transform: translateY(-60%);
-  border: 1.8px solid var(--muted); border-radius: 50%; pointer-events: none;
-}
-.picker::after {
-  content: ""; position: absolute; left: 20px; top: 58%; width: 5px; height: 1.8px; background: var(--muted); transform: rotate(45deg); pointer-events: none;
-}
-.picker input:focus { border-color: var(--accent); outline: none; }
-.picker-list {
-  position: absolute; z-index: 1200; left: 0; right: 0; top: calc(100% + 4px); max-height: 300px; overflow: auto;
-  margin: 0; padding: 4px; list-style: none; background: var(--surface); border: 1px solid var(--border-strong); border-radius: 10px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-}
-.picker-group { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 8px 8px 4px; }
-.picker-item { padding: 7px 8px; border-radius: 7px; cursor: pointer; }
-.picker-item .pi-name { font-weight: 600; font-size: 13.5px; }
-.picker-item .pi-meta { font-size: 12px; color: var(--muted); }
-.picker-item[aria-selected="true"], .picker-item:hover { background: var(--accent-soft); }
-.picker-empty { padding: 10px; color: var(--muted); font-size: 13px; }
 .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .field > span, .end-head > span, .end-head > label { font-size: 11.5px; color: var(--muted); }
@@ -648,6 +627,13 @@ body.sky-focus { overflow: hidden; }
   position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 3000; max-width: calc(100% - 32px);
   background: var(--text); color: var(--bg); padding: 9px 16px; border-radius: 10px; font-size: 13.5px; box-shadow: var(--shadow);
 }
+/* An action in the toast (Undo after a place is removed): the inverse of the accent, bold, like a web map's snackbar. */
+.toast-action {
+  margin-left: 10px; padding: 2px 6px; border: 0; border-radius: 6px; background: transparent; cursor: pointer;
+  font: inherit; font-weight: 700; color: #1a56c9;
+}
+:root[data-theme="light"] .toast-action { color: #8ab4f8; }
+.toast-action:hover { text-decoration: underline; }
 
 /* ---------- Narrow screens ---------- */
 @media (max-width: 860px) {
@@ -706,7 +692,7 @@ body.sky-focus { overflow: hidden; }
   .ghost, .icon-btn, .chip, .add-btn, .sky-act, .seg button, .sky-opt, .suggest-item, .track-btn { min-height: 40px; }
   .icon-btn { width: 40px; height: 40px; }
   .scen-head .icon-btn { width: 40px; height: 40px; }
-  .field input, .picker input, .scen-label, .speed select { min-height: 40px; }
+  .field input, .scen-label, .speed select { min-height: 40px; }
   .field .with-clear .clear { width: 32px; height: 32px; line-height: 32px; }
   .link-btn, .jump-link, .suggest-btn { padding: 10px 4px; min-height: 40px; display: inline-flex; align-items: center; }
   .end-head .suggest-btn, .end-head .seg { margin-block: -8px; }
@@ -714,7 +700,6 @@ body.sky-focus { overflow: hidden; }
   .sky-act { padding: 3px 12px; }
   .seg button { padding: 5px 14px; }
   .seg.seg-sm button { min-height: 34px; }
-  .picker-item { padding: 11px 10px; }
   .event-hint .hint-go { min-height: 0; padding: 4px 2px; display: inline; }
 }
 /* Phone held sideways (very little height): a slim top bar, a smaller sky view, and a focus mode that gives the whole

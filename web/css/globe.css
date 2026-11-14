@@ -1,12 +1,36 @@
 /* AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team. */
-/* Moon globe location picker (web/js/globe/). The globe always sits on a dark "space" panel, so its labels and
-   controls use fixed light-on-dark colours in both themes; only the selected preset uses the theme accent. */
+/* Moon globe location picker (web/js/globe/) and its places UI (web/js/app/places.js). The globe always sits on a dark
+   "space" panel, so its graticule labels, readout and credit use fixed light-on-dark colours in both themes. The
+   controls that float on it (the search box and its list, the preset chips, the tool buttons, the place card) follow
+   the page theme, like a web map: dark grey in the dark theme, white in the light theme. */
+
+:root,
+:root[data-theme="dark"] {
+  --gs-bg: #262b36;
+  --gs-bg-glass: rgba(38, 43, 54, 0.9);
+  --gs-ink: #eceae4;
+  --gs-muted: #aeaca5;
+  --gs-line: rgba(255, 255, 255, 0.12);
+  --gs-hover: rgba(143, 180, 255, 0.16);
+  --gs-ico: #3a4050;
+  --gs-shadow: 0 2px 6px rgba(0, 0, 0, 0.45), 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+:root[data-theme="light"] {
+  --gs-bg: #ffffff;
+  --gs-bg-glass: rgba(255, 255, 255, 0.95);
+  --gs-ink: #202124;
+  --gs-muted: #5f6368;
+  --gs-line: rgba(0, 0, 0, 0.12);
+  --gs-hover: #eef2fb;
+  --gs-ico: #eceff3;
+  --gs-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 14px rgba(0, 0, 0, 0.18);
+}
 
 .globe-host { position: relative; }
 /* The globe's box before its module and three.js arrive (the same size rules as .globe below and in the media
    queries at the end), so nothing under the map moves when the globe appears. */
 .map:not(.globe-host) {
-  width: 100%; aspect-ratio: 1 / 1.1; min-height: 320px; max-height: calc(100vh - 120px);
+  width: 100%; aspect-ratio: 1 / 1.22; min-height: 360px; max-height: calc(100vh - 120px);
   border-radius: 14px; border: 1px solid var(--border);
   background: radial-gradient(120% 90% at 50% 40%, #121621 0%, #07080c 70%);
 }
@@ -14,11 +38,10 @@
   --g-ink: #ecebe5;
   --g-ink-2: rgba(236, 235, 229, 0.72);
   --g-glass: rgba(10, 12, 18, 0.62);
-  --g-glass-hover: rgba(34, 39, 52, 0.85);
   --g-line: rgba(255, 255, 255, 0.16);
   position: relative; width: 100%;
-  aspect-ratio: 1 / 1.1;
-  min-height: 320px; max-height: calc(100vh - 120px);
+  aspect-ratio: 1 / 1.22;
+  min-height: 360px; max-height: calc(100vh - 120px);
   border-radius: 14px; overflow: hidden; isolation: isolate;
   border: 1px solid var(--border);
   background:
@@ -36,7 +59,7 @@
 .globe-stage:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
 .globe-stage.dragging { cursor: grabbing; }
 .globe-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.globe-overlay { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.globe-overlay { position: absolute; inset: 0; pointer-events: none; overflow: hidden; --zs: 1; }
 .globe-loading {
   position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none;
   color: var(--g-ink-2); font-size: 13px;
@@ -58,45 +81,90 @@
 .globe-label.side[data-align="end"] { translate: -100% -50%; }
 .globe-label.side[data-align="center"] { translate: -50% -50%; }
 
+/* Route lines (globe API showRoute): a coloured line on a dark casing, so it reads on bright and dark ground. */
+.globe-routes { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.globe-route { --route-c: var(--accent); --route-w: 4px; }
+.route-casing, .route-line { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.route-casing { stroke: rgba(8, 9, 12, 0.78); stroke-width: calc(var(--route-w) + 3.5px); }
+.route-line { stroke: var(--route-c); stroke-width: var(--route-w); }
+
 /* Catalog sites, by kind: colour and shape (missions: amber circles; Artemis III candidate regions: aqua diamonds;
-   places of interest: orchid squares), each with a dark outline so it stands out on the bright highlands, the dark
-   maria and the grey polar relief alike. The legend under the globe (app.css .map-legend) uses the same colours. */
+   places of interest: orchid squares; the home base: a white house on blue). Each has a dark outline, a thin light
+   halo and a shadow, so it stands out on the bright highlands, the dark maria and the grey polar relief alike. The
+   size grows a little with the zoom (--zs, set by the globe). The legend under the globe (app.css) uses the same
+   colours. */
 :root {
   --site-mission: #ffb22e;
-  --site-candidate: #38e2cf;
-  --site-poi: #e48cff;
+  --site-candidate: #2ee6d2;
+  --site-poi: #ea8cff;
+  --site-home: #1a73e8;
+  --site-pin: #ea4335;
 }
 .globe-site {
-  position: absolute; left: 0; top: 0; width: 12px; height: 12px; translate: -50% -50%;
+  position: absolute; left: 0; top: 0; width: calc(13px * var(--zs)); height: calc(13px * var(--zs)); translate: -50% -50%;
   pointer-events: auto; cursor: pointer; --k: #c9d4e8;
 }
 /* (No `scale` or `rotate` on markers: it would also act on the translate(x, y) set from script; the shape is drawn
    by ::after instead.) */
 .globe-site::after {
   content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--k);
-  border: 1.5px solid rgba(8, 9, 12, 0.9); box-shadow: 0 0 3px rgba(0, 0, 0, 0.55);
+  border: 2px solid #0d0f14;
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.62), 0 1px 4px 1px rgba(0, 0, 0, 0.6);
 }
 .globe-site.k-mission { --k: var(--site-mission); }
 .globe-site.k-candidate { --k: var(--site-candidate); }
 .globe-site.k-candidate::after { inset: 1.5px; border-radius: 2px; transform: rotate(45deg); }
 .globe-site.k-poi { --k: var(--site-poi); }
-.globe-site.k-poi::after { inset: 1px; border-radius: 2px; }
+.globe-site.k-poi::after { inset: 1px; border-radius: 2.5px; }
+.globe-site.k-home { --k: var(--site-home); width: calc(22px * var(--zs)); height: calc(22px * var(--zs)); }
+.globe-site.k-home::after { border: 2px solid #fff; box-shadow: 0 0 0 1.5px rgba(8, 9, 12, 0.85), 0 2px 6px 1px rgba(0, 0, 0, 0.6); }
+.globe-site.k-home svg {
+  position: absolute; z-index: 1; left: 20%; top: 18%; width: 60%; height: 60%;
+  fill: none; stroke: #fff; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round;
+}
 .globe-site::before { content: ""; position: absolute; inset: -5px; border-radius: 50%; }
-.globe-site:hover::after { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9), 0 0 8px 2px rgba(255, 255, 255, 0.45); }
+.globe-site:hover::after { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.95), 0 0 9px 3px rgba(255, 255, 255, 0.5); }
 @media (pointer: coarse) {
   .globe-site::before { inset: -9px; }
 }
 
-/* Scenario pins, in the scenario colours: anchored at the tip, larger than the site markers, with a white outline */
+/* Selected places: teardrop pins in the scenario colours, anchored at the tip, with a white outline, a dark edge and a
+   shadow; the glyph in the head is the kind of place. The selected scenario's pin is larger and on top. Dropped pins
+   (custom points) can be dragged. */
 .globe-pin {
-  position: absolute; left: 0; top: 0; width: 26px; height: 34px; translate: -50% -100%;
-  pointer-events: auto; cursor: default; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 1px rgba(0, 0, 0, 0.6));
+  position: absolute; left: 0; top: 0; width: calc(28px * var(--zs)); height: calc(40px * var(--zs)); translate: -50% -94%;
+  pointer-events: auto; cursor: pointer;
+  filter: drop-shadow(0 0 0.6px rgba(0, 0, 0, 0.95)) drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55));
 }
 .globe-pin svg { display: block; width: 100%; height: 100%; overflow: visible; }
-.globe-pin path { fill: var(--c); stroke: #fff; stroke-width: 2; }
-.globe-pin circle { fill: #fff; }
-.globe-pin.active { width: 32px; height: 42px; }
-.globe-pin.active path { stroke-width: 2.4; }
+.globe-pin .pin-body { fill: var(--c); stroke: #fff; stroke-width: 2; }
+.globe-pin .pin-g { fill: #fff; }
+.globe-pin .pin-house { fill: none; stroke: #fff; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.globe-pin .pin-shadow { fill: rgba(0, 0, 0, 0.5); }
+.globe-pin.active { width: calc(34px * var(--zs)); height: calc(48px * var(--zs)); }
+.globe-pin.active .pin-body { stroke-width: 2.2; }
+.globe-pin.draggable { cursor: grab; touch-action: none; }
+.globe-pin.dragging { cursor: grabbing; translate: -50% -108%; filter: drop-shadow(0 0 0.6px rgba(0, 0, 0, 0.95)) drop-shadow(0 8px 6px rgba(0, 0, 0, 0.5)); }
+.globe-pin.dragging .pin-shadow { transform: translateY(5px); transform-origin: center; }
+.globe-pin:hover .pin-body { stroke-width: 2.6; }
+
+/* Moving dots (globe API setMarker), e.g. a rover on its route: the colour in a white ring, with an arrow toward
+   the next point when one is given. They do not take clicks. */
+.globe-marker {
+  position: absolute; left: 0; top: 0; width: calc(16px * var(--zs)); height: calc(16px * var(--zs)); translate: -50% -50%;
+  pointer-events: none; --c: var(--accent);
+}
+.globe-marker::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--c); border: 2.5px solid #fff;
+  box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.8), 0 2px 6px rgba(0, 0, 0, 0.55);
+}
+.globe-marker-dir { position: absolute; inset: -12px; display: none; }
+.globe-marker.has-dir .globe-marker-dir { display: block; }
+.globe-marker-dir::before {
+  content: ""; position: absolute; right: -1px; top: 50%; margin-top: -5px;
+  border-left: 8px solid #fff; border-top: 5px solid transparent; border-bottom: 5px solid transparent;
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.9));
+}
 
 .globe-tip {
   position: absolute; left: 0; top: 0; z-index: 5; max-width: 240px; pointer-events: none;
@@ -106,28 +174,40 @@
 }
 .globe-tip small { color: rgba(241, 239, 232, 0.72); font-size: 11px; }
 
-/* Controls */
-.globe-presets {
-  position: absolute; top: 10px; left: 10px; right: 10px; z-index: 3;
-  display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; pointer-events: none;
+/* Top bar: the page's search box (slot) above the preset chips, as on a web map. */
+.globe-top {
+  position: absolute; top: 10px; left: 10px; right: 10px; z-index: 5;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px; pointer-events: none;
 }
+.globe-slot-top { width: 100%; max-width: 420px; pointer-events: auto; }
+.globe-slot-top:empty { display: none; }
+.globe-presets {
+  display: flex; flex-wrap: nowrap; gap: 6px; max-width: 100%; overflow-x: auto; scrollbar-width: none;
+  pointer-events: none; padding: 2px; margin: -2px;
+}
+.globe-presets::-webkit-scrollbar { display: none; }
 .globe-preset {
-  pointer-events: auto; padding: 5px 11px; border-radius: 999px; font-size: 12px; font-weight: 600;
-  background: var(--g-glass); color: var(--g-ink); border: 1px solid var(--g-line);
+  pointer-events: auto; flex: none; padding: 5px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
+  background: var(--gs-bg-glass); color: var(--gs-ink); border: 1px solid var(--gs-line); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
 }
-.globe-preset:hover { background: var(--g-glass-hover); }
+.globe-preset:hover { background: var(--gs-bg); border-color: var(--accent); }
 .globe-preset[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+/* The open search list covers the chips. */
+.globe-top:has(.gsearch.open) .globe-presets { visibility: hidden; }
+
 .globe-tools {
   position: absolute; right: 10px; bottom: 28px; z-index: 3; display: flex; flex-direction: column; gap: 6px;
 }
 .globe-btn {
-  display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border-radius: 9px;
-  background: var(--g-glass); color: var(--g-ink); border: 1px solid var(--g-line);
+  display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border-radius: 10px;
+  background: var(--gs-bg-glass); color: var(--gs-ink); border: 1px solid var(--gs-line); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
 }
-.globe-btn:hover { background: var(--g-glass-hover); }
+.globe-btn:hover { background: var(--gs-bg); border-color: var(--accent); }
 .globe-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.globe-btn.globe-home svg { width: 20px; height: 20px; stroke: var(--site-home); stroke-width: 2.2; }
+:root[data-theme="dark"] .globe-btn.globe-home svg, :root:not([data-theme]) .globe-btn.globe-home svg { stroke: #8ab4f8; }
 .globe-expand { margin-bottom: 4px; }
 .globe-readout {
   position: absolute; left: 10px; bottom: 28px; z-index: 3; pointer-events: none;
@@ -141,12 +221,117 @@
 }
 .globe-credit a { color: inherit; text-underline-offset: 2px; }
 
+/* ---------- "Search the Moon" (web/js/app/places.js) ---------- */
+.gsearch { position: relative; width: 100%; font-size: 14px; }
+.gsearch-box {
+  display: flex; align-items: center; height: 44px; padding: 0 6px 0 14px; gap: 10px;
+  background: var(--gs-bg); color: var(--gs-ink); border-radius: 22px; box-shadow: var(--gs-shadow);
+  border: 1px solid var(--gs-line);
+}
+.gsearch.open .gsearch-box { border-radius: 16px 16px 0 0; box-shadow: none; border-bottom-color: transparent; }
+.gsearch-box:focus-within { border-color: var(--accent); }
+.gsearch.open .gsearch-box:focus-within { border-color: var(--gs-line); }
+.gsearch-ico { display: grid; place-items: center; color: var(--gs-muted); }
+.gsearch-ico svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2.1; stroke-linecap: round; }
+.gsearch-input {
+  flex: 1; min-width: 0; height: 100%; border: 0; outline: none; background: transparent; color: inherit;
+  font: inherit; font-size: 15px; padding: 0;
+}
+.gsearch-input::placeholder { color: var(--gs-muted); opacity: 1; }
+.gsearch-input::-webkit-search-cancel-button { display: none; }
+.gsearch-clear {
+  flex: none; width: 32px; height: 32px; border-radius: 50%; border: 0; background: transparent; color: var(--gs-muted);
+  font-size: 15px; cursor: pointer; display: grid; place-items: center;
+}
+.gsearch-clear:hover { background: var(--gs-hover); color: var(--gs-ink); }
+.gsearch-list {
+  position: absolute; z-index: 6; left: 0; right: 0; top: 100%; margin: 0; padding: 4px 0 8px; list-style: none;
+  max-height: 340px; overflow: auto; overscroll-behavior: contain;
+  background: var(--gs-bg); color: var(--gs-ink); border: 1px solid var(--gs-line); border-top: 0;
+  border-radius: 0 0 16px 16px; box-shadow: var(--gs-shadow);
+}
+.gsearch-list::before { content: ""; display: block; height: 1px; margin: 0 14px 4px; background: var(--gs-line); }
+.gs-group { padding: 10px 16px 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--gs-muted); }
+.gs-item { display: flex; align-items: center; gap: 12px; padding: 7px 14px; cursor: pointer; min-height: 48px; }
+.gs-item[aria-selected="true"], .gs-item:hover { background: var(--gs-hover); }
+.gs-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.gs-name, .gs-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gs-name { font-size: 14px; font-weight: 600; }
+.gs-sub { font-size: 12px; color: var(--gs-muted); }
+.gs-on { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--c); }
+.gs-on svg { width: 14px; height: 14px; fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.gs-empty { padding: 12px 16px; color: var(--gs-muted); font-size: 13px; }
+
+/* Kind icons of the search list and the place card: the map marker's shape in a round badge. */
+.gs-ico, .gplace-ico {
+  flex: none; position: relative; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%;
+  background: var(--gs-ico); --k: var(--site-pin);
+}
+.gs-ico::after, .gplace-ico::after {
+  content: ""; width: 11px; height: 11px; border-radius: 50%; background: var(--k); border: 1.5px solid rgba(8, 9, 12, 0.85);
+}
+.k-mission { --k: var(--site-mission); }
+.k-candidate { --k: var(--site-candidate); }
+.gs-ico.k-candidate::after, .gplace-ico.k-candidate::after { border-radius: 2px; transform: rotate(45deg) scale(0.9); }
+.k-poi { --k: var(--site-poi); }
+.gs-ico.k-poi::after, .gplace-ico.k-poi::after { border-radius: 2px; transform: scale(0.92); }
+.gs-ico.k-pin::after, .gplace-ico.k-pin::after { border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border-color: #fff; width: 12px; height: 12px; }
+.gs-ico.k-home, .gplace-ico.k-home { background: var(--site-home); }
+.gs-ico.k-home::after, .gplace-ico.k-home::after { display: none; }
+.gs-ico svg, .gplace-ico svg { width: 19px; height: 19px; fill: none; stroke: #fff; stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; }
+/* A selected place shows its pin in the scenario colour. */
+.gplace-ico.sel { background: var(--gs-ico); }
+.gplace-ico.sel::after {
+  display: block; width: 13px; height: 13px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
+  background: var(--c); border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+.gplace-ico.sel svg { display: none; }
+
+/* ---------- Place card (bottom of the map) ---------- */
+.globe-slot-bottom {
+  position: absolute; left: 10px; right: 56px; bottom: 26px; z-index: 4; pointer-events: none;
+  display: flex; justify-content: flex-start;
+}
+.gplace {
+  pointer-events: auto; width: 100%; max-width: 400px; padding: 9px 10px 9px 11px; border-radius: 14px;
+  background: var(--gs-bg); color: var(--gs-ink); border: 1px solid var(--gs-line); box-shadow: var(--gs-shadow);
+  font-size: 13px; line-height: 1.35; user-select: text; -webkit-user-select: text;
+}
+.gplace[hidden] { display: none; }
+/* Searching hides the card (the list needs the room), as on a web map. */
+.globe:has(.gsearch.open) .gplace { display: none; }
+.gplace-head { display: flex; align-items: center; gap: 10px; }
+.gplace-title { flex: 1; min-width: 0; }
+.gplace-name { margin: 0; font-size: 15px; font-weight: 650; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gplace-kind { margin: 1px 0 0; font-size: 12px; color: var(--gs-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gplace-close {
+  flex: none; align-self: flex-start; width: 30px; height: 30px; margin: -4px -4px 0 0; border: 0; border-radius: 50%;
+  background: transparent; color: var(--gs-muted); font-size: 14px; cursor: pointer;
+}
+.gplace-close:hover { background: var(--gs-hover); color: var(--gs-ink); }
+.gplace-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 6px; }
+.gplace-coords { margin: 0; font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--gs-ink); min-width: 0; }
+.gplace-blurb {
+  margin: 4px 0 0; color: var(--gs-muted); font-size: 12.5px;
+  display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.globe-short .gplace-blurb { -webkit-line-clamp: 1; line-clamp: 1; }
+.gplace-btn {
+  flex: none; padding: 4px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; cursor: pointer;
+  border: 1px solid var(--gs-line); background: transparent; color: var(--accent);
+}
+.gplace-btn:hover { background: var(--gs-hover); }
+.gplace-add { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.gplace-add:hover { background: var(--accent); filter: brightness(1.08); }
+/* The tools and the readout move up above an open card. */
+.globe.has-card .globe-readout { bottom: calc(var(--card-h, 110px) + 34px); }
+
 /* Whole-window mode */
 .globe.globe-full {
   position: fixed; inset: 0; z-index: 2500; width: auto; height: auto; max-height: none; min-height: 0;
   aspect-ratio: auto; border: 0; border-radius: 0;
 }
-.globe.globe-full .globe-presets { top: 14px; }
+.globe.globe-full .globe-top { top: 14px; left: 14px; }
 .globe.globe-full .globe-preset { padding: 7px 14px; font-size: 13px; }
 html.globe-locked, html.globe-locked body { overflow: hidden; }
 
@@ -157,6 +342,7 @@ html.globe-locked, html.globe-locked body { overflow: hidden; }
   .map-hint .hint-touch { display: inline; }
   .globe-btn { width: 40px; height: 40px; }
   .globe-preset { min-height: 34px; }
+  .gsearch-box { height: 46px; }
 }
 
 /* One column (phones, tablets): the globe is the first block, as tall as the window allows. */
@@ -164,11 +350,19 @@ html.globe-locked, html.globe-locked body { overflow: hidden; }
   .globe, .map:not(.globe-host) { max-height: min(78svh, 640px); }
 }
 @media (max-width: 520px) {
-  .globe, .map:not(.globe-host) { aspect-ratio: 1 / 1.08; }
-  .globe-preset { padding: 5px 9px; font-size: 11.5px; }
+  .globe, .map:not(.globe-host) { aspect-ratio: 1 / 1.3; }
+  .globe-top { top: 8px; left: 8px; right: 8px; gap: 7px; }
+  .globe-preset { padding: 5px 10px; font-size: 12px; }
   /* A row in the bottom-right corner, clear of most of the disc; the credit may take two lines. */
   .globe-tools { flex-direction: row; bottom: 34px; right: 8px; gap: 5px; }
   .globe-credit { white-space: normal; text-align: center; bottom: 4px; }
   .globe-expand { margin: 0 4px 0 0; }
-  .globe-btn { width: 36px; height: 36px; }
+  .globe-btn { width: 38px; height: 38px; }
+  .globe-slot-bottom { left: 8px; right: 8px; bottom: 32px; }
+  .globe.has-card .globe-tools { bottom: calc(var(--card-h, 110px) + 40px); }
+  .gplace { max-width: none; }
+}
+/* Phones: pinch zooms, so the zoom buttons give their room to the Moon (the expand and Home buttons stay). */
+@media (max-width: 520px) and (pointer: coarse) {
+  .globe-tools .globe-zoom-in, .globe-tools .globe-zoom-out { display: none; }
 }

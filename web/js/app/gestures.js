@@ -17,7 +17,8 @@ export function touchAxis(dx, dy, slop = 10) {
  * horizontal drag belongs to the view, which turns and may then also move vertically. Two fingers (a pinch) and mouse or
  * pen input pass through. Listens in the capture phase on `el`, so bind it on an ANCESTOR of the elements whose own
  * pointer handlers turn the view: stopPropagation keeps the moves of an undecided or vertical swipe from reaching them.
- * `active()` says whether the lock applies (e.g. not in a full-window mode, where the CSS says `touch-action: none`).
+ * `active(event)` says whether the lock applies to a touch that starts with this pointerdown (e.g. not in a full-window
+ * mode, where the CSS says `touch-action: none`, or not on an element that takes every drag itself).
  */
 export function bindAxisLock(el, { slop = 10, active = () => /pan-y/.test(getComputedStyle(el).touchAction) } = {}) {
   const pts = new Map(); // pointerId -> { x0, y0, axis: null (undecided) | "x" (the view's) | "y" (the page's) }
@@ -26,7 +27,7 @@ export function bindAxisLock(el, { slop = 10, active = () => /pan-y/.test(getCom
     (e) => {
       if (e.pointerType !== "touch") return;
       const first = pts.size === 0;
-      pts.set(e.pointerId, { x0: e.clientX, y0: e.clientY, axis: first && active() ? null : "x" });
+      pts.set(e.pointerId, { x0: e.clientX, y0: e.clientY, axis: first && active(e) ? null : "x" });
       if (!first) for (const p of pts.values()) if (p.axis === null) p.axis = "x"; // a second finger: a pinch
     },
     true,
