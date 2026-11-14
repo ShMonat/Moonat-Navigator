@@ -46,6 +46,7 @@ APP_URL = "https://shmonat.github.io/Moonat-Navigator/"
 CAPTIONS = {
     "apollo": ("The sky Neil and Buzz saw", "Apollo 11 · Tranquility Base · 20 July 1969"),
     "compare": ("All six Apollo landings, ranked", "Sunlight and Earth, side by side"),
+    "suggest": ("Moonat suggests the best dates", "Most sunlight · Earth in view · eclipses"),
     "eclipse": (
         "The Earth eclipses the Sun, seen from the Moon",
         "Blue Ghost lander · 14 March 2025 · NASA eclipse times",
@@ -98,6 +99,8 @@ OVERLAY_CSS = """
   color: #fff; opacity: 0; text-shadow: 0 2px 4px rgba(0,0,0,0.9), 0 0 22px rgba(0,0,0,0.75); }
 #vid-cap .main { font-size: 50px; font-weight: 600; letter-spacing: 0.005em; line-height: 1.15; }
 #vid-cap .sub { margin-top: 10px; font-size: 27px; font-weight: 400; color: #e4e9f2; }
+#vid-root.cap-right #vid-cap { left: 1215px; width: 1240px; }
+#vid-root.cap-right #vid-scrim { left: 540px; }
 #vid-card { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center;
   color: #f2f1ec; text-align: center; opacity: 0;
   background: radial-gradient(1400px 800px at 50% 38%, rgba(22, 30, 52, 0.97), rgba(6, 8, 13, 0.995) 70%); }
@@ -132,6 +135,7 @@ OVERLAY_JS = """
       $("vid-cap").querySelector(".sub").textContent = s.capSub;
       $("vid-cap").style.opacity = s.capAlpha;
       $("vid-scrim").style.opacity = s.capAlpha;
+      root.classList.toggle("cap-right", s.capPos === "right");
       if (s.cardHtml !== null) $("vid-card").innerHTML = s.cardHtml;
       $("vid-card").style.opacity = s.cardAlpha;
       $("vid-card").style.display = s.cardAlpha > 0 ? "flex" : "none";
@@ -266,6 +270,7 @@ class Director:
         page.on("requestfailed", lambda r: self.pending.pop(id(r), None))
         # Overlay state, applied before every screenshot. Alphas move towards their targets one step per frame.
         self.cap = ("", "")
+        self.cap_pos = "center"
         self.cap_alpha, self.cap_target = 0.0, 0.0
         self.card_html: str | None = None
         self.card_alpha, self.card_target = 0.0, 0.0
@@ -274,10 +279,12 @@ class Director:
         self.ripple = -1.0
 
     # -- overlay ---------------------------------------------------------------------------------------------
-    def caption(self, key: str | None) -> None:
-        """Fade a caption in (key from CAPTIONS) or out (None) over the next frames."""
+    def caption(self, key: str | None, pos: str = "center") -> None:
+        """Fade a caption in (key from CAPTIONS) or out (None) over the next frames. pos "right" centres it on
+        the right-hand column, leaving the left column (globe, cards) uncovered."""
         if key:
             self.cap = CAPTIONS[key]
+            self.cap_pos = pos
             self.cap_target = 1.0
         else:
             self.cap_target = 0.0
@@ -310,6 +317,7 @@ class Director:
                 "capMain": self.cap[0],
                 "capSub": self.cap[1],
                 "capAlpha": ease(self.cap_alpha),
+                "capPos": self.cap_pos,
                 "cardHtml": self.card_html,
                 "cardAlpha": ease(self.card_alpha),
                 "cursorOn": self.cursor_on,
@@ -390,15 +398,39 @@ class Director:
                 break
             n = m
 
-    def wait_compare(self, timeout: float = 40.0) -> None:
+    def wait_story(self, timeout: float = 40.0) -> None:
+        """After a story chip: back to the top of the page (the chips sit low in the left column), then wait for
+        the sky views, the charts under them and the globe's turn to the new place."""
+        self.page.evaluate("window.scrollTo(0, 0)")
         t0 = time.time()
-        self.wait_net()
+        self.wait_sky()
         while time.time() - t0 < timeout and not self.page.evaluate(
-            "document.querySelectorAll('#tab-compare .js-plotly-plot .main-svg').length > 0"
+            "document.querySelectorAll('#compare-body .js-plotly-plot .main-svg').length > 0"
         ):
             time.sleep(0.1)
         self.wait_net()
-        time.sleep(0.8)  # Plotly layout and the map's fit animation
+        time.sleep(1.0)  # Plotly layout and the globe's turn animation
+        self.page.evaluate("window.scrollTo(0, 0)")
+
+    def sky_opt(self, key: str, on: bool) -> None:
+        """Set a view option of the "⋯" menu (closeUp, constellations, exposure, hudLevel) for every view."""
+        before = self.draws()
+        changed = self.page.evaluate(
+            """([k, on]) => { const b = document.querySelector(`#sky-grid .sky-opt[data-opt="${k}"]`);
+            if (!b || (b.getAttribute('aria-checked') === 'true') === on) return false;
+            b.click(); return true; }""",
+            [key, on],
+        )
+        if changed:
+            self.wait_draw(before, timeout=1.5)
+
+    def look(self, body: str) -> None:
+        """Aim every view at "sun" or "earth" with the Sun | Earth switch (it also shows that body's data)."""
+        before = self.draws()
+        self.page.evaluate(
+            f"""document.querySelector('#body-toggle [data-body="{body}"]').click()"""
+        )
+        self.wait_draw(before)
 
     # -- pointer ---------------------------------------------------------------------------------------------
     def center(self, selector: str) -> tuple[float, float]:
@@ -441,11 +473,11 @@ class Director:
         self.enc.crossfade(new, xfade)
         self.enc.write(new)
 
-    def click_chip(self, n: int, **kw) -> None:
-        """Click the n-th quick-start chip. The chips sit under the scenario cards, so the panel (or page) that
-        holds them scrolls smoothly while the pointer travels, until the chip is on screen."""
-        delta = self.page.evaluate(
-            """n => { const c = document.querySelector(`#quickstarts .chip:nth-child(${n})`);
+    def prepare_scroll(self, selector: str, bottom_margin: int = 40) -> float:
+        """Find the scroller that holds `selector` (the sticky left column scrolls on its own; else the page),
+        mark it, and return how far it must scroll (px) to bring the element fully on screen."""
+        return self.page.evaluate(
+            """([sel, m]) => { const c = document.querySelector(sel);
             let s = c.parentElement;
             while (s && s !== document.body) {
               const o = getComputedStyle(s).overflowY;
@@ -455,21 +487,40 @@ class Director:
             if (!s || s === document.body) s = document.scrollingElement;
             document.querySelectorAll('[data-vid-scroll]').forEach(e => delete e.dataset.vidScroll);
             s.dataset.vidScroll = String(s.scrollTop);
-            const r = c.getBoundingClientRect(), lo = 90, hi = window.innerHeight - 40;
+            const r = c.getBoundingClientRect(), lo = 90, hi = window.innerHeight - m;
             const want = r.bottom > hi ? r.bottom - hi : r.top < lo ? r.top - lo : 0;
             return Math.max(-s.scrollTop, Math.min(want, s.scrollHeight - s.clientHeight - s.scrollTop)); }""",
-            n,
+            [selector, bottom_margin],
         )
-        x, y = self.center(f"#quickstarts .chip:nth-child({n})")
 
-        def scroll(t: float) -> None:
-            self.page.evaluate(
-                """d => { const s = document.querySelector('[data-vid-scroll]');
-                s.scrollTop = Number(s.dataset.vidScroll) + d; }""",
-                delta * ease(t),
-            )
+    def scroll_by(self, d: float) -> None:
+        """Scroll the scroller marked by prepare_scroll to its start position plus d px."""
+        self.page.evaluate(
+            """d => { const s = document.querySelector('[data-vid-scroll]');
+            s.scrollTop = Number(s.dataset.vidScroll) + d; }""",
+            d,
+        )
 
-        self.click((x, y - delta), during=scroll if delta else None, **kw)
+    def click_chip(self, n: int, **kw) -> None:
+        """Click the n-th story chip. The chips sit under the scenario cards, so the column (or page) that holds
+        them scrolls smoothly while the pointer travels, until the chip is on screen."""
+        sel = f"#quickstarts .chip:nth-child({n})"
+        delta = self.prepare_scroll(sel)
+        x, y = self.center(sel)
+        during = (lambda t: self.scroll_by(delta * ease(t))) if delta else None
+        wait = kw.pop("wait", None) or (lambda: time.sleep(0.3))
+
+        def wait_checked() -> None:
+            # If the pointer missed (a popover closing can shift the column), click the chip itself.
+            time.sleep(0.2)
+            if not self.page.evaluate(
+                f"document.querySelector('{sel}').classList.contains('active')"
+            ):
+                print(f"  note: story chip {n} needed a second click", file=sys.stderr)
+                self.page.evaluate(f"document.querySelector('{sel}').click()")
+            wait()
+
+        self.click((x, y - delta), during=during, wait=wait_checked, **kw)
 
     def reveal(self, xfade: int = 8) -> None:
         """Cross-fade from the last frame to the page as it is now (after off-camera set-up)."""
@@ -509,7 +560,9 @@ class Director:
 
     def center_on(self, name: str, passes: int = 2) -> None:
         """Turn the first sky view (by dragging) so the named body is at its centre: azimuth from the compass,
-        height from the body's label, which the view draws level with the body's centre."""
+        height from the body's label, which the view draws level with the body's centre. The full readout (with
+        the azimuths) is switched on for the measurement and off again."""
+        self.sky_opt("hudLevel", True)
         for _ in range(passes):
             az_c, _ = self.view_center_az()
             self.drag_sky(-100, 0, steps=1)  # calibrate: pixels per degree of azimuth
@@ -522,7 +575,9 @@ class Director:
                 name,
             )
             d_az = (((self.body_az(name) - az_1) + 540) % 360) - 180
-            self.drag_sky(-d_az * px_per_deg, -label, steps=1)
+            if math.isfinite(d_az):
+                self.drag_sky(-d_az * px_per_deg, -label, steps=1)
+        self.sky_opt("hudLevel", False)
 
     def canvas_box(self) -> dict:
         return self.page.locator("#sky-grid .moonat-sky-frame canvas").first.bounding_box()
@@ -588,29 +643,18 @@ def scene_title(d: Director) -> None:
 
 
 def scene_apollo11(d: Director) -> None:
-    """1: Apollo 11 on the Sky tab: Focus gives a tall frame with the high Earth and the ground together, like a
-    Hasselblad photo; then a short drag of the sky."""
+    """1: the first visit opens Apollo 11 (globe with its pins on the left, the sky on the right); Focus gives a
+    tall frame with the high Earth and the ground together, like a Hasselblad photo."""
+    d.hold(10)
     d.click("#sky-grid .sky-focus-btn", wait=d.wait_sky, xfade=8)
-    d.caption("apollo")
-    b = d.canvas_box()
-    start = (b["x"] + b["width"] * 0.70, b["y"] + b["height"] * 0.55)
-    d.move_to(start, 10)
-    d.page.mouse.down()
-    # Drag the sky a little to the left and back: the view turns, showing the drag-to-look interaction.
-    for i in range(1, 25):
-        d.cx = start[0] - 160 * math.sin(math.pi * i / 24)
-        before = d.draws()
-        d.page.mouse.move(d.cx, d.cy)
-        d.wait_draw(before, timeout=1.0)
-        d.frame()
-    d.page.mouse.up()
     d.cursor_on = False
-    d.hold(50)
+    d.caption("apollo")
+    d.hold(66)
     d.keyframe("apollo11")
 
 
 def exit_focus(d: Director, xfade: int = 6) -> None:
-    """Leave the Sky tab's focus mode with Esc (as a user would), cross-fading to the normal layout."""
+    """Leave the sky's focus mode with Esc (as a user would), cross-fading to the normal layout."""
     if d.page.evaluate("document.body.classList.contains('sky-focus')"):
         d.page.keyboard.press("Escape")
         time.sleep(0.5)
@@ -618,16 +662,48 @@ def exit_focus(d: Director, xfade: int = 6) -> None:
         d.reveal(xfade)
 
 
-def scene_compare(d: Director) -> None:
-    """2: 'Compare all Apollo landings' opens the Compare tab with the side-by-side ranked table."""
+def scene_suggest(d: Director) -> None:
+    """2: "✨ Suggest dates" on the Apollo 11 card lists the best windows for sunlight and Earth contact and the
+    eclipses visible from the site; the page scrolls so the whole list shows."""
     d.caption(None)
     exit_focus(d)
     d.cursor_on = True
-    d.click_chip(2, wait=d.wait_compare, xfade=8)
-    d.caption("compare")
-    d.hold(46)
-    d.keyframe("compare")
-    d.hold(16)
+
+    def wait_list() -> None:
+        t0 = time.time()
+        while time.time() - t0 < 30 and not d.page.evaluate(
+            "[...document.querySelectorAll('#cards .suggest-item')].some(e => /eclipse/i.test(e.textContent))"
+        ):
+            time.sleep(0.1)
+        time.sleep(0.4)
+
+    d.click("#cards .suggest-btn", wait=wait_list, xfade=6)
+    d.caption("suggest", pos="right")
+    delta = d.prepare_scroll("#cards .suggest-pop", bottom_margin=16)
+    n = 26
+    # Scroll the left column so the whole list shows; the drawn pointer stays, the list slides under it.
+    for i in range(1, n + 1):
+        d.scroll_by(delta * ease(i / n))
+        d.frame()
+    d.hold(12)
+    # The list scrolls on its own (max-height): roll it down to the eclipses visible from the site.
+    span = d.page.evaluate(
+        "(() => { const l = document.querySelector('#cards .suggest-list'); return l.scrollHeight - l.clientHeight; })()"
+    )
+    n = 22
+    for i in range(1, n + 1):
+        d.page.evaluate(
+            "y => { document.querySelector('#cards .suggest-list').scrollTop = y; }",
+            span * ease(i / n),
+        )
+        d.frame()
+    d.hold(30)
+    d.keyframe("suggest")
+    d.hold(8)
+    # Close the list with its ✕, off camera: a click elsewhere would first close it and shift the column under the
+    # pointer.
+    d.page.evaluate("document.querySelector('#cards .suggest-pop .suggest-close')?.click()")
+    time.sleep(0.3)
 
 
 # Eclipse quick start: 2025-03-14 04:30 .. 10:20 UTC at Blue Ghost (slider 0..1000 = 350 min). It opens at 81 %
@@ -640,23 +716,16 @@ def scene_eclipse(d: Director) -> None:
     Focus mode, the view centred on the Earth and zoomed in (Ctrl + wheel), constellation lines off; the close-up
     loupes stay on and show the Sun and the Earth magnified."""
     d.caption(None)
-    d.click_chip(5, wait=d.wait_sky, capture=False)
+    d.click_chip(5, wait=d.wait_story, capture=False)
     d.page.evaluate("document.querySelector('#sky-grid .sky-focus-btn').click()")
     time.sleep(0.6)
     d.wait_sky()
     d.set_slider(ECLIPSE_PARTS[0][0])
-    before = d.draws()
-    d.page.evaluate("document.getElementById('btn-look-sun').click()")
-    d.wait_draw(before)
+    d.look("sun")
     d.center_on("Earth")
     d.zoom_sky(-11)
     d.center_on("Earth", passes=1)
-    for name in ("Constellations",):
-        d.page.evaluate(
-            """n => [...document.querySelectorAll('#sky-grid .moonat-sky-frame button')]
-                .find(b => b.getAttribute('aria-label') === n && b.getAttribute('aria-pressed') === 'true')?.click()""",
-            name,
-        )
+    d.sky_opt("constellations", False)
     time.sleep(0.3)
     d.cursor_on = False
     d.show_playing(True)
@@ -680,7 +749,7 @@ def scene_eclipse(d: Director) -> None:
 # South-pole timelapse in the quick start's window (2027-01-19 .. 03-22; slider 0..1000), 19-24 Jan: the Sun skims
 # 0.0-0.2 deg above the horizontal, lighting the ground with long shadows, and passes the crescent Earth, which
 # sinks and sets behind the ridge (u = 79).
-POLE_PARTS = [(0.0, 92.0, 122)]  # (slider from, slider to, frames)
+POLE_PARTS = [(0.0, 92.0, 114)]  # (slider from, slider to, frames)
 POLE_VIEW_AZ = 152.0  # fixed camera, about 105..200 deg: the Sun from 181 to 120 deg, the Earth at 131..141 deg
 
 
@@ -689,17 +758,14 @@ def scene_pole(d: Director) -> None:
     d.caption(None)
     exit_focus(d)
     d.cursor_on = True
-    d.click_chip(3, wait=d.wait_compare, xfade=6)  # opens on the Compare tab
-    d.click("#tab-btn-sky", wait=d.wait_sky, n_move=12, capture=False)
+    d.click_chip(3, wait=d.wait_story, capture=False)
     # Off-camera set-up, then a cross-fade: focus mode, the start time, the Earth framing widened by two Ctrl +
     # wheel ticks, turned to POLE_VIEW_AZ and tilted so the horizon sits a little above the middle.
     d.page.evaluate("document.querySelector('#sky-grid .sky-focus-btn').click()")
     time.sleep(0.6)
     d.wait_sky()
     d.set_slider(POLE_PARTS[0][0])
-    before = d.draws()
-    d.page.evaluate("document.getElementById('btn-look-earth').click()")
-    d.wait_draw(before)
+    d.look("earth")
     d.zoom_sky(2)
     az0, _ = d.view_center_az()
     d.drag_sky(-100, 0, steps=1)  # calibrate: pixels dragged per degree turned
@@ -740,11 +806,11 @@ def scene_farside(d: Director) -> None:
     d.caption(None)
     exit_focus(d)
     d.cursor_on = True
-    d.click_chip(4, wait=d.wait_sky, xfade=8)
-    d.caption("farside")
+    d.click_chip(4, wait=d.wait_story, xfade=8)
+    d.caption("farside", pos="right")
     d.cursor_on = False
     d.hold(10)
-    n = 70
+    n = 64
     for i in range(1, n + 1):
         d.set_slider(760.0 * i / n)
         d.show_playing(True)
@@ -770,14 +836,14 @@ def scene_end(d: Director) -> None:
 SCENES = [
     scene_title,
     scene_apollo11,
-    scene_compare,
+    scene_suggest,
     scene_eclipse,
     scene_pole,
     scene_farside,
     scene_end,
 ]
 # Saved to docs/figures/video_<name>.png for review.
-KEYFRAMES = ["apollo11", "compare", "eclipse1", "eclipse2", "pole", "farside"]
+KEYFRAMES = ["apollo11", "suggest", "eclipse1", "eclipse2", "pole", "farside"]
 
 
 # ---------------------------------------------------------------------------------------------------------------
