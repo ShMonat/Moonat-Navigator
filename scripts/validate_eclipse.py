@@ -28,6 +28,8 @@ FIG = ROOT / "docs" / "figures" / "eclipse_coverage.png"
 # Reference palette (dataviz skill, light surface; as scripts/validate_ephem.py).
 SURFACE, INK, INK2, GRID = "#fcfcfb", "#0b0b0b", "#52514e", "#e4e3df"
 BLUE, ORANGE, SHADE = "#2a78d6", "#eb6834", "#dfe9f7"
+# Classical solar radius (semi-diameter 959.63 arcsec at 1 au), for the like-for-like NASA column.
+CLASSICAL_SUN_RADIUS_KM = 696000.0
 
 CASES = [
     {
@@ -88,6 +90,7 @@ def run_case(case: dict) -> dict:
     t0, t1 = case["window"]
     wide = (t0[:11] + "00:00:00Z", t1[:11] + "23:59:00Z")
     moon = E.moon_shadow_contacts(*wide)
+    moon_classical = E.moon_shadow_contacts(*wide, sun_radius_km=CLASSICAL_SUN_RADIUS_KM)
     solid = E.site_contacts(lat, lon, *case["window"], ground_elev_m=elev)
     danjon = E.site_contacts(
         lat,
@@ -101,19 +104,29 @@ def run_case(case: dict) -> dict:
     cov_d = E.site_sun_state(
         lat, lon, tt, None, elev, earth_radius_km=E.EARTH_RADIUS_KM * E.DANJON_FACTOR
     )["eclipse_frac"]
-    return {"moon": moon, "solid": solid, "danjon": danjon, "t": tt, "cov": cov, "cov_d": cov_d}
+    return {
+        "moon": moon,
+        "moon_classical": moon_classical,
+        "solid": solid,
+        "danjon": danjon,
+        "t": tt,
+        "cov": cov,
+        "cov_d": cov_d,
+    }
 
 
 def table(case: dict, r: dict) -> str:
     shift = case["delta_t_nasa_s"] - case["tt_minus_utc_s"]
     rows = [
-        f"| Contact | NASA (UT) | Moonat, whole Moon (Danjon) | diff − ΔT shift ({shift:+.1f} s) |",
-        "|---|---|---|---|",
+        f"| Contact | NASA (UT) | Moonat, whole Moon (Danjon) | diff − ΔT shift ({shift:+.1f} s) "
+        "| diff with R☉ = 696 000 km |",
+        "|---|---|---|---|---|",
     ]
     for k, v in case["nasa"].items():
         ours = r["moon"][k.lower()]
         d = ours - on_day(case, v) - shift
-        rows.append(f"| {k} | {v[:8]} | {hms(ours)} | {d:+.1f} s |")
+        dc = r["moon_classical"][k.lower()] - on_day(case, v) - shift
+        rows.append(f"| {k} | {v[:8]} | {hms(ours)} | {d:+.1f} s | {dc:+.1f} s |")
     return "\n".join(rows)
 
 

@@ -115,10 +115,14 @@ await series(site, t0Ms, t1Ms, stepMs) -> {     // arrays, same length
   visible share of the Sun's flux, weighted by solar limb darkening (linear, u = 0.6), with both the terrain and the Earth
   in the way. `eclipse_frac` = the share of the Sun's limb-darkened flux behind the Earth's disk, terrain ignored
   (0 except during an eclipse of the Sun by the Earth, i.e. a lunar eclipse on Earth). The Earth is an opaque disk of
-  radius 6378.137 km (solid body, no atmosphere; NASA's Danjon 1.01 enlargement would hide the Sun ~1–1.5 min earlier);
-  apparent directions as in C1. When the terrain and the Earth both cut the disk, `flux_frac` = (1 − eclipse_frac) × the
-  terrain-visible share of the uncovered flux (docs/validation/eclipse.md). `phase_frac` = illuminated fraction of the Earth's disk = (1 + cos α)/2, with α the
+  radius 6378.137 km (solid body, no atmosphere; **Shay's decision, 2026-11-14**). The documented alternative is
+  Danjon's enlarged Earth, radius × (1 + 1/85 − 1/594) = 1.01, as in NASA's eclipse tables: at the site the Sun would
+  disappear 64–87 s earlier and reappear 64–87 s later. Apparent directions as in C1. When the terrain and the Earth
+  both cut the disk, `flux_frac` = (1 − eclipse_frac) × the terrain-visible share of the uncovered flux
+  (docs/validation/eclipse.md). `phase_frac` = illuminated fraction of the Earth's disk = (1 + cos α)/2, with α the
   Sun–Earth–observer angle.
+- **Body radii** (manifest `body_radii_km`): Sun **695 700 km** (IAU 2015 Resolution B3 nominal, the value JPL Horizons
+  uses; Shay's decision, 2026-11-14), Earth 6378.137 km (equatorial). `ang_radius_deg` = asin(R / dist_km).
 - `flux_horiz_wm2` = 1361 · (1 AU / r)² · flux_frac · max(0, sin el). `flux_normal_wm2` = 1361 · (1 AU / r)² · flux_frac.
 - `series().eclipses`: one entry per eclipse in the window: first and last contact at the site (`start_ms`, `end_ms`: the
   site enters and leaves the Earth's penumbra), totality (`total_*`: the site in the umbra; null if partial), greatest
@@ -150,6 +154,7 @@ await createSkyView(container /* HTMLElement */, {
   is below the local horizontal plane (el + r < 0); a hidden body with part of its disk above that plane is "hidden behind
   terrain (skyline +x°)". An Earth more than 5° below the plane gets a text message instead of a close-up ("Earth is below
   your feet … it never rises here" at sites more than 105° from the mean sub-Earth point, where libration can never lift it).
+  The wording rule and the 105° threshold were approved by Shay (2026-11-14).
 - `lookAtBody("earth" | "sun")` ("Look at Earth", "Look at Sun") uses the photo rule when the body fits, and otherwise the
   body rule: horizon about 10% above the bottom edge and the top of the disk about 10% below the top edge, the FOV widening up
   to 100°; at 100° the horizon may slide to the bottom edge, and if both still cannot fit the body stays in frame

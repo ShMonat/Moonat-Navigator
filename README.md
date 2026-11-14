@@ -46,7 +46,7 @@ Every claim below is backed by a validation report you can rerun.
 | South-pole illumination vs **Gläser et al. 2014** (18.5 yr) | 92.7 % / 95.8 % lit at the 10 m point (published 92.5 % / 95.6 %); 86.0 % / 90.6 % at the 2 m point (published 88.1 % / 92 %) | [terrain.md](docs/validation/terrain.md) §5 |
 | Malapert site search vs **Bussey et al. 2010** | 75.9 % Sun visibility in 2027 (published 74 % over a lunar year, point 2.5 km away) | [terrain.md](docs/validation/terrain.md) §9 |
 | Ray-marched horizon vs independent 3-D point cloud | correlation 0.9995 / 0.9997, no azimuth mirroring | [terrain.md](docs/validation/terrain.md) §4 |
-| Eclipse of the Sun by the Earth: whole-Moon contacts P1…P4 of 2025-03-14 and 1967-04-24 vs **NASA (Espenak)** | within 2.6 s; Blue Ghost's end of totality 08:34 UTC vs its diamond-ring photo "around 08:30" | [eclipse.md](docs/validation/eclipse.md) |
+| Eclipse of the Sun by the Earth: whole-Moon contacts P1…P4 of 2025-03-14 and 1967-04-24 vs **NASA (Espenak)** | within 4.2 s; Blue Ghost's end of totality 08:34 UTC vs its diamond-ring photo "around 08:30" | [eclipse.md](docs/validation/eclipse.md) |
 | Horizons for **custom points** (live LOLA from **NASA Moon Trek**: 20 m near the south pole, 30 m near the poles, 118 m elsewhere) vs the precomputed catalog horizons | 0.07–0.37° RMS at 10 of 12 sites (0.01–0.19° where the horizon is set beyond 5 km); Sun-visible time within 0–3.4 points at 5 polar sites. Until it arrives (1–5 s), or offline, a coarse tiles horizon labelled "approximate" is shown. | [terrain-everywhere.md](docs/validation/terrain-everywhere.md) |
 
 Known limits: UT1 is taken as UTC, and the drawn Earth globe ignores precession and nutation (about 0.36° in 2026).

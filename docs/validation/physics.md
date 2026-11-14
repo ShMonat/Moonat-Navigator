@@ -78,7 +78,7 @@ phase 0.67 (waning gibbous Earth while the Moon was a waxing crescent seen from 
 - UT1 is taken as UTC (≤ 0.9 s, i.e. ≤ 0.004° of Earth rotation): only affects the drawn Earth globe.
 - The Earth's body frame is R_icrs_to_enu · Rz(ERA); precession–nutation (~0.36° in 2026) is ignored. Only the
   drawn Earth globe uses it.
-- Body radii come from the ephemeris manifest (`body_radii_km`): Sun 696 000 km, Earth 6 378.137 km (equatorial;
+- Body radii come from the ephemeris manifest (`body_radii_km`): Sun 695 700 km (IAU 2015 nominal, as JPL Horizons), Earth 6 378.137 km (equatorial;
   the Earth's 0.3 % flattening is ignored).
 - The horizon profile is assumed single-valued in azimuth (true for any heightfield DEM).
 

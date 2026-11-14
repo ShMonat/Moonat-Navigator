@@ -70,7 +70,7 @@ test('skyState fields: C6 shape, units and consistency', async () => {
   assert.equal(s.r_icrs_to_enu.length, 9);
   assert.deepEqual(s.planets.map((p) => p.name), PLANETS);
   // Angular radii: Sun ≈ 0.267 deg at ~1 au, Earth ≈ 0.9-1.0 deg at ~364-404 Mm.
-  close(s.sun.ang_radius_deg, Math.asin(696000 / s.sun.dist_km) * 180 / Math.PI, 1e-12);
+  close(s.sun.ang_radius_deg, Math.asin(695700 / s.sun.dist_km) * 180 / Math.PI, 1e-12);
   assert.ok(s.sun.ang_radius_deg > 0.26 && s.sun.ang_radius_deg < 0.275);
   assert.ok(s.earth.ang_radius_deg > 0.85 && s.earth.ang_radius_deg < 1.05);
   // r_icrs_to_enu is a rotation and maps the ICRS Sun direction onto the ENU Sun direction

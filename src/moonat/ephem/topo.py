@@ -22,7 +22,7 @@ from datetime import UTC, datetime, timedelta
 import numpy as np
 
 MOON_RADIUS_KM = 1737.4
-SUN_RADIUS_KM = 696000.0
+SUN_RADIUS_KM = 695700.0  # IAU 2015 Resolution B3 nominal solar radius (as JPL Horizons)
 EARTH_RADIUS_KM = 6378.137  # equatorial (WGS-84 / IERS)
 POLE_LAT_DEG = 89.9999
 

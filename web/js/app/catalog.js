@@ -214,8 +214,8 @@ export const QUICK_STARTS = [
 const ROVER_START = "2027-10-15T00:00:00Z";
 
 // The total lunar eclipse of 14 March 2025 seen from Blue Ghost (Mare Crisium): the Earth starts to cover the Sun at
-// 05:00:42 UTC (the site enters the Earth's penumbra), hides it completely 06:17:25-08:34:23 (the site in the umbra;
-// NASA's whole-Moon contacts U1 05:09:33, U2 06:25:59, U3 07:31:23, U4 08:47:48) and uncovers it at 09:51:11.
+// 05:00:42 UTC (the site enters the Earth's penumbra), hides it completely 06:17:24-08:34:24 (the site in the umbra;
+// NASA's whole-Moon contacts U1 05:09:33, U2 06:25:59, U3 07:31:23, U4 08:47:48) and uncovers it at 09:51:10.
 // The window adds about 30 min on each side of the partial phases (docs/validation/eclipse.md).
 const ECLIPSE_START = "2025-03-14T04:30:00Z";
 const ECLIPSE_END = "2025-03-14T10:20:00Z";

@@ -33,7 +33,8 @@ def _check(rows, planet_tol_deg):
         if r["body"] in ("sun", "earth"):
             assert r["d_sep_deg"] < 1e-4, r
             assert abs(r["d_el_deg"]) < 1e-4 and abs(r["d_az_deg"]) * cos_el < 1e-4, r
-            assert abs(r["d_ang_diam_arcsec"]) < 1.0, r  # Horizons' solar radius is 695700 km
+            # Same radii as Horizons (Sun 695700 km, IAU 2015): only its 0.001" rounding is left.
+            assert abs(r["d_ang_diam_arcsec"]) < 0.005, r
         else:
             assert r["d_sep_deg"] < planet_tol_deg, r
 

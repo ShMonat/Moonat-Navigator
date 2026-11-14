@@ -221,8 +221,10 @@ Epochs: 1969-07-20 20:17, 2026-11-14 12:00 and 2030-06-01 00:00 UTC, plus a one-
    1969-07-20 was 7.57 s (the USNO "rubber second" formula). With skyfield's default, the 1969 Sun
    differs from Horizons by 3.4e-4° (1.2 arcsec). With the official formula (`moonat.ephem.direct.skyfield_time`) the difference is 6e-6°.
    So Horizons uses the official 1960s UTC, and so do we.
-2. **Angular diameter of the Sun:** we use R☉ = 696000 km (from the brief). Horizons' value is about 0.84 arcsec smaller,
-   which matches R☉ = 695700 km (IAU 2015 nominal). The Earth (6378.137 km) agrees to 0.001 arcsec.
+2. **Angular diameters:** we use R☉ = 695 700 km, the IAU 2015 Resolution B3 nominal value that Horizons uses
+   (Shay's decision of 2026-11-14; with our earlier 696 000 km the Sun was 0.84 arcsec larger than Horizons').
+   The Sun now agrees to {sd["sun"]["d_ang_diam_arcsec"]:.4f} arcsec and the Earth (6378.137 km) to
+   {sd["earth"]["d_ang_diam_arcsec"]:.4f} arcsec (Horizons prints the diameter to 0.001 arcsec).
 3. **Distances:** Sun within {sd["sun"]["d_dist_km"] * 1000:.0f} m and Earth within {sd["earth"]["d_dist_km"] * 1000:.1f} m (light-time range).
    For Jupiter and Saturn, the 170 km difference comes from the DE421 system barycentre that we use. This is below 0.1 arcsec.
 4. **Table planets** are unit vectors from the Moon's centre (C1). They have no topocentric parallax, so the error is up to

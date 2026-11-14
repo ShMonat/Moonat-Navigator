@@ -90,8 +90,9 @@ def test_range_size_phase_light_time(rows):
     for r in rows:
         if r["body"] == "sun":
             assert abs(r["d_dist_km"]) < 3.0, r  # table interpolation, <= 2.1 km (manifest)
-            assert abs(r["d_rho_like_as"]) < 0.005, r  # with Moonat's R_sun = 696000 km
-            assert 0.40 < r["d_rho_as"] < 0.43, r  # Horizons uses R_sun = 695700 km
+            # Both sides use R_sun = 695700 km (IAU 2015): only Horizons' 0.001" rounding is left.
+            assert abs(r["d_rho_as"]) < 0.005, r
+            assert abs(r["d_rho_like_as"]) < 1e-4, r  # our range at Horizons' range: <= 2 km
             assert abs(r["d_lt_ms"]) < 0.02, r
         else:
             assert abs(r["d_dist_km"]) < 0.3, r

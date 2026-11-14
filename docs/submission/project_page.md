@@ -27,7 +27,7 @@ https://shmonat.github.io/Moonat-Navigator/ — source code: https://github.com/
 - Outputs:
   - Sun panel: elevation, azimuth, how much of the solar disk clears the terrain and the Earth, solar flux (W/m²), time to sunset, eclipses.
   - Earth panel: elevation, azimuth, how much of the Earth is visible (a proxy for direct radio contact), its phase, time to Earthset.
-  - Sky view: a first-person 3D view from 2 m above the ground, with real terrain lit by the Sun, the Earth with its true phase and orientation, the stars and the planets. During an eclipse, the Earth covers the Sun and its atmosphere glows as a red ring.
+  - Sky view: a first-person 3D view from 2 m above the ground, with real terrain lit by the Sun, the Earth with its true phase and orientation, the stars and the planets. During an eclipse, the Earth covers the Sun and its atmosphere glows as a red ring (an illustrative drawing; the eclipse geometry and timing are computed).
   - Rover traverse: the fastest route within the rover's slope limit, its elevation and slope profiles, and the Sun and Earth along the drive, against time or distance travelled.
 - Mission durations become timelines with one line per scenario, so trade-offs are visible at a glance. Every view can be shared as a link.
 
@@ -37,7 +37,7 @@ https://shmonat.github.io/Moonat-Navigator/ — source code: https://github.com/
 3. Visibility: the fraction of the Sun's or the Earth's disk that rises above that skyline, weighted for the Sun's limb darkening for power.
 4. The physics is precomputed in Python and validated; the browser does the fast geometry and reproduces the Python reference to 3e-11°, so any site and any time works instantly. An independent check of the browser code against JPL Horizons at 20 random places and times (both poles, the far side, 1966–2040) agrees to 0.13 arcseconds.
 5. Terrain anywhere: for a point that is not in the catalog, the browser fetches LOLA heights from NASA **Moon Trek** in 1–3 s and traces the horizon itself. At 10 of 12 test sites it agrees with our precomputed horizons to 0.07–0.37° (RMS).
-6. Eclipses: the fraction of the Sun hidden by the Earth reproduces NASA's published contact times of the lunar eclipses of 14 March 2025 (seen by the Blue Ghost lander) and 24 April 1967 (seen by Surveyor 3) to 2.6 s or better.
+6. Eclipses: the fraction of the Sun hidden by the Earth reproduces NASA's published contact times of the lunar eclipses of 14 March 2025 (seen by the Blue Ghost lander) and 24 April 1967 (seen by Surveyor 3) to 4.2 s or better.
 7. Rover traverses: a shortest-time path search on a Moon Trek elevation grid, with VIPER-class (0.2 m/s, ≤ 15°) and Apollo LRV (2.5 m/s, ≤ 20°) presets from NASA sources.
 
 **Tools**

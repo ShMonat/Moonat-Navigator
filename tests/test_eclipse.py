@@ -24,6 +24,7 @@ from moonat.ephem import topo
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = Path(__file__).parent / "fixtures" / "eclipse_cases.json"
+CLASSICAL_SUN_RADIUS_KM = 696000.0  # semi-diameter 959.6 arcsec at 1 au (Auwers' 959.63 arcsec)
 GENERATED_BY = (
     "AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team."
 )
@@ -86,6 +87,9 @@ def contacts() -> dict:
     for key, ev in ECLIPSES.items():
         out[key] = {
             "moon": E.moon_shadow_contacts(*ev["window"]),
+            "moon_classical_sun": E.moon_shadow_contacts(
+                *ev["window"], sun_radius_km=CLASSICAL_SUN_RADIUS_KM
+            ),
             "site": _site_contacts(ev),
             "site_danjon": _site_contacts(ev, earth_radius_km=E.EARTH_RADIUS_KM * E.DANJON_FACTOR),
         }
@@ -167,14 +171,20 @@ def test_sun_fully_covered_at_greatest_eclipse(key, contacts):
 
 @pytest.mark.parametrize("key", list(ECLIPSES))
 def test_whole_moon_contacts_reproduce_nasa(key, contacts):
-    """Our ephemeris + NASA's method (Danjon) gives NASA's contacts within a few seconds."""
+    """Our ephemeris + NASA's method (Danjon) gives NASA's contacts within a few seconds.
+
+    With the app's solar radius (IAU 2015, 695700 km): within 5 s. With the classical solar
+    semi-diameter (959.63 arcsec at 1 au, ~696000 km), which NASA's tables fit better: within 3 s.
+    The 0.4 arcsec radius difference moves the umbral contacts by up to 1.4 s (eclipse.md §2).
+    """
     ev = ECLIPSES[key]
-    m = contacts[key]["moon"]
     # NASA's UT = TD - Delta T(NASA); ours = TD - (TT - UTC): ours is later by the difference.
     shift = ev["delta_t_nasa_s"] - ev["tt_minus_utc_s"]
-    for k, iso in ev["nasa"].items():
-        assert m[k] - posix(iso) - shift == pytest.approx(0.0, abs=4.0), k
-    assert m["umbral_magnitude"] == pytest.approx(ev["umbral_magnitude"], abs=5e-4)
+    for which, tol_s, tol_mag in (("moon", 5.0, 1e-3), ("moon_classical_sun", 3.0, 5e-4)):
+        m = contacts[key][which]
+        for k, iso in ev["nasa"].items():
+            assert m[k] - posix(iso) - shift == pytest.approx(0.0, abs=tol_s), (which, k)
+        assert m["umbral_magnitude"] == pytest.approx(ev["umbral_magnitude"], abs=tol_mag), which
 
 
 @pytest.mark.parametrize("key", list(ECLIPSES))

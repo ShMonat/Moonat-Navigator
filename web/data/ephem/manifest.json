@@ -82,7 +82,7 @@
  ],
  "planet_note": "jupiter and saturn are system barycentres (DE421); offset < 0.1 arcsec",
  "body_radii_km": {
-  "sun": 696000.0,
+  "sun": 695700.0,
   "earth": 6378.137
  },
  "moon_radius_km": 1737.4,

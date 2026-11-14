@@ -55,8 +55,9 @@ OBSERVER_HEIGHT_M = 2.0  # C6 default eye height
 AU_KM = 149597870.7
 C_KM_S = 299792.458
 AS = 3600.0  # arcsec per degree
-R_SUN_MOONAT_KM = 696000.0  # web/data/ephem/manifest.json body_radii_km
-R_SUN_IAU_KM = 695700.0  # IAU 2015 nominal, what Horizons uses for the Sun's Ang-diam
+# Solar radius: IAU 2015 Resolution B3 nominal. Moonat (web/data/ephem/manifest.json
+# body_radii_km) and Horizons ("Target radii" of the Sun) both use it.
+R_SUN_KM = 695700.0
 BODIES = {"sun": "10", "earth": "399"}
 VEC_CORR = {"geom": "NONE", "lt": "LT", "lts": "LT+S"}
 QUANTITIES = "4,10,13,20,21,24"  # az/el, illuminated %, ang. diam., range, light time, S-T-O
@@ -165,10 +166,10 @@ ECLIPSES = {
         "instants": [
             ("before", "2025-03-14T04:30:00Z"),
             ("C1 Sun starts to be covered", "2025-03-14T05:00:42Z"),
-            ("C2 totality starts", "2025-03-14T06:17:25Z"),
+            ("C2 totality starts", "2025-03-14T06:17:24Z"),
             ("greatest at the site", "2025-03-14T07:25:54Z"),
-            ("C3 diamond ring", "2025-03-14T08:34:23Z"),
-            ("C4 Sun fully uncovered", "2025-03-14T09:51:11Z"),
+            ("C3 diamond ring", "2025-03-14T08:34:24Z"),
+            ("C4 Sun fully uncovered", "2025-03-14T09:51:10Z"),
             ("after", "2025-03-14T10:20:00Z"),
         ],
     },
@@ -179,7 +180,7 @@ ECLIPSES = {
         "ground_elev_m": -1424.0,
         "instants": [
             ("before", "1967-04-24T09:30:00Z"),
-            ("C1 Sun starts to be covered", "1967-04-24T09:47:23Z"),
+            ("C1 Sun starts to be covered", "1967-04-24T09:47:24Z"),
             ("C2 totality starts", "1967-04-24T10:43:48Z"),
             ("greatest at the site", "1967-04-24T11:54:30Z"),
             ("C3 Sun reappears", "1967-04-24T13:05:13Z"),
@@ -714,12 +715,10 @@ def compare_cases(data: dict) -> list[dict]:
                 a = math.radians(r["pred_interp_along_as"] / AS)
                 corr = [u[k] - a * mv[k] / mn for k in range(3)]
                 r["d_sky_corr_as"] = angle_deg(corr, azel_unit(h["az_deg"], h["el_deg"])) * AS
-                # Same Horizons range, our solar radius: isolates the radius constant.
-                rho_like = math.degrees(math.asin(R_SUN_MOONAT_KM / h["dist_km"])) * AS
-                rho_iau = math.degrees(math.asin(R_SUN_IAU_KM / h["dist_km"])) * AS
-                r["d_rho_radius_const_as"] = rho_like - rho_iau
+                # asin(R/d) with Horizons' range: isolates our range error from Horizons' rounding.
+                rho_like = math.degrees(math.asin(R_SUN_KM / h["dist_km"])) * AS
                 r["d_rho_like_as"] = s["ang_radius_deg"] * AS - rho_like
-                r["h_rho_vs_iau_as"] = ang_r_h - rho_iau
+                r["h_rho_rounding_as"] = ang_r_h - rho_like
             else:
                 r["d_phase"] = s["phase_frac"] - h["illu_frac"]
                 r["series_vs_sky_phase"] = abs(ser["earth_phase"] - s["phase_frac"])
@@ -742,7 +741,7 @@ def compare_eclipses(data: dict) -> list[dict]:
             )
             # Radii: our constants on each side's own ranges (like-for-like contact condition).
             rs_j, re_j = j["sun"]["ang_radius_deg"], j["earth"]["ang_radius_deg"]
-            rs_h = math.degrees(math.asin(R_SUN_MOONAT_KM / hs[k]["dist_km"]))
+            rs_h = math.degrees(math.asin(R_SUN_KM / hs[k]["dist_km"]))
             re_h = he[k]["ang_diam_arcsec"] / 2.0 / AS
             outer = "C1" in label or "C4" in label
             inner = "C2" in label or "C3" in label
@@ -1052,8 +1051,8 @@ def stats_table(cases: list[dict], cmp: list[dict]) -> str:
         ("d_dist_corr_km", "sun", "Sun distance, explained terms removed (§6.3)", "km", 3),
         ("d_dist_km", "earth", "Earth distance", "km", 4),
         ("d_dist_corr_km", "earth", "Earth distance, explained terms removed (§6.4)", "km", 4),
-        ("d_rho_as", "sun", "Sun angular radius, as computed", "arcsec", 3),
-        ("d_rho_like_as", "sun", "Sun angular radius, same R☉", "arcsec", 4),
+        ("d_rho_as", "sun", "Sun angular radius (R☉ = 695 700 km on both sides)", "arcsec", 4),
+        ("d_rho_like_as", "sun", "Sun angular radius, asin(R☉/d) at Horizons' range", "arcsec", 5),
         ("d_rho_as", "earth", "Earth angular radius", "arcsec", 4),
         ("d_phase", "earth", "Earth illuminated fraction", "–", 7),
         ("d_lt_ms", "sun", "Sun light time (distance / c)", "ms", 4),
@@ -1144,6 +1143,7 @@ def write_report(data: dict, cmp: list[dict], ecl: list[dict], vec: list[dict], 
     ser_max = max(r["series_vs_sky_deg"] for r in cmp)
     ecl_max = max(abs(r["d_sep_as"]) for r in ecl)
     dcon = [abs(r["d_contact_s"]) for r in ecl if not math.isnan(r["d_contact_s"])]
+    mjs = max(abs(r["margin_js_as"]) for r in ecl if not math.isnan(r["margin_js_as"]))
     vs = {b: [r for r in vec if r["body"] == b] for b in BODIES}
 
     def rng(rows, k, nd=2):
@@ -1237,14 +1237,14 @@ Also: `series()` = `skyState()` for az, el and phase (largest difference {sci(se
 The instants are the site contacts of [eclipse.md](eclipse.md) §3 (Blue Ghost, 18.562°N 61.810°E, −3651 m;
 Surveyor 3, 3.015°S 23.418°W, −1424 m), plus one instant before and one after. Horizons' separation
 is the angle between its apparent Sun and Earth az/el. The "contact margin" is the separation minus
-ρ☉ + ρ⊕ (C1, C4) or ρ⊕ − ρ☉ (C2, C3). Both sides use our radii: R☉ = 696000 km and R⊕ = 6378.137 km
-(Horizons' Earth radius is the same).
+ρ☉ + ρ⊕ (C1, C4) or ρ⊕ − ρ☉ (C2, C3). Both sides use R☉ = 695 700 km (IAU 2015 nominal) and
+R⊕ = 6378.137 km, the radii of Horizons' own response headers.
 
 {eclipse_table(ecl)}
 
 The separation agrees within **{ecl_max:.3f}″**. At the contacts the separation changes by 0.38–0.58″/s,
 so the JS and Horizons geometries give the same contact times within **{max(dcon):.2f} s**. The JS
-margins are within ±0.4″ of zero, because the contact times in eclipse.md are rounded to 1 s. This check
+margins are within ±{mjs:.2f}″ of zero, because the contact times in eclipse.md are rounded to 1 s. This check
 covers the geometry only. The shadow model (solid Earth or the Danjon 1.01 enlargement) is discussed in
 eclipse.md.
 
@@ -1310,10 +1310,12 @@ aberration (`LT+S`, the apparent direction). The JS direction is rotated to ICRS
    the leap-second slip removed, the residual is {g("d_dist_corr_km", "earth") * 1000:.0f} m max (RMS
    {g("d_dist_corr_km", "earth", False, "rms") * 1000:.0f} m). The effect on the Earth's angular radius is
    ≤ 0.001″.
-5. **Sun angular radius +{g("d_rho_as", "sun"):.2f}″.** This is the solar radius constant: we use
-   R☉ = 696000 km (the brief), and Horizons uses 695700 km (IAU 2015). With the same R☉ and Horizons'
-   range, the difference is {g("d_rho_like_as", "sun"):.0e}″. Earth angular radius: {g("d_rho_as", "earth"):.4f}″ (Horizons
-   prints the diameter to 0.001″).
+5. **Angular radii.** Moonat and Horizons use the same solar radius, R☉ = 695 700 km (IAU 2015
+   Resolution B3 nominal; Shay's decision of 2026-11-14 replaced our earlier 696 000 km, which made the Sun
+   0.42″ larger than Horizons'). The Sun's angular radius now agrees to {g("d_rho_as", "sun"):.4f}″, Horizons'
+   printing precision. With Horizons' range in our formula the difference is {g("d_rho_like_as", "sun"):.0e}″ (the
+   range difference of item 3). Earth angular radius: {g("d_rho_as", "earth"):.4f}″ (Horizons prints the
+   diameter to 0.001″).
 6. **Earth illuminated fraction, {g("d_phase", "earth"):.1e}.** JS uses (1 + cos α)/2 with α from the
    apparent vectors. Horizons uses its own phase angle. The two angles differ by a few arcseconds
    (aberration), which is {g("d_phase", "earth") / 1e-3 * 100:.1f} % of the C6 tolerance (0.001).

@@ -9,8 +9,8 @@ const T = (s) => Date.parse(s);
 
 test("eclipseText: total eclipse at Blue Ghost, 14 Mar 2025 (contacts from docs/validation/eclipse.md)", () => {
   const e = {
-    start_ms: T("2025-03-14T05:00:42Z"), end_ms: T("2025-03-14T09:51:11Z"), max_ms: T("2025-03-14T07:25:00Z"), max_frac: 1,
-    total_start_ms: T("2025-03-14T06:17:25Z"), total_end_ms: T("2025-03-14T08:34:23Z"),
+    start_ms: T("2025-03-14T05:00:42Z"), end_ms: T("2025-03-14T09:51:10Z"), max_ms: T("2025-03-14T07:25:00Z"), max_frac: 1,
+    total_start_ms: T("2025-03-14T06:17:24Z"), total_end_ms: T("2025-03-14T08:34:24Z"),
   };
   const s = eclipseText([e], T("2025-03-14T04:30:00Z"), T("2025-03-14T10:20:00Z"));
   assert.match(s, /Earth eclipses the Sun/);

@@ -25,7 +25,7 @@ Decisions in Shahar's domain are marked *(pending Shahar's review)*.
 5. **Observer eye height:** 2 m. **Azimuth:** true azimuth everywhere (see docs/CONTRACTS.md §0).
    **Rover traverses (advanced mode):** `web/js/rover/` plans a drive between two points (≤ 60 km) on one live Moon Trek
    LOLA grid (A* on travel time with slope limits, VIPER-class / Apollo LRV presets) and runs the C6 physics along it,
-   with a horizon every 100–250 m (contract C10, docs/validation/rover.md) *(pending Shay's review of the speed model;
+   with a horizon every 100–250 m (contract C10, docs/validation/rover.md) *(speed model approved by Shay, 2026-11-14;
    network use pending Shahar's review)*.
 6. **UI:** two tabs, per the Main Tab verdict. **Compare** (scenario builder + Sun and Earth panels, overlaid) and **Sky**
    (the rendered view, one per scenario, drag to look around the hemisphere, timelapse for missions).

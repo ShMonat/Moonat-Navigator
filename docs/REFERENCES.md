@@ -34,7 +34,7 @@ Challenge Resources tab (published 2026-11-13): Quickmap, Moon Trek, JPL Horizon
 - USNO `tai-utc.dat` — official TAI−UTC "rubber second" formulas for 1966–1971 (pre-1972 UTC) — https://maia.usno.navy.mil/ser7/tai-utc.dat — public
 - Vogel, H. (1979), "A better way to construct the sunflower head", Math. Biosci. 44, 179–189 (golden-angle point pattern) — even sampling of the Sun and Earth disks for the visible fraction — https://doi.org/10.1016/0025-5564(79)90080-4 — method only
 - Linear solar limb-darkening law I(μ) = 1 − u(1 − μ), u ≈ 0.6 in the visible (e.g. Cox, Allen's Astrophysical Quantities, 4th ed., §14.7) — flux fraction of a partly hidden Sun — method only
-- IAU 2015 Resolution B3 (total solar irradiance 1361 W/m², Earth equatorial radius 6 378.137 km) — solar flux and the Earth's angular size — https://www.iau.org/static/resolutions/IAU2015_English.pdf — public
+- IAU 2015 Resolution B3 (total solar irradiance 1361 W/m², nominal solar radius 695 700 km, Earth equatorial radius 6 378.137 km) — solar flux and the angular sizes of the Sun and the Earth — https://www.iau.org/static/resolutions/IAU2015_English.pdf — public
 - Snyder, J. P. (1987), "Map Projections — A Working Manual", USGS Professional Paper 1395, polar stereographic projection (sphere) — the polar caps of the globe picker (scripts/data/build_moonmap.py, web/js/globe/) — https://doi.org/10.3133/pp1395 — public
 - Horn, B. K. P. (1981), "Hill shading and the reflectance map", Proc. IEEE 69(1), 14–47 — Lambertian hillshade of the LOLA polar caps — https://doi.org/10.1109/PROC.1981.11918 — method only
 

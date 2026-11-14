@@ -70,6 +70,8 @@
 
 **Result:**
 - At 10 m we agree with Gläser within 0.2 percentage points.
+- Re-run with the IAU 2015 solar radius (695 700 km instead of 696 000 km, 2026-11-14): every number in this table and
+  in the 2027 "C3" column of §9 is unchanged at the printed precision (the disk is 0.04 % smaller).
 - At 2 m we are 2 points lower. This is expected, because the near-field DEM texture matters more for a low eye (§7).
 - The catalog POI uses rounded coordinates. It lies a few hundred metres off the ridge crest, and that costs about 15 points of illumination.
 - **Done on branch `shay/polar-sites`:** `shackleton_rim` now uses Gläser's CR1 spot 1, **−89.4395, −137.1934**. The change is pending Shahar's review; see §9.

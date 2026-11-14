@@ -33,14 +33,14 @@ Epochs: 1969-07-20 20:17, 2026-11-14 12:00 and 2030-06-01 00:00 UTC, plus a one-
 
 | method | body | rows | max sky error (arcsec) | max \|Δel\| (arcsec) | max \|Δdist\| | max \|Δdiam\| (arcsec) | max \|Δphase\| |
 |---|---|---|---|---|---|---|---|
-| direct | sun | 192 | 0.0490 | 0.0485 | 0.006 km | 0.843 | – |
+| direct | sun | 192 | 0.0490 | 0.0485 | 0.006 km | 0.000 | – |
 | direct | earth | 192 | 0.0505 | 0.0497 | 0.001 km | 0.001 | 2.6e-05 |
 | direct | mercury | 3 | 0.0484 | 0.0155 | 0.421 km | – | – |
 | direct | venus | 3 | 0.0492 | 0.0174 | 0.041 km | – | – |
 | direct | mars | 3 | 0.0492 | 0.0126 | 0.481 km | – | – |
 | direct | jupiter | 3 | 0.0491 | 0.0486 | 165.452 km | – | – |
 | direct | saturn | 3 | 0.0552 | 0.0470 | 172.256 km | – | – |
-| table | sun | 192 | 0.0494 | 0.0485 | 1.090 km | 0.843 | – |
+| table | sun | 192 | 0.0494 | 0.0485 | 1.090 km | 0.000 | – |
 | table | earth | 192 | 0.1329 | 0.1317 | 0.177 km | 0.004 | 2.6e-05 |
 | table | mercury | 3 | 2.8497 | 2.8495 | – | – | – |
 | table | venus | 3 | 6.7563 | 6.7562 | – | – | – |
@@ -75,8 +75,10 @@ Epochs: 1969-07-20 20:17, 2026-11-14 12:00 and 2030-06-01 00:00 UTC, plus a one-
    1969-07-20 was 7.57 s (the USNO "rubber second" formula). With skyfield's default, the 1969 Sun
    differs from Horizons by 3.4e-4° (1.2 arcsec). With the official formula (`moonat.ephem.direct.skyfield_time`) the difference is 6e-6°.
    So Horizons uses the official 1960s UTC, and so do we.
-2. **Angular diameter of the Sun:** we use R☉ = 696000 km (from the brief). Horizons' value is about 0.84 arcsec smaller,
-   which matches R☉ = 695700 km (IAU 2015 nominal). The Earth (6378.137 km) agrees to 0.001 arcsec.
+2. **Angular diameters:** we use R☉ = 695 700 km, the IAU 2015 Resolution B3 nominal value that Horizons uses
+   (Shay's decision of 2026-11-14; with our earlier 696 000 km the Sun was 0.84 arcsec larger than Horizons').
+   The Sun now agrees to 0.0005 arcsec and the Earth (6378.137 km) to
+   0.0009 arcsec (Horizons prints the diameter to 0.001 arcsec).
 3. **Distances:** Sun within 6 m and Earth within 0.7 m (light-time range).
    For Jupiter and Saturn, the 170 km difference comes from the DE421 system barycentre that we use. This is below 0.1 arcsec.
 4. **Table planets** are unit vectors from the Moon's centre (C1). They have no topocentric parallax, so the error is up to

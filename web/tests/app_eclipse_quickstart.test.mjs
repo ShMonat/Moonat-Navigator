@@ -45,8 +45,8 @@ test("the window holds the whole eclipse seen from Blue Ghost, with ~30 min on e
   assert.equal(e.max_frac, 1);
   assert.equal(e.sun_vis_at_max, 1);
   for (const [k, iso] of [
-    ["start_ms", "2025-03-14T05:00:42Z"], ["total_start_ms", "2025-03-14T06:17:25Z"], ["max_ms", "2025-03-14T07:25:54Z"],
-    ["total_end_ms", "2025-03-14T08:34:23Z"], ["end_ms", "2025-03-14T09:51:11Z"],
+    ["start_ms", "2025-03-14T05:00:42Z"], ["total_start_ms", "2025-03-14T06:17:24Z"], ["max_ms", "2025-03-14T07:25:54Z"],
+    ["total_end_ms", "2025-03-14T08:34:24Z"], ["end_ms", "2025-03-14T09:51:10Z"],
   ]) {
     assert.ok(Math.abs(e[k] - parseUtc(iso)) < 5000, `${k} ${new Date(e[k]).toISOString()} vs ${iso}`);
   }

@@ -36,7 +36,7 @@ from .ephem import topo
 from .visibility import LIMB_DARKENING_U, disk_fractions
 
 EARTH_RADIUS_KM = topo.EARTH_RADIUS_KM  # 6378.137 km, solid-body equatorial radius
-SUN_RADIUS_KM = topo.SUN_RADIUS_KM  # 696000 km
+SUN_RADIUS_KM = topo.SUN_RADIUS_KM  # 695700 km, IAU 2015 nominal
 MOON_RADIUS_KM = topo.MOON_RADIUS_KM  # 1737.4 km
 # Danjon's enlargement of the Earth's radius, 1 + 1/85 - 1/594 (Espenak & Meeus, Five Millennium
 # Canon of Lunar Eclipses: eclipse.gsfc.nasa.gov/LEcat5/shadow.html).
@@ -301,12 +301,15 @@ def moon_shadow_contacts(
     step_s: float = 300.0,
     tol_s: float = 0.5,
     table: ephem_table.EphemTable | None = None,
+    sun_radius_km: float | None = None,
 ) -> dict | None:
     """Whole-Moon lunar-eclipse contacts in NASA's convention, from this project's ephemeris.
 
     Seen from the Earth's centre: theta = angle between the Moon's centre and the shadow axis (the
     anti-Sun direction); s_M = asin(R_moon / d_M); pi_M = asin(R_earth / d_M) (equatorial horizontal
-    parallax); s_S = asin(R_sun / d_S); pi_S = asin(R_earth / d_S). Shadow radii (Danjon, with
+    parallax); s_S = asin(R_sun / d_S); pi_S = asin(R_earth / d_S). R_sun = ``sun_radius_km``
+    (km; default SUN_RADIUS_KM, the IAU 2015 nominal 695700 km; the classical solar semi-diameter
+    959.63 arcsec at 1 au corresponds to about 696000 km). Shadow radii (Danjon, with
     ``enlargement`` = 1.01): Rp = enlargement pi_M + s_S + pi_S, Ru = enlargement pi_M - s_S + pi_S.
     Contacts: P1/P4 at theta = Rp + s_M, U1/U4 at Ru + s_M, U2/U3 at Ru - s_M; greatest eclipse at
     the minimum of theta. P2/P3 (theta = Rp - s_M: the whole Moon inside the penumbra) are not in
@@ -320,6 +323,7 @@ def moon_shadow_contacts(
     p0 = float(topo.to_posix_seconds(t0_utc))
     p1 = float(topo.to_posix_seconds(t1_utc))
     r_e = EARTH_RADIUS_KM
+    r_s = SUN_RADIUS_KM if sun_radius_km is None else sun_radius_km
 
     def geom(t: float) -> dict:
         mc = table.moon_centre(t)
@@ -329,7 +333,7 @@ def moon_shadow_contacts(
         theta = math.degrees(sep_rad(moon / dm, -sun / ds))
         s_m = math.degrees(math.asin(MOON_RADIUS_KM / dm))
         pi_m = math.degrees(math.asin(r_e / dm))
-        s_s = math.degrees(math.asin(SUN_RADIUS_KM / ds))
+        s_s = math.degrees(math.asin(r_s / ds))
         pi_s = math.degrees(math.asin(r_e / ds))
         return {
             "theta": theta,

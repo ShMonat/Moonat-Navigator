@@ -5,7 +5,7 @@
 export const SOLAR_CONSTANT_WM2 = 1361; // total solar irradiance at 1 au
 export const AU_KM = 149597870.7;
 // Default body radii; index.js prefers the ephemeris manifest's body_radii_km.
-export const SUN_RADIUS_KM = 696000;
+export const SUN_RADIUS_KM = 695700; // IAU 2015 Resolution B3 nominal (as JPL Horizons)
 export const EARTH_RADIUS_KM = 6378.137; // IAU 2015 nominal equatorial
 
 /** Irradiance on a surface facing the Sun: 1361 · (1 au / r)² · flux_frac (W/m²); r in km. */

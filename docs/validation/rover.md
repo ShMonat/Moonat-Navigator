@@ -2,7 +2,7 @@
 
 > AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
 > Branch `shay/rover`, 2026-11-14. Contract: [CONTRACTS.md C10](../CONTRACTS.md).
-> Domains: the speed model, slope limits and horizon maths are Shay's (pending his review); the data source and
+> Domains: the speed model, slope limits and horizon maths are Shay's (speed model approved by Shay, 2026-11-14); the data source and
 > network costs are Shahar's (same Moon Trek service as C9).
 >
 > **Reproduce:**
@@ -67,7 +67,7 @@ the drive (86 %) and Earth in view all the way. The rover starts in the pole's s
 "new" (its night side faces the Moon). Windows with a half-lit Earth (e.g. 2026-12-15, 2027-01-14) give 56–62 % sunlight
 along the same path.
 
-## 4. Rover presets and the speed model (Shay to review)
+## 4. Rover presets and the speed model (approved by Shay, 2026-11-14)
 | Preset | Level speed | Max slope | Cross-slope limit | Source |
 |---|---|---|---|---|
 | VIPER-class rover | 0.2 m/s | 15° | 15° | NASA "VIPER Lunar Operations": 10–20 cm/s toward a destination, "generally" ≤ 15° (25–30° when necessary); Fong 2026 (NTRS 20260002876): top 20 cm/s, nominal 10 cm/s, 15° design limit |

@@ -98,8 +98,8 @@ with no Python ephemeris code in between. The harness was written from scratch: 
 | Sun distance, explained terms removed (§6.3) | km | 0.170 | 0.060 | 0.170 |
 | Earth distance | km | 0.1706 | 0.0891 | 0.1706 |
 | Earth distance, explained terms removed (§6.4) | km | 0.0108 | 0.0048 | 0.0108 |
-| Sun angular radius, as computed | arcsec | 0.422 | 0.417 | 0.422 |
-| Sun angular radius, same R☉ | arcsec | 0.0000 | 0.0000 | 0.0000 |
+| Sun angular radius (R☉ = 695 700 km on both sides) | arcsec | 0.0002 | 0.0001 | 0.0002 |
+| Sun angular radius, asin(R☉/d) at Horizons' range | arcsec | 0.00001 | 0.00001 | 0.00001 |
 | Earth angular radius | arcsec | 0.0017 | 0.0008 | 0.0017 |
 | Earth illuminated fraction | – | 2.3e-05 | 1.6e-05 | 2.3e-05 |
 | Sun light time (distance / c) | ms | 0.0065 | 0.0041 | 0.0065 |
@@ -111,29 +111,29 @@ Also: `series()` = `skyState()` for az, el and phase (largest difference 0°).
 The instants are the site contacts of [eclipse.md](eclipse.md) §3 (Blue Ghost, 18.562°N 61.810°E, −3651 m;
 Surveyor 3, 3.015°S 23.418°W, −1424 m), plus one instant before and one after. Horizons' separation
 is the angle between its apparent Sun and Earth az/el. The "contact margin" is the separation minus
-ρ☉ + ρ⊕ (C1, C4) or ρ⊕ − ρ☉ (C2, C3). Both sides use our radii: R☉ = 696000 km and R⊕ = 6378.137 km
-(Horizons' Earth radius is the same).
+ρ☉ + ρ⊕ (C1, C4) or ρ⊕ − ρ☉ (C2, C3). Both sides use R☉ = 695 700 km (IAU 2015 nominal) and
+R⊕ = 6378.137 km, the radii of Horizons' own response headers.
 
 | eclipse | instant | UTC | separation, Horizons (°) | separation, JS (°) | Δ (″) | JS eclipse_frac | contact margin JS / Horizons (″) |
 |---|---|---|---|---|---|---|---|
 | Blue Ghost, 2025-03-14 | before | 04:30:00 | 1.406951 | 1.406952 | +0.004 | 0.0000 | – |
-| Blue Ghost, 2025-03-14 | C1 Sun starts to be covered | 05:00:42 | 1.179865 | 1.179854 | -0.040 | 0.0000 | -0.370 / -0.331 |
-| Blue Ghost, 2025-03-14 | C2 totality starts | 06:17:25 | 0.644803 | 0.644813 | +0.037 | 1.0000 | -0.176 / -0.214 |
+| Blue Ghost, 2025-03-14 | C1 Sun starts to be covered | 05:00:42 | 1.179865 | 1.179854 | -0.040 | 0.0000 | +0.045 / +0.083 |
+| Blue Ghost, 2025-03-14 | C2 totality starts | 06:17:24 | 0.644908 | 0.644919 | +0.037 | 1.0000 | -0.212 / -0.250 |
 | Blue Ghost, 2025-03-14 | greatest at the site | 07:25:54 | 0.369580 | 0.369579 | -0.002 | 1.0000 | – |
-| Blue Ghost, 2025-03-14 | C3 diamond ring | 08:34:23 | 0.644330 | 0.644341 | +0.040 | 1.0000 | -0.148 / -0.189 |
-| Blue Ghost, 2025-03-14 | C4 Sun fully uncovered | 09:51:11 | 1.178917 | 1.178902 | -0.052 | 0.0000 | -0.017 / +0.034 |
+| Blue Ghost, 2025-03-14 | C3 diamond ring | 08:34:24 | 0.644435 | 0.644446 | +0.040 | 1.0000 | -0.184 / -0.225 |
+| Blue Ghost, 2025-03-14 | C4 Sun fully uncovered | 09:51:10 | 1.178795 | 1.178780 | -0.052 | 0.0000 | -0.042 / +0.009 |
 | Blue Ghost, 2025-03-14 | after | 10:20:00 | 1.391385 | 1.391381 | -0.017 | 0.0000 | – |
 | Surveyor 3, 1967-04-24 | before | 09:30:00 | 1.456334 | 1.456355 | +0.077 | 0.0000 | – |
-| Surveyor 3, 1967-04-24 | C1 Sun starts to be covered | 09:47:23 | 1.289238 | 1.289259 | +0.076 | 0.0000 | +0.110 / +0.034 |
-| Surveyor 3, 1967-04-24 | C2 totality starts | 10:43:48 | 0.760263 | 0.760256 | -0.024 | 1.0000 | -0.005 / +0.020 |
+| Surveyor 3, 1967-04-24 | C1 Sun starts to be covered | 09:47:24 | 1.289078 | 1.289099 | +0.076 | 0.0000 | -0.055 / -0.130 |
+| Surveyor 3, 1967-04-24 | C2 totality starts | 10:43:48 | 0.760263 | 0.760256 | -0.024 | 1.0000 | -0.415 / -0.390 |
 | Surveyor 3, 1967-04-24 | greatest at the site | 11:54:30 | 0.304180 | 0.304179 | -0.003 | 1.0000 | – |
-| Surveyor 3, 1967-04-24 | C3 Sun reappears | 13:05:13 | 0.759930 | 0.759916 | -0.052 | 1.0000 | +0.146 / +0.198 |
-| Surveyor 3, 1967-04-24 | C4 Sun fully uncovered | 14:01:39 | 1.288444 | 1.288459 | +0.052 | 0.0000 | -0.202 / -0.254 |
+| Surveyor 3, 1967-04-24 | C3 Sun reappears | 13:05:13 | 0.759930 | 0.759916 | -0.052 | 1.0000 | -0.265 / -0.212 |
+| Surveyor 3, 1967-04-24 | C4 Sun fully uncovered | 14:01:39 | 1.288444 | 1.288459 | +0.052 | 0.0000 | +0.208 / +0.157 |
 | Surveyor 3, 1967-04-24 | after | 14:30:00 | 1.560999 | 1.561017 | +0.065 | 0.0000 | – |
 
 The separation agrees within **0.077″**. At the contacts the separation changes by 0.38–0.58″/s,
 so the JS and Horizons geometries give the same contact times within **0.13 s**. The JS
-margins are within ±0.4″ of zero, because the contact times in eclipse.md are rounded to 1 s. This check
+margins are within ±0.42″ of zero, because the contact times in eclipse.md are rounded to 1 s. This check
 covers the geometry only. The shadow model (solid Earth or the Danjon 1.01 enlargement) is discussed in
 eclipse.md.
 
@@ -210,10 +210,12 @@ aberration (`LT+S`, the apparent direction). The JS direction is rotated to ICRS
    the leap-second slip removed, the residual is 11 m max (RMS
    5 m). The effect on the Earth's angular radius is
    ≤ 0.001″.
-5. **Sun angular radius +0.42″.** This is the solar radius constant: we use
-   R☉ = 696000 km (the brief), and Horizons uses 695700 km (IAU 2015). With the same R☉ and Horizons'
-   range, the difference is 1e-05″. Earth angular radius: 0.0017″ (Horizons
-   prints the diameter to 0.001″).
+5. **Angular radii.** Moonat and Horizons use the same solar radius, R☉ = 695 700 km (IAU 2015
+   Resolution B3 nominal; Shay's decision of 2026-11-14 replaced our earlier 696 000 km, which made the Sun
+   0.42″ larger than Horizons'). The Sun's angular radius now agrees to 0.0002″, Horizons'
+   printing precision. With Horizons' range in our formula the difference is 1e-05″ (the
+   range difference of item 3). Earth angular radius: 0.0017″ (Horizons prints the
+   diameter to 0.001″).
 6. **Earth illuminated fraction, 2.3e-05.** JS uses (1 + cos α)/2 with α from the
    apparent vectors. Horizons uses its own phase angle. The two angles differ by a few arcseconds
    (aberration), which is 2.3 % of the C6 tolerance (0.001).

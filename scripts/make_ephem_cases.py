@@ -102,7 +102,7 @@ def main() -> None:
             "Expected topocentric sky states from the table-based Python reference "
             "(moonat.ephem.table) using web/data/ephem/. Conventions: docs/CONTRACTS.md §0; "
             "az clockwise from north; ENU up = radial; r_icrs_to_enu row-major; planets have no "
-            "topocentric parallax; ang_radius = asin(R/d) with Sun 696000 km, Earth 6378.137 km; "
+            "topocentric parallax; ang_radius = asin(R/d) with Sun 695700 km (IAU 2015), Earth 6378.137 km; "
             "phase_frac = (1+cos a)/2, a = Sun-Earth-observer angle; era_deg from UTC (UT1=UTC)."
         ),
         "tolerances": {"az_el_deg": 0.001, "phase_frac": 0.001, "dist_rel": 1e-6, "matrix": 1e-6},
