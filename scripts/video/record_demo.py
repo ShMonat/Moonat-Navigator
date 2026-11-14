@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import functools
 import io
+import math
 import re
 import subprocess
 import sys
@@ -37,22 +38,23 @@ from playwright.sync_api import Page, sync_playwright
 ROOT = Path(__file__).resolve().parents[2]
 W, H, FPS = 1920, 1080, 30
 MAX_FRAMES = 30 * FPS  # hard limit: 30.0 s
-TARGET_FRAMES = 29 * FPS  # the end card is padded or trimmed to land here
+TARGET_FRAMES = 885  # 29.5 s: the end card is padded or trimmed to land here
 DISCLOSURE = "AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team."
 APP_URL = "https://shmonat.github.io/Moonat-Navigator/"
 
 # Captions: one main line (read in about 2-3 s) and a short sub line.
 CAPTIONS = {
-    "apollo": ("This is the sky Neil and Buzz saw", "Apollo 11 · Tranquility Base · 20 July 1969"),
-    "compare": ("Compare all six Apollo landings", "Sunlight and Earth in the sky, side by side"),
+    "apollo": ("The sky Neil and Buzz saw", "Apollo 11 · Tranquility Base · 20 July 1969"),
+    "compare": ("All six Apollo landings, ranked", "Sunlight and Earth, side by side"),
+    "eclipse": (
+        "The Earth eclipses the Sun, seen from the Moon",
+        "Blue Ghost lander · 14 March 2025 · NASA eclipse times",
+    ),
     "pole": (
-        "At the south pole, one ridge decides power and contact with Earth",
-        "Shackleton rim · Jan–Feb 2027 · real NASA LOLA terrain",
+        "At the south pole, the Sun skims the horizon",
+        "Shackleton rim · real NASA LOLA terrain",
     ),
-    "farside": (
-        "On the far side, Earth never rises",
-        "Chang'e 4 needs a relay satellite to call home",
-    ),
+    "farside": ("On the far side, Earth never rises", "Chang'e 4 · Von Kármán crater · 2019"),
 }
 
 MOON_LOGO = (
@@ -72,26 +74,26 @@ TITLE_CARD = f"""
 END_CARD = f"""
 <div class="vc-logo small">{MOON_LOGO.format(s=72)}<span>Moonat</span></div>
 <div class="vc-url">{APP_URL}</div>
-<div class="vc-l3">Validated against JPL Horizons · NASA LOLA terrain</div>
+<div class="vc-l3">Validated against JPL Horizons · NASA LOLA terrain · NASA eclipse times</div>
 <div class="vc-rule"></div>
 <div class="vc-l4">Team Moonat · NASA Space Apps 2026 · Tel Aviv</div>
 <div class="vc-fine">Screen capture of the live app. Software built with the help of AI (Claude Code).</div>
 """
 
 # Runs before the app's own scripts: count 2D canvas draws (the sky view copies every render into its 2D canvas),
-# so the recorder knows when a new sky frame is on screen; and pin the theme.
+# so the recorder knows when a new sky frame is on screen; pin the theme; hide the first-visit introduction line.
 INIT_SCRIPT = """
 window.__draws = 0;
 const __drawImage = CanvasRenderingContext2D.prototype.drawImage;
 CanvasRenderingContext2D.prototype.drawImage = function (...a) { window.__draws++; return __drawImage.apply(this, a); };
-try { localStorage.setItem("moonat-theme", "%THEME%"); } catch (e) { /* storage blocked */ }
+try { localStorage.setItem("moonat-theme", "%THEME%"); localStorage.setItem("moonat-intro", "off"); } catch (e) { /* blocked */ }
 """
 
 OVERLAY_CSS = """
 #vid-root { position: fixed; inset: 0; pointer-events: none; z-index: 2147483647;
   font-family: "Segoe UI Variable Display", "Segoe UI", "Inter", system-ui, sans-serif; }
 #vid-scrim { position: absolute; left: 0; right: 0; bottom: 0; height: 290px; opacity: 0;
-  background: linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,0.42) 45%, rgba(0,0,0,0.72)); }
+  background: linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,0.55) 40%, rgba(0,0,0,0.85)); }
 #vid-cap { position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%); width: 1640px; text-align: center;
   color: #fff; opacity: 0; text-shadow: 0 2px 4px rgba(0,0,0,0.9), 0 0 22px rgba(0,0,0,0.75); }
 #vid-cap .main { font-size: 50px; font-weight: 600; letter-spacing: 0.005em; line-height: 1.15; }
@@ -439,6 +441,36 @@ class Director:
         self.enc.crossfade(new, xfade)
         self.enc.write(new)
 
+    def click_chip(self, n: int, **kw) -> None:
+        """Click the n-th quick-start chip. The chips sit under the scenario cards, so the panel (or page) that
+        holds them scrolls smoothly while the pointer travels, until the chip is on screen."""
+        delta = self.page.evaluate(
+            """n => { const c = document.querySelector(`#quickstarts .chip:nth-child(${n})`);
+            let s = c.parentElement;
+            while (s && s !== document.body) {
+              const o = getComputedStyle(s).overflowY;
+              if ((o === 'auto' || o === 'scroll') && s.scrollHeight > s.clientHeight) break;
+              s = s.parentElement;
+            }
+            if (!s || s === document.body) s = document.scrollingElement;
+            document.querySelectorAll('[data-vid-scroll]').forEach(e => delete e.dataset.vidScroll);
+            s.dataset.vidScroll = String(s.scrollTop);
+            const r = c.getBoundingClientRect(), lo = 90, hi = window.innerHeight - 40;
+            const want = r.bottom > hi ? r.bottom - hi : r.top < lo ? r.top - lo : 0;
+            return Math.max(-s.scrollTop, Math.min(want, s.scrollHeight - s.clientHeight - s.scrollTop)); }""",
+            n,
+        )
+        x, y = self.center(f"#quickstarts .chip:nth-child({n})")
+
+        def scroll(t: float) -> None:
+            self.page.evaluate(
+                """d => { const s = document.querySelector('[data-vid-scroll]');
+                s.scrollTop = Number(s.dataset.vidScroll) + d; }""",
+                delta * ease(t),
+            )
+
+        self.click((x, y - delta), during=scroll if delta else None, **kw)
+
     def reveal(self, xfade: int = 8) -> None:
         """Cross-fade from the last frame to the page as it is now (after off-camera set-up)."""
         new = self.grab()
@@ -470,12 +502,30 @@ class Director:
     def sky_readout(self) -> str:
         return self.page.evaluate("document.querySelector('.moonat-sky-info')?.innerText || ''")
 
-    def sun_az(self) -> float:
-        m = re.search(r"Sun\s+el\s+\S+\s+az\s+([-\d.]+)", self.sky_readout())
+    def body_az(self, name: str) -> float:
+        """Azimuth (deg) of "Sun" or "Earth" from the sky view's readout ("Earth height 28.9° direction W 258.6°")."""
+        m = re.search(rf"{name}\s+height\s+\S+\s+direction\s+\S+\s+([\d.]+)°", self.sky_readout())
         return float(m.group(1)) if m else float("nan")
 
+    def center_on(self, name: str, passes: int = 2) -> None:
+        """Turn the first sky view (by dragging) so the named body is at its centre: azimuth from the compass,
+        height from the body's label, which the view draws level with the body's centre."""
+        for _ in range(passes):
+            az_c, _ = self.view_center_az()
+            self.drag_sky(-100, 0, steps=1)  # calibrate: pixels per degree of azimuth
+            az_1, _ = self.view_center_az()
+            px_per_deg = 100 / ((((az_1 - az_c) + 540) % 360) - 180)
+            label = self.page.evaluate(
+                """n => { const f = document.querySelector('#sky-grid .moonat-sky-frame');
+                const l = [...f.querySelectorAll('.moonat-sky-label')].find(e => e.textContent.trim() === n);
+                return l && !l.classList.contains('below') ? parseFloat(l.style.top) - f.clientHeight / 2 : 0; }""",
+                name,
+            )
+            d_az = (((self.body_az(name) - az_1) + 540) % 360) - 180
+            self.drag_sky(-d_az * px_per_deg, -label, steps=1)
+
     def canvas_box(self) -> dict:
-        return self.page.locator("#sky-grid .sky-view canvas").first.bounding_box()
+        return self.page.locator("#sky-grid .moonat-sky-frame canvas").first.bounding_box()
 
     def zoom_sky(self, ticks: int) -> None:
         """Ctrl + wheel over the first sky view: each tick multiplies the field of view by exp(0.12 * sign)."""
@@ -502,7 +552,7 @@ class Director:
     def view_center_az(self) -> tuple[float, float]:
         """Azimuth (deg) at the horizontal centre of the first sky view, read from its compass ticks, and the
         compass scale there (px per deg)."""
-        ticks = self.page.evaluate("""() => { const v = document.querySelector('#sky-grid .sky-view');
+        ticks = self.page.evaluate("""() => { const v = document.querySelector('#sky-grid .moonat-sky-frame');
             return [...v.querySelectorAll('.moonat-sky-tick')].map(t =>
               [t.textContent.trim(), parseFloat(t.style.left) - v.clientWidth / 2]); }""")
         pts = []
@@ -529,34 +579,33 @@ COMPASS = {"N": 0, "NE": 45, "E": 90, "SE": 135, "S": 180, "SW": 225, "W": 270, 
 
 
 def scene_title(d: Director) -> None:
-    """0: title card over the app (Apollo 11 loaded on the Compare tab), then fade to the app."""
+    """0: title card over the app (a first visit opens Apollo 11 on the Sky tab), then fade to the app."""
     d.card(TITLE_CARD, alpha=1.0)
-    d.hold(82)
+    d.hold(76)
     d.keyframe("title")
     d.card(None)
     d.hold(12)
 
 
 def scene_apollo11(d: Director) -> None:
-    """1: Sky tab on Apollo 11, Focus (a tall frame: the high Earth and the ground together, like a Hasselblad
-    photo), drag the sky around, then Look at Earth."""
-    d.click("#tab-btn-sky", wait=d.wait_sky, xfade=8)
+    """1: Apollo 11 on the Sky tab: Focus gives a tall frame with the high Earth and the ground together, like a
+    Hasselblad photo; then a short drag of the sky."""
     d.click("#sky-grid .sky-focus-btn", wait=d.wait_sky, xfade=8)
     d.caption("apollo")
     b = d.canvas_box()
-    start = (b["x"] + b["width"] * 0.62, b["y"] + b["height"] * 0.55)
+    start = (b["x"] + b["width"] * 0.70, b["y"] + b["height"] * 0.55)
     d.move_to(start, 10)
     d.page.mouse.down()
-    # Drag the sky to the left: the view turns, showing the drag-to-look interaction.
-    for i in range(1, 17):
-        d.cx = start[0] - 360 * ease(i / 16)
+    # Drag the sky a little to the left and back: the view turns, showing the drag-to-look interaction.
+    for i in range(1, 25):
+        d.cx = start[0] - 160 * math.sin(math.pi * i / 24)
         before = d.draws()
         d.page.mouse.move(d.cx, d.cy)
         d.wait_draw(before, timeout=1.0)
         d.frame()
     d.page.mouse.up()
-    d.click("#btn-look-earth", wait=lambda: time.sleep(0.4), xfade=7)
-    d.hold(40)
+    d.cursor_on = False
+    d.hold(50)
     d.keyframe("apollo11")
 
 
@@ -570,53 +619,77 @@ def exit_focus(d: Director, xfade: int = 6) -> None:
 
 
 def scene_compare(d: Director) -> None:
-    """2: Compare tab, 'Compare all Apollo landings', then scroll from the Sun section to the Earth section."""
+    """2: 'Compare all Apollo landings' opens the Compare tab with the side-by-side ranked table."""
     d.caption(None)
     exit_focus(d)
-    d.click("#tab-btn-compare", wait=d.wait_compare, xfade=6)
-    d.click("#quickstarts .chip:nth-child(2)", wait=d.wait_compare, xfade=8)
+    d.cursor_on = True
+    d.click_chip(2, wait=d.wait_compare, xfade=8)
     d.caption("compare")
-    d.hold(26)
-    y_end = d.page.evaluate("""() => { const e = document.getElementById('sec-earth');
-        const y = e.getBoundingClientRect().top + window.scrollY - 84;
-        return Math.max(0, Math.min(y, document.documentElement.scrollHeight - window.innerHeight)); }""")
-    n = 34
-    x0, y0 = d.cx, d.cy
-    # Scroll down; the drawn pointer drifts onto the charts, as when scrolling with the wheel. (The real mouse
-    # stays put, so no chart hover labels pop up.)
-    for i in range(1, n + 1):
-        t = ease(i / n)
-        d.cx, d.cy = x0 + (1250 - x0) * t, y0 + (640 - y0) * t
-        d.page.evaluate("y => window.scrollTo(0, y)", y_end * t)
-        d.frame()
-    d.hold(34)
+    d.hold(46)
     d.keyframe("compare")
-    d.hold(8)
-    d._scroll_from = y_end
+    d.hold(16)
 
 
-# South-pole timelapse in two parts of the quick start's window (2027-01-19 .. 03-22; slider 0..1000):
-# 1. 19-24 Jan: the Sun skims 0.0-0.2 deg above the horizontal, lighting the ground with long shadows, and passes
-#    the crescent Earth, which sinks and sets behind the ridge (u = 79).
-# 2. 15-19 Feb: a distant peak hides the Sun (sets at u = 467, az 189 deg; back at u = 491, az 171 deg) while a
-#    thin crescent Earth stands 2-5 deg up in the south-east. (The Sun is 0.7 deg below the horizontal then, so the
-#    nearby ground is dark.)
-POLE_PARTS = [(0.0, 92.0, 92), (446.0, 506.0, 84)]  # (slider from, slider to, frames)
-POLE_VIEW_AZ = (
-    158.0  # fixed camera: both parts fit in about 110..205 deg, with the Earth at 131..141 deg
-)
+# Eclipse quick start: 2025-03-14 04:30 .. 10:20 UTC at Blue Ghost (slider 0..1000 = 350 min). It opens at 81 %
+# covered (u = 250); totality starts near 06:18 (u = 309) and ends with the diamond ring near 08:35 (u = 700).
+ECLIPSE_PARTS = [(250.0, 318.0, 72), (686.0, 714.0, 60)]  # (slider from, slider to, frames)
+
+
+def scene_eclipse(d: Director) -> None:
+    """3: Eclipse from the Moon: the Earth slides over the Sun, totality's red ring, then the diamond ring.
+    Focus mode, the view centred on the Earth and zoomed in (Ctrl + wheel), constellation lines off; the close-up
+    loupes stay on and show the Sun and the Earth magnified."""
+    d.caption(None)
+    d.click_chip(5, wait=d.wait_sky, capture=False)
+    d.page.evaluate("document.querySelector('#sky-grid .sky-focus-btn').click()")
+    time.sleep(0.6)
+    d.wait_sky()
+    d.set_slider(ECLIPSE_PARTS[0][0])
+    before = d.draws()
+    d.page.evaluate("document.getElementById('btn-look-sun').click()")
+    d.wait_draw(before)
+    d.center_on("Earth")
+    d.zoom_sky(-11)
+    d.center_on("Earth", passes=1)
+    for name in ("Constellations",):
+        d.page.evaluate(
+            """n => [...document.querySelectorAll('#sky-grid .moonat-sky-frame button')]
+                .find(b => b.getAttribute('aria-label') === n && b.getAttribute('aria-pressed') === 'true')?.click()""",
+            name,
+        )
+    time.sleep(0.3)
+    d.cursor_on = False
+    d.show_playing(True)
+    d.reveal(8)
+    d.caption("eclipse")
+    for k, (u0, u1, n) in enumerate(ECLIPSE_PARTS):
+        if k:  # jump ahead to the end of totality: a short cross-fade
+            d.set_slider(u0)
+            d.show_playing(True)
+            d.reveal(8)
+        for i in range(1, n + 1):
+            d.set_slider(u0 + (u1 - u0) * i / n)
+            d.show_playing(True)
+            d.frame()
+            if (k, i) in ((0, n), (1, 30)):
+                d.keyframe(f"eclipse{k + 1}")
+        d.hold(16 if k == 0 else 12)
+    d.show_playing(False)
+
+
+# South-pole timelapse in the quick start's window (2027-01-19 .. 03-22; slider 0..1000), 19-24 Jan: the Sun skims
+# 0.0-0.2 deg above the horizontal, lighting the ground with long shadows, and passes the crescent Earth, which
+# sinks and sets behind the ridge (u = 79).
+POLE_PARTS = [(0.0, 92.0, 122)]  # (slider from, slider to, frames)
+POLE_VIEW_AZ = 152.0  # fixed camera, about 105..200 deg: the Sun from 181 to 120 deg, the Earth at 131..141 deg
 
 
 def scene_pole(d: Director) -> None:
-    """3: South pole ridge: a fixed wide view in focus mode over two stretches of the quick start's window."""
+    """4: South pole ridge: a fixed wide view in focus mode, the Sun skimming the lit ground."""
     d.caption(None)
-    y0 = getattr(d, "_scroll_from", 0)
-    d.click(
-        "#quickstarts .chip:nth-child(3)",
-        wait=d.wait_compare,
-        xfade=6,
-        during=lambda t: d.page.evaluate("y => window.scrollTo(0, y)", y0 * (1 - ease(t))),
-    )
+    exit_focus(d)
+    d.cursor_on = True
+    d.click_chip(3, wait=d.wait_compare, xfade=6)  # opens on the Compare tab
     d.click("#tab-btn-sky", wait=d.wait_sky, n_move=12, capture=False)
     # Off-camera set-up, then a cross-fade: focus mode, the start time, the Earth framing widened by two Ctrl +
     # wheel ticks, turned to POLE_VIEW_AZ and tilted so the horizon sits a little above the middle.
@@ -656,21 +729,22 @@ def scene_pole(d: Director) -> None:
             d.set_slider(u0 + (u1 - u0) * i / n)
             d.show_playing(True)
             d.frame()
-            if (k, i) in ((0, 46), (1, 27)):
-                d.keyframe(f"pole{k + 1}")
+            if i == 52:
+                d.keyframe("pole")
     d.show_playing(False)
     d.hold(6)
 
 
 def scene_farside(d: Director) -> None:
-    """4: Far side (Chang'e 4): the Earth stays below the horizon while the Sun crosses the sky."""
+    """5: Far side (Chang'e 4): the Earth stays below the horizon while the Sun crosses the sky."""
     d.caption(None)
     exit_focus(d)
-    d.click("#quickstarts .chip:nth-child(4)", wait=d.wait_sky, xfade=8)
+    d.cursor_on = True
+    d.click_chip(4, wait=d.wait_sky, xfade=8)
     d.caption("farside")
     d.cursor_on = False
     d.hold(10)
-    n = 76
+    n = 70
     for i in range(1, n + 1):
         d.set_slider(760.0 * i / n)
         d.show_playing(True)
@@ -682,7 +756,7 @@ def scene_farside(d: Director) -> None:
 
 
 def scene_end(d: Director) -> None:
-    """5: end card, padded so the whole video lands on TARGET_FRAMES."""
+    """6: end card, padded so the whole video lands on TARGET_FRAMES."""
     d.caption(None)
     d.card(END_CARD)
     d.hold(14)
@@ -693,14 +767,17 @@ def scene_end(d: Director) -> None:
     d.hold(max(45, remaining))
 
 
-SCENES = [scene_title, scene_apollo11, scene_compare, scene_pole, scene_farside, scene_end]
-KEYFRAMES = [
-    "apollo11",
-    "compare",
-    "pole1",
-    "pole2",
-    "farside",
-]  # saved to docs/figures/video_<name>.png
+SCENES = [
+    scene_title,
+    scene_apollo11,
+    scene_compare,
+    scene_eclipse,
+    scene_pole,
+    scene_farside,
+    scene_end,
+]
+# Saved to docs/figures/video_<name>.png for review.
+KEYFRAMES = ["apollo11", "compare", "eclipse1", "eclipse2", "pole", "farside"]
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -792,7 +869,7 @@ def main() -> int:
 
         enc = Encoder(mp4)
         d = Director(page, enc)
-        d.wait_compare()
+        d.wait_sky()  # a first visit opens Apollo 11 on the Sky tab
         try:
             if args.only:
                 d.frame()  # a first frame for cross-fades to start from

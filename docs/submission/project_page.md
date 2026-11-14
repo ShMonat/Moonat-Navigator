@@ -1,6 +1,6 @@
 # NASA Space Apps project page: draft texts (paste into the site)
 
-> Draft v0.3 (2026-11-14 evening). Numbers come from docs/validation/. The only open item is the demo video link ([TBD]).
+> Draft v0.4 (2026-11-14 evening). Numbers come from docs/validation/. Ready to paste; nothing open.
 > Editor: Shay. Everything here is English, as the rules require.
 
 ## Project name
@@ -14,7 +14,9 @@ from Moon Trek, and reports the sunlight and Earth contact a lander would get, i
 renders a first-person sky view, compares many sites and dates side by side, and plans rover traverses between two points.
 
 ## Project Demo
-[TBD: link to the 30-second video, YouTube unlisted or Google Drive, public]
+https://shmonat.github.io/Moonat-Navigator/video/moonat_demo.mp4 (29.5 s, 1080p, plays in the browser; every frame is a
+real render of the app, recorded by scripts/video/record_demo.py. Optional: upload the same file to YouTube as unlisted
+and use that link instead.)
 
 ## Final Project
 https://shmonat.github.io/Moonat-Navigator/ — source code: https://github.com/ShMonat/Moonat-Navigator
