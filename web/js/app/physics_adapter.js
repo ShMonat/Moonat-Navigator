@@ -40,14 +40,28 @@ export function physicsCoverage() {
   return coverage;
 }
 
-/** Fetch the C3 horizon profile of a catalog site, or null when there is none. Cached. */
-export function loadHorizon(siteId, fetchFn = (u) => fetch(u)) {
+/**
+ * Fetch the C3 horizon profile of a catalog site, or null when there is none. Cached.
+ * A 404 means the site has no profile. A server error or a network failure is retried once after `retryDelayMs`;
+ * if it still fails the result is null and is not cached, so a later call tries again.
+ */
+export function loadHorizon(siteId, fetchFn = (u) => fetch(u), retryDelayMs = 800) {
   if (!siteId) return Promise.resolve(null);
   if (!horizonCache.has(siteId)) {
-    const p = fetchFn(`data/horizons/${encodeURIComponent(siteId)}.json`)
-      .then((r) => (r.ok ? r.json() : null))
+    const url = `data/horizons/${encodeURIComponent(siteId)}.json`;
+    const attempt = () =>
+      fetchFn(url).then((r) => {
+        if (r.ok) return r.json();
+        if (r.status === 404) return null;
+        throw new Error(`HTTP ${r.status}`);
+      });
+    const p = attempt()
+      .catch(() => new Promise((res) => setTimeout(res, retryDelayMs)).then(attempt))
       .then((h) => (h && Array.isArray(h.el_deg) ? h : null))
-      .catch(() => null);
+      .catch(() => {
+        horizonCache.delete(siteId);
+        return null;
+      });
     horizonCache.set(siteId, p);
   }
   return horizonCache.get(siteId);
