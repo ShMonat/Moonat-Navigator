@@ -87,6 +87,16 @@ export function createHud(container, { onLookAt = null, onToggleConstellations, 
       onToggleConstellations(on);
     });
   }
+  // During an eclipse (C6 sun.eclipse_frac > 0): "Earth eclipses the Sun · 63 % covered".
+  const eclipseLine = (sun) => {
+    const e = sun.eclipse_frac ?? 0;
+    if (!(e > 0)) return '';
+    const p = e * 100;
+    const pct = e >= 1 ? '100' : p > 99 || p < 1 ? (Math.floor(p * 10) / 10).toFixed(1) : String(Math.round(p));
+    const hidden = sun.vis_frac != null && sun.vis_frac <= 0.001 ? '  <span class="dim">(Sun below the horizon)</span>' : '';
+    return `
+<span style="color:#ffb27a">Earth eclipses the Sun · ${pct} % covered</span>${hidden}`;
+  };
   // Signed values with a true minus sign; positives get a figure space so the columns line up.
   let barBox = { w: -1 };
   const fmt = (x, n = 1) => { const t = signed1(x, n); return t.startsWith('−') ? t : ' ' + t; };
@@ -105,7 +115,8 @@ export function createHud(container, { onLookAt = null, onToggleConstellations, 
       info.innerHTML = `<b>${isoUtc(s.t_ms).replace('T', ' ').replace('Z', ' UTC')}</b>\n`
         + `Sun    el ${fmt(s.sun.el_deg)}°  az ${s.sun.az_deg.toFixed(1)}°${vis(s.sun)}\n`
         + `Earth  el ${fmt(s.earth.el_deg)}°  az ${s.earth.az_deg.toFixed(1)}°${vis(s.earth)}`
-        + (s.earth.phase_frac != null ? `  <span class="dim">${Math.round(s.earth.phase_frac * 100)}% lit</span>` : '');
+        + (s.earth.phase_frac != null ? `  <span class="dim">${Math.round(s.earth.phase_frac * 100)}% lit</span>` : '')
+        + eclipseLine(s.sun);
     }
     note.innerHTML = (noteText || []).join('<br>');
     // Compass: azimuth ticks placed where that azimuth, at the elevation of the view centre, falls on screen.

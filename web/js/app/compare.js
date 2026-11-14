@@ -220,7 +220,7 @@ function missionEvent(it, vis, body) {
 
 function sunMissionCard(it) {
   const se = it.series;
-  const lit = pctAbove(se.sun_vis);
+  const lit = pctAbove(se.sun_flux_frac ?? se.sun_vis); // a total eclipse by the Earth is not sunlight
   const el = stats(se.sun_el);
   const flux = stats(fluxMode === "horiz" ? se.flux_horiz_wm2 : se.flux_normal_wm2);
   const rows = [
@@ -252,7 +252,7 @@ function earthMissionCard(it) {
 const CHARTS = {
   sun: [
     { id: "sun-el", wide: true, title: "Sun elevation", help: "Height above the flat, ideal horizon. Dotted: the real terrain horizon in that direction. Above 0° does not guarantee sunlight." },
-    { id: "sun-vis", title: "Visible Sun", help: "How much of the Sun's disk clears the terrain. 100% = full sunlight." },
+    { id: "sun-vis", title: "Visible Sun", help: "How much of the Sun's disk clears the terrain. 100% = full sunlight. Dashed, during an eclipse: the share not behind the Earth." },
     { id: "sun-flux", title: "Sunlight power", help: "Solar power reaching a panel, in W/m².", toggle: true },
   ],
   earth: [
@@ -366,6 +366,29 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
   const missions = items.filter((it) => it.series);
   const instants = items.filter((it) => !it.series);
 
+  // Eclipses of the Sun by the Earth (C6 series().eclipses): a light band for the partial phases, a darker one for
+  // totality, labelled once per event.
+  const xOf = (it, ms) => xValues([ms], it.t0, xaxis, unitMs)[0];
+  const eclipseMarks = () => {
+    const shapes = [], annotations = [];
+    for (const it of missions) {
+      for (const e of it.series.eclipses || []) {
+        const a = e.start_ms ?? it.series.t_ms[0], b = e.end_ms ?? it.series.t_ms[it.series.t_ms.length - 1];
+        const band = (x0, x1, op) => ({ type: "rect", xref: "x", yref: "paper", x0, x1, y0: 0, y1: 1, fillcolor: th.muted, opacity: op, line: { width: 0 }, layer: "below" });
+        shapes.push(band(xOf(it, a), xOf(it, b), 0.07));
+        if (e.total_start_ms != null && e.total_end_ms != null) shapes.push(band(xOf(it, e.total_start_ms), xOf(it, e.total_end_ms), 0.12));
+        annotations.push({
+          x: xOf(it, e.max_ms), y: 1, xref: "x", yref: "paper", yanchor: "bottom", showarrow: false,
+          text: e.max_frac >= 1 ? "Earth hides the Sun" : `Earth covers ${Math.round(e.max_frac * 100)}% of the Sun`,
+          font: { size: 11, color: th.muted },
+        });
+      }
+    }
+    return { shapes, annotations };
+  };
+  const marks = eclipseMarks();
+  const withEclipses = (layout) => (marks.shapes.length ? { ...layout, ...marks, margin: { ...layout.margin, t: Math.max(layout.margin.t, 26) } } : layout);
+
   const traces = (fnLine, fnInstant) => [...missions.flatMap(fnLine), ...instants.map(fnInstant).filter(Boolean)];
 
   const sunEl = traces(
@@ -386,10 +409,19 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
   Plotly.react(
     "chart-sun-vis",
     traces(
-      (it) => [line(it, it.series.sun_vis.map((v) => v * 100), { hovertemplate: "%{y:.0f}%" })],
+      (it) => {
+        const tr = [line(it, it.series.sun_vis.map((v) => v * 100), { hovertemplate: "%{y:.0f}%" })];
+        if (it.series.eclipses?.length && it.series.sun_eclipse) {
+          tr.push(line(it, it.series.sun_eclipse.map((v) => (1 - v) * 100), {
+            name: `${it.label}: not behind Earth`, showlegend: false, line: { color: it.color, width: 1.5, dash: "dash" },
+            hovertemplate: "%{y:.0f}% not behind Earth",
+          }));
+        }
+        return tr;
+      },
       (it) => instantMarker(it, it.state0.sun.vis_frac * 100, `${Math.round(it.state0.sun.vis_frac * 100)}%`),
     ),
-    layoutBase("Visible disk (%)", { range: [-5, 105], ticksuffix: "%" }),
+    withEclipses(layoutBase("Visible disk (%)", { range: [-5, 105], ticksuffix: "%" })),
     config,
   );
 
@@ -404,7 +436,7 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
         return instantMarker(it, v, `${Math.round(v)} W/m²`);
       },
     ),
-    layoutBase(fluxMode === "horiz" ? "Flat ground (W/m²)" : "Sun-facing panel (W/m²)", { rangemode: "tozero" }),
+    withEclipses(layoutBase(fluxMode === "horiz" ? "Flat ground (W/m²)" : "Sun-facing panel (W/m²)", { rangemode: "tozero" })),
     config,
   );
 

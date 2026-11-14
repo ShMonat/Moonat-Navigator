@@ -5,11 +5,12 @@
 //
 // Chain: ephemeris table (Moon-centred MOON_ME positions, ICRS->ME quaternion) -> site position and
 // ENU frame in MOON_ME -> topocentric vector = body − site -> az/el/distance/angular radius ->
-// disk visibility vs the horizon profile -> flux and phase.
+// disk visibility vs the horizon profile -> eclipse of the Sun by the Earth -> flux and phase.
 
 import { openEphem, ensureRange, stateAtMs, REC, OFFSETS } from './ephem.js';
 import { siteFrame, matVec, matMul, quatToMatrix, enuToAzEl, eraDeg, RAD } from './frames.js';
 import { prepareHorizon, diskFractions, LIMB_DARKENING_U } from './visibility.js';
+import { sunEclipseFrac, combinedFluxFrac, eclipseEvents, sepRad, MAX_SEP_RATE_DEG_PER_MS } from './eclipse.js';
 import {
   fluxNormalWm2, fluxHorizWm2, earthPhaseFrac, seriesSummary, SUN_RADIUS_KM, EARTH_RADIUS_KM,
 } from './metrics.js';
@@ -88,13 +89,16 @@ function stateAt(site, tMs) {
   const S = OFFSETS.sun, E = OFFSETS.earth;
 
   const sun = bodyAt(P, s, S, R_SUN);
-  const sf = diskFractions(sun.az_deg, sun.el_deg, sun.ang_radius_deg, P.hz, LIMB_DARKENING_U, sun.enu);
+  const earth = bodyAt(P, s, E, R_EARTH);
+  const ecl = sunEclipseFrac(sun.enu, sun.ang_radius_deg, earth.enu, earth.ang_radius_deg);
+  const occ = ecl > 0 ? { enu: earth.enu, rho_deg: earth.ang_radius_deg } : null;
+  const sf = diskFractions(sun.az_deg, sun.el_deg, sun.ang_radius_deg, P.hz, LIMB_DARKENING_U, sun.enu, occ);
   sun.vis_frac = sf.vis;
-  sun.flux_frac = sf.flux;
+  sun.eclipse_frac = ecl;
+  sun.flux_frac = combinedFluxFrac(sf, ecl);
   sun.flux_normal_wm2 = fluxNormalWm2(sun.dist_km, sun.flux_frac);
   sun.flux_horiz_wm2 = fluxHorizWm2(sun.dist_km, sun.flux_frac, sun.el_deg);
 
-  const earth = bodyAt(P, s, E, R_EARTH);
   earth.vis_frac = diskFractions(earth.az_deg, earth.el_deg, earth.ang_radius_deg, P.hz, null, earth.enu).vis;
   const earthMe = [s[E], s[E + 1], s[E + 2]];
   const sunMe = [s[S], s[S + 1], s[S + 2]];
@@ -119,6 +123,8 @@ function stateAt(site, tMs) {
 
 /**
  * Sky state at one UTC instant (epoch ms): Sun, Earth and planets in the site's sky (C6).
+ * sun.vis_frac is terrain-only; sun.eclipse_frac = share of the Sun's limb-darkened flux hidden by
+ * the Earth's disk (eclipse.js); sun.flux_frac combines both (terrain and Earth).
  * Extra fields beyond C6: sun.flux_normal_wm2, sun.flux_horiz_wm2. All `enu` vectors are unit.
  */
 export async function skyState(site, tMs) {
@@ -129,6 +135,10 @@ export async function skyState(site, tMs) {
 /**
  * Time series from t0Ms to t1Ms (inclusive when it falls on the grid) every stepMs (C6).
  * The site frame is computed once; each sample interpolates the table and evaluates both disks.
+ * Beyond the C6 arrays: sun_eclipse (eclipse fraction), sun_flux_frac (visible flux fraction, terrain
+ * and Earth) and `eclipses`, the list of eclipse events in the window (eclipse.js eclipseEvents).
+ * summary.sun_vis_pct counts samples with some sunlight (sun_flux_frac > 0): a total eclipse is not
+ * sunlight. Set times follow the terrain-only visibility.
  */
 export async function series(site, t0Ms, t1Ms, stepMs) {
   const eph = requireEph();
@@ -140,8 +150,10 @@ export async function series(site, t0Ms, t1Ms, stepMs) {
     flux_horiz_wm2: new Array(n), flux_normal_wm2: new Array(n),
     earth_el: new Array(n), earth_az: new Array(n), earth_vis: new Array(n),
     earth_phase: new Array(n), earth_ang_diam_deg: new Array(n),
+    sun_eclipse: new Array(n), sun_flux_frac: new Array(n),
   };
   if (n === 0) {
+    out.eclipses = [];
     out.summary = seriesSummary([], [], [], []);
     return out;
   }
@@ -149,40 +161,54 @@ export async function series(site, t0Ms, t1Ms, stepMs) {
   const P = physicsOf(site);
   const S = OFFSETS.sun, E = OFFSETS.earth;
   const v = [0, 0, 0];
-
-  const sunAt = (s, i, t) => {
+  // Scratch geometry of the last evaluated instant: unit directions and angular radii (deg).
+  const us = [0, 0, 0], ue = [0, 0, 0];
+  const occ = { enu: ue, rho_deg: 0 };
+  let sAz = 0, sEl = 0, sR = 0, sRho = 0, eAz = 0, eEl = 0, eR = 0, eRho = 0;
+  const geom = (s) => {
     topo(P, s, S, v);
-    const { az_deg, el_deg, r } = enuToAzEl(v);
-    const rho = Math.asin(R_SUN / r) * RAD;
-    const f = diskFractions(az_deg, el_deg, rho, P.hz, LIMB_DARKENING_U, [v[0] / r, v[1] / r, v[2] / r]);
-    if (i < 0) return f.vis;
-    out.t_ms[i] = t; out.sun_az[i] = az_deg; out.sun_el[i] = el_deg; out.sun_vis[i] = f.vis;
-    out.flux_normal_wm2[i] = fluxNormalWm2(r, f.flux);
-    out.flux_horiz_wm2[i] = fluxHorizWm2(r, f.flux, el_deg);
-    return f.vis;
-  };
-  const earthAt = (s, i) => {
+    ({ az_deg: sAz, el_deg: sEl, r: sR } = enuToAzEl(v));
+    sRho = Math.asin(R_SUN / sR) * RAD;
+    us[0] = v[0] / sR; us[1] = v[1] / sR; us[2] = v[2] / sR;
     topo(P, s, E, v);
-    const { az_deg, el_deg, r } = enuToAzEl(v);
-    const rho = Math.asin(R_EARTH / r) * RAD;
-    const vis = diskFractions(az_deg, el_deg, rho, P.hz, null, [v[0] / r, v[1] / r, v[2] / r]).vis;
-    if (i < 0) return vis;
-    out.earth_az[i] = az_deg; out.earth_el[i] = el_deg; out.earth_vis[i] = vis;
-    out.earth_ang_diam_deg[i] = 2 * rho;
-    out.earth_phase[i] = earthPhaseFrac([s[E], s[E + 1], s[E + 2]], [s[S], s[S + 1], s[S + 2]], P.pos);
-    return vis;
+    ({ az_deg: eAz, el_deg: eEl, r: eR } = enuToAzEl(v));
+    eRho = Math.asin(R_EARTH / eR) * RAD;
+    ue[0] = v[0] / eR; ue[1] = v[1] / eR; ue[2] = v[2] / eR;
   };
+  // Separation − (ρ_sun + ρ_earth) (deg), only computed when the bodies are close; Infinity otherwise.
+  const nearCos = Math.cos(Math.min(Math.PI, (1.5 + 2 * MAX_SEP_RATE_DEG_PER_MS * stepMs) * Math.PI / 180));
+  const margin = new Float64Array(n).fill(Infinity);
 
   for (let i = 0; i < n; i++) {
     const t = t0Ms + i * stepMs;
-    const s = stateAtMs(eph, t, BUF);
-    sunAt(s, i, t);
-    earthAt(s, i);
+    geom(stateAtMs(eph, t, BUF));
+    const c = us[0] * ue[0] + us[1] * ue[1] + us[2] * ue[2];
+    if (c > nearCos) margin[i] = sepRad(us, ue) * RAD - (sRho + eRho);
+    const ecl = margin[i] < 0 ? sunEclipseFrac(us, sRho, ue, eRho) : 0;
+    occ.rho_deg = eRho;
+    const f = diskFractions(sAz, sEl, sRho, P.hz, LIMB_DARKENING_U, us, ecl > 0 ? occ : null);
+    const flux = combinedFluxFrac(f, ecl);
+    out.t_ms[i] = t; out.sun_az[i] = sAz; out.sun_el[i] = sEl; out.sun_vis[i] = f.vis;
+    out.sun_eclipse[i] = ecl; out.sun_flux_frac[i] = flux;
+    out.flux_normal_wm2[i] = fluxNormalWm2(sR, flux);
+    out.flux_horiz_wm2[i] = fluxHorizWm2(sR, flux, sEl);
+    out.earth_az[i] = eAz; out.earth_el[i] = eEl;
+    out.earth_vis[i] = diskFractions(eAz, eEl, eRho, P.hz, null, ue).vis;
+    out.earth_ang_diam_deg[i] = 2 * eRho;
+    out.earth_phase[i] = earthPhaseFrac([BUF[E], BUF[E + 1], BUF[E + 2]], [BUF[S], BUF[S + 1], BUF[S + 2]], P.pos);
   }
+
+  const at = (t) => geom(stateAtMs(eph, t, BUF));
+  const sunVisAt = (t) => { at(t); return diskFractions(sAz, sEl, sRho, P.hz, LIMB_DARKENING_U, us).vis; };
+  const earthVisAt = (t) => { at(t); return diskFractions(eAz, eEl, eRho, P.hz, null, ue).vis; };
+  out.eclipses = eclipseEvents(
+    out.t_ms, margin,
+    (t) => { at(t); return { sep: sepRad(us, ue) * RAD, rs: sRho, re: eRho }; },
+    (t) => { at(t); return sunEclipseFrac(us, sRho, ue, eRho); },
+    sunVisAt,
+  );
   out.summary = seriesSummary(
-    out.t_ms, out.sun_vis, out.earth_vis, out.flux_horiz_wm2,
-    (t) => sunAt(stateAtMs(eph, t, BUF), -1, t),
-    (t) => earthAt(stateAtMs(eph, t, BUF), -1),
+    out.t_ms, out.sun_vis, out.earth_vis, out.flux_horiz_wm2, sunVisAt, earthVisAt, out.sun_flux_frac,
   );
   return out;
 }

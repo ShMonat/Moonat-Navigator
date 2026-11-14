@@ -36,6 +36,16 @@ Challenge Resources tab (published 2026-11-13): Quickmap, Moon Trek, JPL Horizon
 - Linear solar limb-darkening law I(μ) = 1 − u(1 − μ), u ≈ 0.6 in the visible (e.g. Cox, Allen's Astrophysical Quantities, 4th ed., §14.7) — flux fraction of a partly hidden Sun — method only
 - IAU 2015 Resolution B3 (total solar irradiance 1361 W/m², Earth equatorial radius 6 378.137 km) — solar flux and the Earth's angular size — https://www.iau.org/static/resolutions/IAU2015_English.pdf — public
 
+### Eclipse seen from the Moon (agent `eclipse`)
+- Espenak, F. (NASA GSFC), "Total Lunar Eclipse of 2025 Mar 14" — contact times P1…P4, umbral magnitude, ΔT, Danjon rule; validation of the eclipse computation — https://eclipse.gsfc.nasa.gov/LEplot/LEplot2001/LE2025Mar14T.pdf — public (NASA)
+- Espenak, F. (NASA GSFC), "Total Lunar Eclipse of 1967 Apr 24" — the same for 1967 — https://eclipse.gsfc.nasa.gov/LEplot/LEplot1951/LE1967Apr24T.pdf — public (NASA)
+- Espenak, F. & Meeus, J., Five Millennium Canon of Lunar Eclipses, "Enlargement of Earth's shadows" (Danjon's 1.01 = 1 + 1/85 − 1/594 versus Chauvenet's 1/50) — shadow-radius formulas used in `moon_shadow_contacts` — https://eclipse.gsfc.nasa.gov/LEcat5/shadow.html — public (NASA)
+- NASA APOD 2025 March 19, "Blue Ghost's Diamond Ring" (image: Firefly Aerospace) — the diamond-ring time used as a check (~3:30 a.m. CDT, 14 March 2025) — https://science.nasa.gov/image-article/apod-2025-march-19-blue-ghost-s-diamond-ring/ — cited only (image not used)
+- NSSDCA, Surveyor 3 (1967-035A) — "images of an eclipse of the Sun by the Earth" — https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1967-035A — public (NASA)
+- JPL photo P-6586, Surveyor III eclipse picture caption ("3:24 a.m. PST", 24 April 1967) — check of our totality at Surveyor 3 — https://flic.kr/photos/apollo4ever/54066543071 — cited only (image not used)
+- Shoemaker, E. M. et al. (1968), "Television observations from Surveyor 3", J. Geophys. Res. 73, 3989 — the refraction halo and bright beads around the Earth in Surveyor 3's eclipse pictures (motivates the red ring in the sky view) — https://doi.org/10.1029/JB073i012p03989 — paper (cited only)
+- Gauss–Legendre quadrature (Newton iteration on Legendre polynomials; e.g. Press et al., Numerical Recipes, §4.6) — the ring integral of the eclipsed solar flux — method only
+
 ## Images, textures and other media
 
 ## Tools

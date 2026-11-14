@@ -20,6 +20,9 @@ can hide either one. Moonat computes both against the real terrain and lets you 
   sunset or Earthset, one line per scenario.
 - **Sky tab:** a first-person 3D view from 2 m above the ground, with terrain lit by the Sun, the Earth with its true
   phase and orientation, stars and planets, and a timelapse.
+- **Eclipses seen from the Moon:** when the Earth crosses the Sun (a lunar eclipse on Earth), the share of sunlight it
+  hides is computed and drawn, with the red ring of Earth's atmosphere; quick start "Eclipse from the Moon" replays
+  Blue Ghost's 14 March 2025 view ([validation against NASA's contact times](docs/validation/eclipse.md)).
 
 | Compare all Apollo landings | South pole (Shackleton rim) | Far side (Chang'e 4) |
 |---|---|---|
@@ -38,6 +41,7 @@ Every claim below is backed by a validation report you can rerun.
 | South-pole illumination vs **Gläser et al. 2014** (18.5 yr) | 92.7 % / 95.8 % lit at the 10 m point (published 92.5 % / 95.6 %); 86.0 % / 90.6 % at the 2 m point (published 88.1 % / 92 %) | [terrain.md](docs/validation/terrain.md) §5 |
 | Malapert site search vs **Bussey et al. 2010** | 75.9 % Sun visibility in 2027 (published 74 % over a lunar year, point 2.5 km away) | [terrain.md](docs/validation/terrain.md) §9 |
 | Ray-marched horizon vs independent 3-D point cloud | correlation 0.9995 / 0.9997, no azimuth mirroring | [terrain.md](docs/validation/terrain.md) §4 |
+| Eclipse of the Sun by the Earth: whole-Moon contacts P1…P4 of 2025-03-14 and 1967-04-24 vs **NASA (Espenak)** | within 2.6 s; Blue Ghost's end of totality 08:34 UTC vs its diamond-ring photo "around 08:30" | [eclipse.md](docs/validation/eclipse.md) |
 | Horizons for **custom map points** (coarse DEM tiles) | reads about 1–1.4° too low at typical sites, because the first few km of relief are not resolved. Far-field features are recovered (4–5× better than a flat horizon at Apollo 15 and 17). The app labels these "approximate terrain". | [physics.md](docs/validation/physics.md) §6 |
 
 Known limits: UT1 is taken as UTC, and the drawn Earth globe ignores precession and nutation (about 0.36° in 2026).

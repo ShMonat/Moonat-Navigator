@@ -2,14 +2,42 @@
 //
 // Celestial objects of the sky view: stars, constellation lines, planets, the Sun and the Earth.
 // Everything is placed on its true direction from the eye (the origin) at a nominal render distance; angular sizes
-// are exact. Distances are ordered Earth < Sun < planets < stars so the depth test gives eclipses and occultations.
+// are exact. Distances are ordered Earth < Sun < planets < stars so the depth test gives eclipses and occultations:
+// the opaque Earth (drawn first, renderOrder -1) hides the part of the Sun's disk and glow behind it. During an eclipse
+// an overlay at the Earth adds the refraction ring and the "diamond" (sky state sun.eclipse_frac, C6).
 
 import * as THREE from 'three';
 import { DEG, M_ZUP_TO_YUP, mat3Vec, lonLatToVec, enuToThree, yupRotationFromZup, earthBodyToEnu, bvToRgb } from './math.js';
-import { STAR_VERT, STAR_FRAG, EARTH_VERT, EARTH_FRAG, SUN_VERT, SUN_FRAG } from './shaders.js';
+import { STAR_VERT, STAR_FRAG, EARTH_VERT, EARTH_FRAG, SUN_VERT, SUN_FRAG, ECLIPSE_VERT, ECLIPSE_FRAG } from './shaders.js';
 
 export const D_EARTH = 20000, D_SUN = 30000, D_PLANET = 40000, D_STAR = 50000;
 const SUN_QUAD_RADII = 46;   // half-size of the Sun quad in solar radii (about 12 deg)
+
+/**
+ * Eclipse drawing parameters from a C6 sky state (pure; exported for tests).
+ * Returns null without an eclipse, else { visible: visible share of the Sun's flux (0..1),
+ * glowOffset: offset (in solar radii, toward the Sun's centre as seen from the Earth's centre) of the centroid of the
+ * visible crescent, ring: 0..1 strength of the refraction ring, bead: 0..1 strength of the diamond's point-spread
+ * function }. The centroid offset 1 − f^0.8 (f = uncovered share) is 0 for an uncovered Sun, 0.43 for a half-covered
+ * one (straight-edge half disk: 4/3π = 0.42) and 1 (the limb) for a vanishing sliver.
+ */
+export function eclipseLook(s) {
+  const ecl = s?.sun?.eclipse_frac ?? 0;
+  if (!(ecl > 0)) return null;
+  const f = 1 - ecl;
+  return {
+    visible: Math.max(0, Math.min(1, s.sun.vis_frac ?? 1)) * f,
+    glowOffset: 1 - Math.pow(f, 0.8),
+    ring: ecl,
+    // A sliver below ~5 % of the flux reads as a point: fade the bead in as the crescent thins, out at totality.
+    bead: f > 0 ? Math.min(1, f * 400) * (1 - smoothstep(0.02, 0.12, f)) : 0,
+  };
+}
+
+function smoothstep(a, b, x) {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+}
 
 const PLANET_STYLE = {
   mercury: { color: [0.75, 0.72, 0.68], mag: 0.0 }, venus: { color: [1.0, 0.97, 0.85], mag: -4.2 },
@@ -114,6 +142,7 @@ export function buildSky({ starsJson, constellationsJson, earthTexture, nightTex
   const earthUniforms = {
     uDay: { value: earthTexture }, uNight: { value: nightTexture }, uHasDay: { value: earthTexture ? 1 : 0 },
     uHasNight: { value: nightTexture ? 1 : 0 }, uSunDirE: { value: new THREE.Vector3(1, 0, 0) }, uExposure: { value: 1.5 },
+    uNightGain: { value: 1 },
   };
   const eg = new THREE.SphereGeometry(1, 96, 48);
   const em = new THREE.ShaderMaterial({ uniforms: earthUniforms, vertexShader: EARTH_VERT, fragmentShader: EARTH_FRAG });
@@ -122,7 +151,10 @@ export function buildSky({ starsJson, constellationsJson, earthTexture, nightTex
   fixed.add(earth); disposables.push(eg, em);
 
   // --- Sun -------------------------------------------------------------------------------------------------------
-  const sunUniforms = { uDist: { value: D_SUN }, uRad: { value: 0.0046 }, uPixAng: { value: 0.0008 }, uVis: { value: 1 }, uHalf: { value: 1 } };
+  const sunUniforms = {
+    uDist: { value: D_SUN }, uRad: { value: 0.0046 }, uPixAng: { value: 0.0008 }, uVis: { value: 1 }, uHalf: { value: 1 },
+    uGlowOff: { value: new THREE.Vector2(0, 0) },
+  };
   const sg = new THREE.PlaneGeometry(2, 2);
   const sm = new THREE.ShaderMaterial({
     uniforms: sunUniforms, vertexShader: SUN_VERT, fragmentShader: SUN_FRAG,
@@ -131,6 +163,28 @@ export function buildSky({ starsJson, constellationsJson, earthTexture, nightTex
   const sun = new THREE.Mesh(sg, sm);
   sun.frustumCulled = false; sun.renderOrder = 5;
   fixed.add(sun); disposables.push(sg, sm);
+
+  // --- Eclipse overlay (refraction ring and diamond), drawn over the Earth without a depth test ------------------
+  const eclUniforms = {
+    uDist: { value: D_EARTH }, uHalf: { value: 1 }, uRadE: { value: 0.016 }, uRadS: { value: 0.0046 }, uPixAng: { value: 0.0008 },
+    uRing: { value: 0 }, uBead: { value: 0 }, uSunP: { value: new THREE.Vector2() }, uBeadP: { value: new THREE.Vector2() },
+  };
+  const xg = new THREE.PlaneGeometry(2, 2);
+  const xm = new THREE.ShaderMaterial({
+    uniforms: eclUniforms, vertexShader: ECLIPSE_VERT, fragmentShader: ECLIPSE_FRAG,
+    blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, depthTest: false,
+  });
+  const eclipse = new THREE.Mesh(xg, xm);
+  eclipse.frustumCulled = false; eclipse.renderOrder = 6; eclipse.visible = false;
+  fixed.add(eclipse); disposables.push(xg, xm);
+  const ax = new THREE.Vector3(), ay = new THREE.Vector3(), dv = new THREE.Vector3();
+  // Offset (rad) of unit direction `to` from unit direction `from`, in the plane of a camera-facing quad.
+  const planeOffset = (quad, from, to, out) => {
+    ax.set(1, 0, 0).applyQuaternion(quad.quaternion);
+    ay.set(0, 1, 0).applyQuaternion(quad.quaternion);
+    dv.set(to[0] - from[0], to[1] - from[1], to[2] - from[2]);
+    return out.set(dv.dot(ax), dv.dot(ay));
+  };
 
   // Exposure: "eye" keeps the stars (dimmed) while the Sun is up, for orientation; "camera" is exposed for the sunlit
   // ground, so stars vanish whenever any of the Sun is visible, as in Apollo photographs.
@@ -163,6 +217,31 @@ export function buildSky({ starsJson, constellationsJson, earthTexture, nightTex
     sun.lookAt(0, 0, 0);
     sunUniforms.uRad.value = rad; sunUniforms.uHalf.value = half;
     sunUniforms.uVis.value = s.sun.vis_frac ?? 1;
+    sunUniforms.uGlowOff.value.set(0, 0);
+    earthUniforms.uNightGain.value = 1;
+
+    // Eclipse: glare follows the visible flux and centres on the visible crescent; ring and diamond at the Earth.
+    const look = eclipseLook(s);
+    eclipse.visible = !!look;
+    if (look) {
+      const ed = enuToThree(s.earth.enu), rE = s.earth.ang_radius_deg * DEG;
+      sunUniforms.uVis.value = look.visible;
+      const toward = planeOffset(sun, ed, sd, new THREE.Vector2());   // Earth centre -> Sun centre (rad)
+      const sep = toward.length();
+      if (sep > 1e-9) sunUniforms.uGlowOff.value.copy(toward).multiplyScalar((look.glowOffset * rad * D_SUN) / sep);
+      eclipse.position.set(ed[0] * D_EARTH, ed[1] * D_EARTH, ed[2] * D_EARTH);
+      const halfE = D_EARTH * Math.tan(rE + 14 * rad);
+      eclipse.scale.set(halfE, halfE, 1);
+      eclipse.lookAt(0, 0, 0);
+      eclipse.updateMatrixWorld();
+      const sunP = planeOffset(eclipse, ed, sd, eclUniforms.uSunP.value);
+      const n = sunP.length() || 1;
+      eclUniforms.uBeadP.value.copy(sunP).multiplyScalar((n + look.glowOffset * rad) / n);
+      eclUniforms.uHalf.value = halfE; eclUniforms.uRadE.value = rE; eclUniforms.uRadS.value = rad;
+      eclUniforms.uRing.value = look.ring; eclUniforms.uBead.value = look.bead * Math.min(1, s.sun.vis_frac ?? 1);
+      // City lights on the night side: lost in the glare during the partial phases, faint near totality.
+      earthUniforms.uNightGain.value = 0.15 * Math.pow(look.ring, 8) * (1 - 0.8 * look.bead);
+    }
 
     // Planets.
     pMag.fill(99);
@@ -174,7 +253,8 @@ export function buildSky({ starsJson, constellationsJson, earthTexture, nightTex
     pg.attributes.position.needsUpdate = pg.attributes.aMag.needsUpdate = pg.attributes.aColor.needsUpdate = true;
 
     // With the Sun up, the eye and any camera are stopped down: dim the stars (they stay visible for orientation).
-    sunVis = Math.min(1, s.sun.vis_frac ?? 0);
+    // During an eclipse this follows the visible flux, so the stars come out as totality nears.
+    sunVis = look ? look.visible : Math.min(1, s.sun.vis_frac ?? 0);
     applyExposure();
   }
 
@@ -182,7 +262,9 @@ export function buildSky({ starsJson, constellationsJson, earthTexture, nightTex
     group, fixed, update, starCount: stars.length, hasConstellations: !!constellations,
     setConstellations: (on) => { if (constellations) constellations.visible = on; },
     setExposureMode: (mode) => { exposureMode = mode === 'camera' ? 'camera' : 'eye'; applyExposure(); },
-    setPixelScale: (pxRatio, pixAngRad) => { starUniforms.uPx.value = pxRatio; sunUniforms.uPixAng.value = pixAngRad; },
+    setPixelScale: (pxRatio, pixAngRad) => {
+      starUniforms.uPx.value = pxRatio; sunUniforms.uPixAng.value = pixAngRad; eclUniforms.uPixAng.value = pixAngRad;
+    },
     dispose: () => disposables.forEach((x) => x.dispose()),
   };
 }

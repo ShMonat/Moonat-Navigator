@@ -52,12 +52,18 @@ export function nextSetTime(t_ms, vis, evaluate = null, tolMs = 1000) {
   return null;
 }
 
-/** C6 series summary: percent of samples with vis > 0, next set times, mean horizontal flux. */
-export function seriesSummary(t_ms, sun_vis, earth_vis, flux_horiz, evalSun = null, evalEarth = null) {
+/**
+ * C6 series summary: percent of samples with the body visible, next set times, mean horizontal flux.
+ * `sunLit` (optional): per-sample visible flux fraction of the Sun (terrain and eclipse); when given,
+ * sun_vis_pct counts samples with sunLit > 0, so a total eclipse counts as "not in sunlight".
+ * Set times always follow the terrain-only `sun_vis`.
+ */
+export function seriesSummary(t_ms, sun_vis, earth_vis, flux_horiz, evalSun = null, evalEarth = null, sunLit = null) {
   const n = t_ms.length;
+  const lit = sunLit ?? sun_vis;
   let sv = 0, ev = 0, fh = 0;
   for (let i = 0; i < n; i++) {
-    if (sun_vis[i] > 0) sv++;
+    if (lit[i] > 0) sv++;
     if (earth_vis[i] > 0) ev++;
     fh += flux_horiz[i];
   }

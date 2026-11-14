@@ -17,7 +17,7 @@ import {
   DEG, enuToThree, azElToEnu, verticalFovDeg, flatHorizon, horizonFromPatch, horizonElAt, horizonDistKmAt, fitBodyView, fitPhotoView, signed1,
 } from './math.js';
 import { buildTerrain } from './terrain.js';
-import { buildSky } from './sky.js';
+import { buildSky, eclipseLook } from './sky.js';
 import { createHud } from './hud.js';
 
 const FOV_MIN = 15, FOV_MAX = 100, EL_MIN = -60, EL_MAX = 90;
@@ -220,7 +220,7 @@ export async function createSkyView(container, {
     ctx2d.drawImage(src, 0, 0);
     const insetRects = drawInsets(pr);
     // A planet within 3.5 deg of a visible Sun sits in its glare: its label is left out.
-    const inGlare = (p) => state.sun.vis_frac > 0 && angleDeg(p.enu, state.sun.enu) < 3.5;
+    const inGlare = (p) => state.sun.vis_frac > 0 && (state.sun.eclipse_frac ?? 0) < 1 && angleDeg(p.enu, state.sun.enu) < 3.5;
     const marks = state ? [
       { name: 'Earth', enu: state.earth.enu, hidden: belowHorizon(state.earth) || view.hfov < 25, dx: (state.earth.ang_radius_deg / view.hfov) * width + 6,
         body: 'earth', edgeText: `▲ Earth ${signed1(state.earth.el_deg)}°` },
@@ -230,6 +230,7 @@ export async function createSkyView(container, {
     const notes = [];
     if (horizon.smooth) notes.push('Terrain not included: smooth horizon');
     if (state && sunFrac <= 0) notes.push('Night: the Sun is below the horizon, so the ground is dark');
+    else if (state && (state.sun.eclipse_frac ?? 0) >= 1) notes.push("Total eclipse: the Earth hides the Sun; only the red ring of Earth's atmosphere lights the ground");
     if (view.el - camera.fov / 2 > horizonMaxEl) notes.push('Looking up: drag down to see the ground');
     if (state && state.earth.el_deg + state.earth.ang_radius_deg < horizonElAt(horizon, state.earth.az_deg)) notes.push('Earth is below the horizon');
     hud.update(state, view, project, marks, notes, insetRects);
@@ -250,11 +251,14 @@ export async function createSkyView(container, {
       const e = state.earth, s = state.sun;
       const eHidden = e.vis_frac != null ? e.vis_frac <= 0.001 : belowHorizon(e);
       const ePart = e.vis_frac != null && e.vis_frac < 0.999 && !eHidden;
+      const ecl = s.eclipse_frac ?? 0;
+      const sunUp = s.vis_frac == null || s.vis_frac > 0.001;
       const eItem = {
         body: e, fov: 5 * e.ang_radius_deg, hidden: eHidden,
         // Below the flat horizon the Moon itself hides the Earth; above it, a ridge or crater rim does.
         text: (mag) => (eHidden ? `${e.el_deg + e.ang_radius_deg < 0 ? 'Earth below the horizon' : 'Earth hidden behind terrain'} (${signed1(e.el_deg)}°)`
-          : `Earth ×${mag} · ${ePart ? Math.round(e.vis_frac * 100) + '% visible' : Math.round((e.phase_frac ?? 0) * 100) + '% lit'}`),
+          : ecl > 0 && sunUp ? `Earth ×${mag} · ${ecl >= 1 ? 'hiding the Sun' : 'eclipsing'}`
+            : `Earth ×${mag} · ${ePart ? Math.round(e.vis_frac * 100) + '% visible' : Math.round((e.phase_frac ?? 0) * 100) + '% lit'}`),
       };
       if (eHidden) {
         // Wide enough to hold the skyline and the hidden Earth (up to 30 deg); the skyline sits in the upper part.
@@ -263,7 +267,10 @@ export async function createSkyView(container, {
         eItem.aim = azElToEnu(e.az_deg, Math.max(sky0 - 0.3 * eItem.fov, (sky0 + e.el_deg) / 2));
       }
       list.push(eItem);
-      if (s.vis_frac != null && s.vis_frac > 0.001 && s.vis_frac < 0.999) {
+      if (ecl > 0 && ecl < 1 && sunUp) {
+        // Partial eclipse: the Sun's loupe shows the Earth's limb crossing the disk (and the diamond at the end).
+        list.push({ body: s, fov: 8 * s.ang_radius_deg, text: (mag) => `Sun ×${mag} · ${eclipsePct(ecl)} % covered` });
+      } else if (s.vis_frac != null && s.vis_frac > 0.001 && s.vis_frac < 0.999) {
         list.push({ body: s, fov: 8 * s.ang_radius_deg, text: (mag) => `Sun ×${mag} · ${Math.round(s.vis_frac * 100)}% visible` });
       }
       const fMain = width / 2 / Math.tan((view.hfov * DEG) / 2);
@@ -343,6 +350,13 @@ export async function createSkyView(container, {
       ctx2d.fill();
     }
     ctx2d.restore();
+  }
+
+  /** Covered share of the Sun for captions: "100" only when total, one decimal near the ends. */
+  function eclipsePct(ecl) {
+    if (ecl >= 1) return '100';
+    const p = ecl * 100;
+    return p > 99 || p < 1 ? (Math.floor(p * 10) / 10).toFixed(1) : String(Math.round(p));
   }
 
   /** Angle (deg) between two direction vectors. */
@@ -449,13 +463,21 @@ export async function createSkyView(container, {
     const horEl = horizonElAt(horizon, s.sun.az_deg), setterKm = horizon.dist_km ? horizonDistKmAt(horizon, s.sun.az_deg) : Infinity;
     const frac = Math.min(1, Math.max(0, (s.sun.el_deg - horEl) / (2 * s.sun.ang_radius_deg) + 0.5));
     const beyondPatch = !patch || setterKm * 1000 > 0.9 * patch.meta.half_extent_m;
-    u.uSunVis.value = beyondPatch ? frac : 1;
+    // During an eclipse the direct sunlight is scaled by the share of the disk the Earth leaves uncovered.
+    const look = eclipseLook(s), uncovered = look ? 1 - s.sun.eclipse_frac : 1;
+    u.uSunVis.value = (beyondPatch ? frac : 1) * uncovered;
     sunFrac = frac;
-    u.uSunUp.value = Math.min(1, Math.max(0, (s.sun.el_deg + 0.6) / 0.9));
+    u.uSunUp.value = Math.min(1, Math.max(0, (s.sun.el_deg + 0.6) / 0.9)) * uncovered;
     // Earthshine: faint, bluish, scaled by the Earth's phase and visibility.
     const ev = (s.earth.vis_frac ?? 1) * (s.earth.phase_frac ?? 0.5) * 0.02;
     u.uEarthDir.value.set(...enuToThree(s.earth.enu)).normalize();
     u.uEarthShine.value.set(0.62 * ev, 0.8 * ev, 1.0 * ev);
+    // Near totality the ground is lit by the Earth's red ring instead (the light that turns the eclipsed Moon red;
+    // of the same order as full earthshine, so drawn at that scale).
+    if (look) {
+      const red = (s.earth.vis_frac ?? 1) * Math.pow(s.sun.eclipse_frac, 4) * 0.014;
+      u.uEarthShine.value.x += 0.85 * red; u.uEarthShine.value.y += 0.26 * red; u.uEarthShine.value.z += 0.08 * red;
+    }
     shadowDirty = true;
     if (firstUpdate) {
       firstUpdate = false;

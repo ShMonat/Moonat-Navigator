@@ -257,7 +257,7 @@ export const EARTH_FRAG = /* glsl */ `
 #include <logdepthbuf_pars_fragment>
 ${NOISE_GLSL}
 uniform sampler2D uDay, uNight;
-uniform float uHasDay, uHasNight, uExposure;
+uniform float uHasDay, uHasNight, uExposure, uNightGain;
 uniform vec3 uSunDirE;   // unit, world, from the Earth toward the Sun
 varying vec2 vUv;
 varying vec3 vNormalW;
@@ -286,14 +286,15 @@ void main(){
   // Atmosphere: blue Rayleigh haze over the sunlit side, stronger toward the limb.
   float rim = pow(1.0 - mu, 3.0);
   col += vec3(0.07, 0.14, 0.30) * lit * (1.0 + 3.0 * rim);
-  if (uHasNight > 0.5) col += texture2D(uNight, vUv).rgb * vec3(1.0, 0.85, 0.6) * 0.16 * (1.0 - day);
+  if (uHasNight > 0.5) col += texture2D(uNight, vUv).rgb * vec3(1.0, 0.85, 0.6) * 0.16 * uNightGain * (1.0 - day);
   gl_FragColor = vec4(vec3(1.0) - exp(-col * uExposure), 1.0);
   #include <colorspace_fragment>
 }
 `;
 
 // The Sun: a camera-facing quad. The disk has its true angular radius (limb-darkened); the glow is an
-// instrument/eye effect and scales with the visible fraction of the disk.
+// instrument/eye effect and scales with the visible flux (terrain and, during an eclipse, the Earth). While the Earth
+// covers part of the disk, the glow is centred on the visible crescent (uGlowOff, quad-plane units).
 export const SUN_VERT = /* glsl */ `
 #include <common>
 #include <logdepthbuf_pars_vertex>
@@ -310,6 +311,7 @@ export const SUN_FRAG = /* glsl */ `
 #include <common>
 #include <logdepthbuf_pars_fragment>
 uniform float uDist, uRad, uPixAng, uVis, uHalf;
+uniform vec2 uGlowOff;
 varying vec2 vP;
 void main(){
   #include <logdepthbuf_fragment>
@@ -317,13 +319,71 @@ void main(){
   float disk = 1.0 - smoothstep(uRad - uPixAng, uRad + uPixAng, th);
   float m = sqrt(max(1.0 - (th * th) / (uRad * uRad), 0.0));
   vec3 col = vec3(1.0, 0.985, 0.95) * disk * (1.0 - 0.6 * (1.0 - m)) * 6.0;
-  float x = th / uRad;
+  vec2 g = vP - uGlowOff;
+  float x = atan(length(g) / uDist) / uRad;
   float glow = 1.4 * exp(-x * 0.9) + 0.22 / (1.0 + x * x * 0.08) * exp(-x * 0.05);
   // Faint diffraction spikes for a camera-like look.
-  vec2 u = vP / uDist / uRad;
+  vec2 u = g / uDist / uRad;
   float spikes = 0.16 * (exp(-abs(u.x) * 3.0) * exp(-abs(u.y) * 0.22) + exp(-abs(u.y) * 3.0) * exp(-abs(u.x) * 0.22));
   float edge = 1.0 - smoothstep(0.75, 1.0, length(vP) / uHalf);
   col += vec3(1.0, 0.96, 0.9) * (glow + spikes) * uVis * edge * (1.0 - disk);
+  gl_FragColor = vec4(vec3(1.0) - exp(-col), 1.0);
+  #include <colorspace_fragment>
+}
+`;
+
+// Eclipse overlay, centred on the Earth (a camera-facing quad drawn over the Earth without a depth test), shown only
+// while the Earth covers part of the Sun:
+// - the refraction ring: sunlight bent into the Earth's shadow by the lower atmosphere (the ring in the Surveyor 3 and
+//   Blue Ghost pictures). A ray grazing limb point L reaches the eye if the atmosphere deviates it by delta = the
+//   angle from L to the nearest point of the solar disk; the largest deviation is about 1.2 deg (twice the
+//   horizontal refraction), for rays through the densest, reddest air. So the ring is bright and orange near the Sun,
+//   dimmer and redder further round the limb (brightness (1 − delta/1.2°)^1.5 · exp(−delta/0.5°), a stand-in for the
+//   extinction and defocusing of low rays), and absent where delta > 1.2 deg. Its true width is a few arcsec
+//   (the refracting layer is ~10-20 km thick); it is drawn about one pixel wide, with a faint optical halo.
+// - the "diamond": the last sliver of the Sun at second or third contact, drawn as the point-spread function of a
+//   saturating point source (a few pixels, with short spikes), so it spills over the dark limb as in a photograph.
+// All angles in rad; vP in quad-plane units at distance uDist (small angles: angle = vP / uDist).
+export const ECLIPSE_VERT = SUN_VERT;
+
+export const ECLIPSE_FRAG = /* glsl */ `
+#include <common>
+#include <logdepthbuf_pars_fragment>
+uniform float uDist, uRadE, uRadS, uPixAng, uRing, uBead, uHalf;
+uniform vec2 uSunP;    // Sun centre relative to the Earth centre (rad, quad plane)
+uniform vec2 uBeadP;   // centroid of the visible crescent (rad, quad plane)
+varying vec2 vP;
+void main(){
+  #include <logdepthbuf_fragment>
+  vec2 a = vP / uDist;
+  float th = length(a);
+  vec3 col = vec3(0.0);
+  if (uRing > 0.0) {
+    // Radial profile: starts at the limb (anti-aliased like the sphere's edge), about one pixel wide, plus a faint
+    // halo a few pixels wide.
+    float w = max(uRadE * 0.0025, 1.5 * uPixAng);
+    float out_ = th - uRadE;
+    float edge = smoothstep(-0.5 * uPixAng, 0.5 * uPixAng, out_);
+    float line = exp(-pow(max(out_, 0.0) / w, 2.0));
+    float halo = exp(-max(out_, 0.0) / (4.0 * uPixAng));
+    // Along the limb: deviation needed from the nearest point of the solar disk.
+    vec2 limb = a / max(th, 1e-9) * uRadE;
+    float delta = max(length(limb - uSunP) - uRadS, 0.0);
+    float dmax = radians(1.2);
+    float k = clamp(delta / dmax, 0.0, 1.0);
+    float bright = pow(1.0 - k, 1.5) * exp(-delta / radians(0.5));
+    vec3 tint = mix(vec3(1.0, 0.62, 0.30), vec3(0.85, 0.16, 0.04), smoothstep(0.0, 0.6, k));
+    col += tint * bright * uRing * edge * (2.4 * line + 0.16 * halo);
+  }
+  if (uBead > 0.0) {
+    // Point-spread function of the bright crescent: a saturated core, a halo and two faint diffraction spikes
+    // (aligned with the Sun's own spikes).
+    vec2 d = (a - uBeadP) / uPixAng;
+    float r = length(d);
+    float psf = 3.0 * exp(-r * r / 3.2) + 0.55 * exp(-r / 5.0) + 0.12 * exp(-r / 22.0);
+    float spikes = 0.35 * (exp(-abs(d.x) * 0.9) * exp(-abs(d.y) * 0.05) + exp(-abs(d.y) * 0.9) * exp(-abs(d.x) * 0.05));
+    col += vec3(1.0, 0.97, 0.9) * (psf + spikes) * uBead * (1.0 - smoothstep(0.6, 1.0, length(vP) / uHalf));
+  }
   gl_FragColor = vec4(vec3(1.0) - exp(-col), 1.0);
   #include <colorspace_fragment>
 }

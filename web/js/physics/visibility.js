@@ -58,17 +58,26 @@ function horizonRange(hz, azLo, azHi) {
   return [mn, mx];
 }
 
-const RESULT = { vis: 0, flux: 0 };
+const RESULT = { vis: 0, flux: 0, fluxLit: 0 };
+
+function done(v) {
+  RESULT.vis = v; RESULT.flux = v; RESULT.fluxLit = v;
+  return RESULT;
+}
 
 /**
  * Visible fraction of a disk centred at (az_deg, el_deg) with angular radius rho_deg, against the
  * prepared horizon `hz` (from prepareHorizon, or null = smooth horizon).
- * Returns {vis, flux}: vis = solid-angle fraction; flux = the fraction weighted by linear limb
+ * Returns {vis, flux, fluxLit}: vis = solid-angle fraction; flux = the fraction weighted by linear limb
  * darkening I(mu) = 1 − u(1 − mu) (only computed when `u` is a number, else flux = vis).
  * `uEnu` (optional) is the unit ENU vector of the centre if already known.
+ * `occ` (optional, with `u`): an opaque disk in front of this one, {enu: unit ENU centre, rho_deg}
+ * (the Earth in front of the Sun). Then fluxLit = the share of the flux NOT hidden by `occ` that
+ * clears the terrain (each sample also weighted by an anti-aliased "outside occ" step); without
+ * `occ`, fluxLit = flux. Used with the analytic eclipse fraction in eclipse.js (combinedFluxFrac).
  * The returned object is reused between calls; copy the values if you keep them.
  */
-export function diskFractions(az_deg, el_deg, rho_deg, hz, u = null, uEnu = null) {
+export function diskFractions(az_deg, el_deg, rho_deg, hz, u = null, uEnu = null, occ = null) {
   const rho = rho_deg * DEG;
   const delta = rho_deg * Math.sqrt(Math.PI / N_DISK_POINTS);
   const halfRamp = 0.5 * delta + 1e-9;
@@ -77,8 +86,8 @@ export function diskFractions(az_deg, el_deg, rho_deg, hz, u = null, uEnu = null
   const lo = el_deg - rho_deg;
   const hi = Math.min(el_deg + rho_deg, 90);
   const gMin = hz ? hz.min : 0, gMax = hz ? hz.max : 0;
-  if (lo - halfRamp > gMax) { RESULT.vis = 1; RESULT.flux = 1; return RESULT; }
-  if (hi + halfRamp < gMin) { RESULT.vis = 0; RESULT.flux = 0; return RESULT; }
+  if (lo - halfRamp > gMax) return done(1);
+  if (hi + halfRamp < gMin) return done(0);
   if (hz) {
     const cosEl = Math.cos(el_deg * DEG);
     let hMin, hMax;
@@ -88,8 +97,8 @@ export function diskFractions(az_deg, el_deg, rho_deg, hz, u = null, uEnu = null
       const daz = Math.asin(Math.sin(rho) / cosEl) * RAD;
       [hMin, hMax] = horizonRange(hz, az_deg - daz, az_deg + daz);
     }
-    if (lo - halfRamp > hMax) { RESULT.vis = 1; RESULT.flux = 1; return RESULT; }
-    if (hi + halfRamp < hMin) { RESULT.vis = 0; RESULT.flux = 0; return RESULT; }
+    if (lo - halfRamp > hMax) return done(1);
+    if (hi + halfRamp < hMin) return done(0);
   }
 
   // Tangent-plane basis at the centre direction: e1 toward the zenith, e2 = e1 × u.
@@ -107,7 +116,9 @@ export function diskFractions(az_deg, el_deg, rho_deg, hz, u = null, uEnu = null
   const oneMinusCosRho = 1 - Math.cos(rho);
   const sinRho = Math.sin(rho);
   const ld = typeof u === 'number';
-  let sumV = 0, sumW = 0, sumWV = 0;
+  const oc = ld && occ ? occ : null;
+  const ox = oc ? oc.enu[0] : 0, oy = oc ? oc.enu[1] : 0, oz = oc ? oc.enu[2] : 0, orho = oc ? oc.rho_deg : 0;
+  let sumV = 0, sumW = 0, sumWV = 0, sumWO = 0, sumWVO = 0;
   for (let i = 0; i < N_DISK_POINTS; i++) {
     const omc = PAT_S[i] * oneMinusCosRho;
     const ca = 1 - omc;
@@ -132,10 +143,18 @@ export function diskFractions(az_deg, el_deg, rho_deg, hz, u = null, uEnu = null
       const wl = 1 - u * (1 - Math.sqrt(1 - r * r));
       sumW += wl;
       sumWV += wl * w;
+      if (oc) {
+        const d = px * ox + py * oy + pz * oz;
+        let wo = 0.5 + (Math.acos(d > 1 ? 1 : d < -1 ? -1 : d) * RAD - orho) / delta;
+        wo = wo < 0 ? 0 : wo > 1 ? 1 : wo;
+        sumWO += wl * wo;
+        sumWVO += wl * w * wo;
+      }
     }
   }
   RESULT.vis = sumV / N_DISK_POINTS;
   RESULT.flux = ld ? sumWV / sumW : RESULT.vis;
+  RESULT.fluxLit = oc ? (sumWO > 0 ? sumWVO / sumWO : RESULT.flux) : RESULT.flux;
   return RESULT;
 }
 

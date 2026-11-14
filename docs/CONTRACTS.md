@@ -96,7 +96,7 @@ await loadEphem(baseUrl)                       // fetches the manifest; years lo
 makeSite({lat_deg, lon_deg, ground_elev_m = 0, observer_height_m = 2, horizon = null})  // horizon: C3 object or null
 await skyState(site, tMs) -> {
   t_ms,
-  sun:   {az_deg, el_deg, dist_km, ang_radius_deg, vis_frac, flux_frac, enu:[3]},
+  sun:   {az_deg, el_deg, dist_km, ang_radius_deg, vis_frac, flux_frac, eclipse_frac, enu:[3]},
   earth: {az_deg, el_deg, dist_km, ang_radius_deg, vis_frac, phase_frac, enu:[3],
           sun_dir_enu:[3],   // unit vector from the Earth toward the Sun, in site ENU (for shading)
           era_deg},          // Earth Rotation Angle; Earth body frame = R_icrs_to_enu · Rz(era)
@@ -106,13 +106,25 @@ await skyState(site, tMs) -> {
 await series(site, t0Ms, t1Ms, stepMs) -> {     // arrays, same length
   t_ms, sun_el, sun_az, sun_vis, flux_horiz_wm2, flux_normal_wm2,
   earth_el, earth_az, earth_vis, earth_phase, earth_ang_diam_deg,
+  sun_eclipse, sun_flux_frac,                    // eclipse_frac and flux_frac per sample
+  eclipses: [{start_ms|null, max_ms, end_ms|null, max_frac, total_start_ms|null, total_end_ms|null, sun_vis_at_max}],
   summary: {sun_vis_pct, earth_vis_pct, next_sunset_ms|null, next_earthset_ms|null, mean_flux_horiz_wm2}
 }
 ```
-- `vis_frac` = solid-angle fraction of the body's disk above the horizon profile (0..1). `flux_frac` = the same weighted by
-  solar limb darkening (linear, u = 0.6). `phase_frac` = illuminated fraction of the Earth's disk = (1 + cos α)/2, with α the
+- `vis_frac` = solid-angle fraction of the body's disk above the horizon profile (0..1), terrain only. `flux_frac` = the
+  visible share of the Sun's flux, weighted by solar limb darkening (linear, u = 0.6), with both the terrain and the Earth
+  in the way. `eclipse_frac` = the share of the Sun's limb-darkened flux behind the Earth's disk, terrain ignored
+  (0 except during an eclipse of the Sun by the Earth, i.e. a lunar eclipse on Earth). The Earth is an opaque disk of
+  radius 6378.137 km (solid body, no atmosphere; NASA's Danjon 1.01 enlargement would hide the Sun ~1–1.5 min earlier);
+  apparent directions as in C1. When the terrain and the Earth both cut the disk, `flux_frac` = (1 − eclipse_frac) × the
+  terrain-visible share of the uncovered flux (docs/validation/eclipse.md). `phase_frac` = illuminated fraction of the Earth's disk = (1 + cos α)/2, with α the
   Sun–Earth–observer angle.
 - `flux_horiz_wm2` = 1361 · (1 AU / r)² · flux_frac · max(0, sin el). `flux_normal_wm2` = 1361 · (1 AU / r)² · flux_frac.
+- `series().eclipses`: one entry per eclipse in the window: first and last contact at the site (`start_ms`, `end_ms`: the
+  site enters and leaves the Earth's penumbra), totality (`total_*`: the site in the umbra; null if partial), greatest
+  eclipse at the site (`max_ms`: minimum Sun–Earth separation) and `max_frac`; null = outside the window. Times are refined
+  to 1 s, and events between samples are found. `summary.sun_vis_pct` counts samples with sunlight (`sun_flux_frac` > 0),
+  so a total eclipse counts as dark; set times follow the terrain-only `sun_vis`.
 - With a horizon of `null`, the horizon is the smooth local horizontal plane (el = 0), with no terrain.
 - Python reference implementations live in `moonat.metrics` / `moonat.visibility`. JS results must match Python
   fixtures (`tests/fixtures/*.json`) within: az/el 0.001°, vis_frac 0.01, phase 0.001.
@@ -144,6 +156,14 @@ await createSkyView(container /* HTMLElement */, {
 - Extras beyond C8 used by the app's focus mode: `setPixelBudget(px | null)` (drawing-buffer size; pixel ratio ≤ 2) and
   `setTallFrames(on)`: a body too high for the container's aspect gets a centred, taller frame (down to 3:4) in which the
   photo rule fits both the horizon and the body, like a square Apollo Hasselblad photo.
+- **Eclipses** (C6 `sun.eclipse_frac` > 0): render order Earth (opaque, renderOrder −1, distance 20 000) → stars →
+  Sun quad (additive, distance 30 000, depth-tested, so the Earth hides the part of the disk and glow behind it) → an
+  eclipse overlay at the Earth (additive, no depth test, renderOrder 6). The glare scales with the visible flux and is
+  centred on the visible crescent; the overlay draws the refraction ring of the Earth's atmosphere (bright and orange
+  toward the Sun, redder and fainter round the limb, none where the needed deviation exceeds ~1.2°) and, near second and
+  third contact, the "diamond" as a saturated point-spread function. Direct light on the terrain scales with the
+  uncovered flux; near totality the ground gets a faint red fill from the ring, the stars come out, and the HUD shows
+  "Earth eclipses the Sun · N % covered". During the partial phases the close-up adds a Sun loupe.
 - Renders on demand (no continuous loop) so many views can coexist. Missing data degrades gracefully (no terrain patch →
   horizon silhouette only; no stars file → no stars).
 - **Import map** (owned by `web-app` in `web/index.html`): `"three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"`,

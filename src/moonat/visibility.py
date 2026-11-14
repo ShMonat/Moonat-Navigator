@@ -106,25 +106,34 @@ def _horizon_range(horizon: Horizon, az_lo: float, az_hi: float) -> tuple[float,
     return float(sel.min()), float(sel.max())
 
 
-def visible_fraction(
+def disk_fractions(
     az_deg: float,
     el_deg: float,
     ang_radius_deg: float,
     horizon: Horizon = None,
     limb_darkening_u: float | None = None,
+    occulter: tuple[Sequence[float], float] | None = None,
     n: int = N_DISK_POINTS,
-) -> float:
-    """Fraction (0..1) of a circular body disk that lies above the horizon profile.
+) -> tuple[float, float, float]:
+    """Visible fractions of a circular body disk above a horizon: ``(vis, flux, flux_lit)``.
 
     Args:
         az_deg: true azimuth of the disk centre (deg, clockwise from north).
         el_deg: elevation of the disk centre above the local horizontal plane (deg).
         ang_radius_deg: angular radius of the disk (deg), > 0.
         horizon: C3 horizon profile (``az_step_deg``, ``el_deg``) or None for the smooth horizon.
-        limb_darkening_u: None for the plain solid-angle fraction (vis_frac); a coefficient u for
-            the linear limb-darkening law I(mu) = 1 - u (1 - mu), giving the flux fraction
-            (flux_frac; the Sun uses u = 0.6).
+        limb_darkening_u: None for no limb darkening (then flux = flux_lit = vis); a coefficient u
+            for the linear law I(mu) = 1 - u (1 - mu) (the Sun uses u = 0.6).
+        occulter: optional opaque disk in front of this one, ``(unit ENU centre, angular radius
+            deg)`` (the Earth in front of the Sun). Used only with limb darkening.
         n: number of sample points.
+
+    Returns:
+        vis: solid-angle fraction above the horizon (0..1).
+        flux: the same weighted by limb darkening.
+        flux_lit: the share of the flux NOT hidden by ``occulter`` that clears the terrain (each
+            sample also weighted by an anti-aliased "outside the occulter" step); = flux without an
+            occulter. See ``moonat.eclipse.combined_flux_frac``.
 
     Assumptions: the disk is a perfect circle (a sphere seen from outside); the horizon profile is
     a single-valued function of azimuth (true for a heightfield DEM); no refraction (no atmosphere).
@@ -143,9 +152,9 @@ def visible_fraction(
         daz = math.degrees(math.asin(math.sin(rho) / cos_el))
         h_min, h_max = _horizon_range(horizon, az_deg - daz, az_deg + daz)
     if lo - half_ramp > h_max:
-        return 1.0
+        return 1.0, 1.0, 1.0
     if hi + half_ramp < h_min:
-        return 0.0
+        return 0.0, 0.0, 0.0
 
     # Tangent-plane basis at the body direction u: e1 toward the zenith, e2 = e1 x u.
     u = azel_to_enu(az_deg, el_deg)
@@ -171,13 +180,50 @@ def visible_fraction(
     az_p = np.mod(np.degrees(np.arctan2(pts[:, 0], pts[:, 1])), 360.0)
     h_p = horizon_el_at(horizon, az_p)
     w_vis = np.clip(0.5 + (el_p - h_p) / delta_deg, 0.0, 1.0)
+    vis = float(w_vis.mean())
 
     if limb_darkening_u is None:
-        return float(w_vis.mean())
+        return vis, vis, vis
     r_norm = np.clip(sin_a / math.sin(rho), 0.0, 1.0)
     mu = np.sqrt(1.0 - r_norm * r_norm)
     w_ld = 1.0 - limb_darkening_u * (1.0 - mu)
-    return float((w_ld * w_vis).sum() / w_ld.sum())
+    flux = float((w_ld * w_vis).sum() / w_ld.sum())
+    if occulter is None:
+        return vis, flux, flux
+    o_dir = np.asarray(occulter[0], dtype=float)
+    d_deg = np.degrees(np.arccos(np.clip(pts @ o_dir, -1.0, 1.0)))
+    w_out = np.clip(0.5 + (d_deg - float(occulter[1])) / delta_deg, 0.0, 1.0)
+    den = float((w_ld * w_out).sum())
+    flux_lit = float((w_ld * w_vis * w_out).sum() / den) if den > 0 else flux
+    return vis, flux, flux_lit
+
+
+def visible_fraction(
+    az_deg: float,
+    el_deg: float,
+    ang_radius_deg: float,
+    horizon: Horizon = None,
+    limb_darkening_u: float | None = None,
+    n: int = N_DISK_POINTS,
+) -> float:
+    """Fraction (0..1) of a circular body disk that lies above the horizon profile.
+
+    Args:
+        az_deg: true azimuth of the disk centre (deg, clockwise from north).
+        el_deg: elevation of the disk centre above the local horizontal plane (deg).
+        ang_radius_deg: angular radius of the disk (deg), > 0.
+        horizon: C3 horizon profile (``az_step_deg``, ``el_deg``) or None for the smooth horizon.
+        limb_darkening_u: None for the plain solid-angle fraction (vis_frac); a coefficient u for
+            the linear limb-darkening law I(mu) = 1 - u (1 - mu), giving the flux fraction
+            (flux_frac; the Sun uses u = 0.6).
+        n: number of sample points.
+
+    Assumptions: as ``disk_fractions``.
+    """
+    vis, flux, _ = disk_fractions(
+        az_deg, el_deg, ang_radius_deg, horizon, limb_darkening_u, None, n
+    )
+    return vis if limb_darkening_u is None else flux
 
 
 def flux_fraction(

@@ -161,7 +161,29 @@ export const QUICK_STARTS = [
       return [{ ...s, t_end_utc: isoUtc(t0 + 14 * DAY_MS) }];
     },
   },
+  {
+    key: "eclipse",
+    label: "Eclipse from the Moon",
+    title: "14 March 2025: Blue Ghost watched the Earth eclipse the Sun from Mare Crisium",
+    resolve: (list) => {
+      const s = matchSite(["blueghost1", "blue_ghost_1", "blueghost"], /blue\s*ghost/i, null, list) || BLUE_GHOST;
+      return [{ ...scenarioFieldsFromSite(s, { start: ECLIPSE_START, end: ECLIPSE_END }), label: "Blue Ghost eclipse" }];
+    },
+  },
 ];
+
+// The total lunar eclipse of 14 March 2025 seen from Blue Ghost (Mare Crisium): the Earth starts to cover the Sun at
+// 05:00:42 UTC (the site enters the Earth's penumbra), hides it completely 06:17:25-08:34:23 (the site in the umbra;
+// NASA's whole-Moon contacts U1 05:09:33, U2 06:25:59, U3 07:31:23, U4 08:47:48) and uncovers it at 09:51:11.
+// The window adds about 30 min on each side of the partial phases (docs/validation/eclipse.md).
+const ECLIPSE_START = "2025-03-14T04:30:00Z";
+const ECLIPSE_END = "2025-03-14T10:20:00Z";
+// Used only if web/data/sites.json cannot be loaded (same values as the catalog entry).
+const BLUE_GHOST = {
+  id: "blueghost1", name: "Blue Ghost Mission 1", kind: "mission", agency: "Firefly Aerospace", lander: "Blue Ghost", crew: null,
+  lat_deg: 18.5623, lon_deg: 61.8103, t_start_utc: "2025-03-02T08:34:00Z", t_end_utc: "2025-03-16T00:00:00Z",
+  blurb: "A private lander that worked a full lunar day in Mare Crisium and filmed a lunar sunset.",
+};
 
 function fromMatch(list, ids, pattern) {
   const site = matchSite(ids, pattern, null, list) || matchSite(ids, pattern, null, FALLBACK_SITES);
