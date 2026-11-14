@@ -1,0 +1,1015 @@
+{
+ "_generated_by": "AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.",
+ "sun_periods_utc": {
+  "2027-01": [
+   "2027-01-01T00:00:00+00:00",
+   "+29.530589 d"
+  ],
+  "2027-07": [
+   "2027-07-01T00:00:00+00:00",
+   "+29.530589 d"
+  ]
+ },
+ "sun_step_h": 1.0,
+ "sun": {
+  "shackleton_rim": {
+   "2027-01": {
+    "c3": {
+     "sun_vis_pct": 100.0,
+     "mean_vis_pct": 100.0
+    },
+    "on_demand": {
+     "sun_vis_pct": 100.0,
+     "mean_vis_pct": 100.0
+    },
+    "tiles_only": {
+     "sun_vis_pct": 100.0,
+     "mean_vis_pct": 95.7
+    }
+   },
+   "2027-07": {
+    "c3": {
+     "sun_vis_pct": 94.8,
+     "mean_vis_pct": 88.9
+    },
+    "on_demand": {
+     "sun_vis_pct": 95.3,
+     "mean_vis_pct": 90.1
+    },
+    "tiles_only": {
+     "sun_vis_pct": 87.3,
+     "mean_vis_pct": 84.7
+    }
+   }
+  },
+  "malapert_massif": {
+   "2027-01": {
+    "c3": {
+     "sun_vis_pct": 54.3,
+     "mean_vis_pct": 53.1
+    },
+    "on_demand": {
+     "sun_vis_pct": 54.9,
+     "mean_vis_pct": 53.5
+    },
+    "tiles_only": {
+     "sun_vis_pct": 76.3,
+     "mean_vis_pct": 74.0
+    }
+   },
+   "2027-07": {
+    "c3": {
+     "sun_vis_pct": 47.8,
+     "mean_vis_pct": 45.9
+    },
+    "on_demand": {
+     "sun_vis_pct": 47.8,
+     "mean_vis_pct": 46.1
+    },
+    "tiles_only": {
+     "sun_vis_pct": 52.6,
+     "mean_vis_pct": 49.6
+    }
+   }
+  },
+  "south_pole": {
+   "2027-01": {
+    "c3": {
+     "sun_vis_pct": 35.4,
+     "mean_vis_pct": 33.5
+    },
+    "on_demand": {
+     "sun_vis_pct": 35.8,
+     "mean_vis_pct": 33.9
+    },
+    "tiles_only": {
+     "sun_vis_pct": 79.8,
+     "mean_vis_pct": 77.1
+    }
+   },
+   "2027-07": {
+    "c3": {
+     "sun_vis_pct": 24.5,
+     "mean_vis_pct": 18.4
+    },
+    "on_demand": {
+     "sun_vis_pct": 24.8,
+     "mean_vis_pct": 19.7
+    },
+    "tiles_only": {
+     "sun_vis_pct": 61.1,
+     "mean_vis_pct": 49.8
+    }
+   }
+  },
+  "art_haworth": {
+   "2027-01": {
+    "c3": {
+     "sun_vis_pct": 84.1,
+     "mean_vis_pct": 81.1
+    },
+    "on_demand": {
+     "sun_vis_pct": 84.1,
+     "mean_vis_pct": 81.2
+    },
+    "tiles_only": {
+     "sun_vis_pct": 82.9,
+     "mean_vis_pct": 79.6
+    }
+   },
+   "2027-07": {
+    "c3": {
+     "sun_vis_pct": 52.3,
+     "mean_vis_pct": 43.4
+    },
+    "on_demand": {
+     "sun_vis_pct": 53.6,
+     "mean_vis_pct": 44.5
+    },
+    "tiles_only": {
+     "sun_vis_pct": 53.6,
+     "mean_vis_pct": 46.7
+    }
+   }
+  },
+  "degerlache_rim": {
+   "2027-01": {
+    "c3": {
+     "sun_vis_pct": 85.9,
+     "mean_vis_pct": 79.8
+    },
+    "on_demand": {
+     "sun_vis_pct": 89.3,
+     "mean_vis_pct": 83.1
+    },
+    "tiles_only": {
+     "sun_vis_pct": 96.6,
+     "mean_vis_pct": 93.7
+    }
+   },
+   "2027-07": {
+    "c3": {
+     "sun_vis_pct": 64.0,
+     "mean_vis_pct": 59.9
+    },
+    "on_demand": {
+     "sun_vis_pct": 65.9,
+     "mean_vis_pct": 61.4
+    },
+    "tiles_only": {
+     "sun_vis_pct": 76.7,
+     "mean_vis_pct": 69.5
+    }
+   }
+  }
+ },
+ "near_field_cutoff": {
+  "apollo11": {
+   "ignoring_terrain_closer_than_m": 500,
+   "on_demand_vs_c3": {
+    "rms": 0.34,
+    "bias": -0.275,
+    "max": 0.909
+   },
+   "mean_el_deg": {
+    "on_demand": 0.16,
+    "c3": 0.43
+   }
+  },
+  "apollo16": {
+   "ignoring_terrain_closer_than_m": 500,
+   "on_demand_vs_c3": {
+    "rms": 0.155,
+    "bias": -0.084,
+    "max": 0.995
+   },
+   "mean_el_deg": {
+    "on_demand": 1.87,
+    "c3": 1.95
+   }
+  }
+ },
+ "fresh_points": [
+  {
+   "band": "|lat| < 60",
+   "lat_deg": -48.6534,
+   "lon_deg": 137.1202,
+   "cold_ms": 1119,
+   "compute_ms": 58,
+   "trek_bytes": 533873,
+   "trek_ms_per_level": [
+    1061,
+    858
+   ],
+   "c5_tile_bytes_new": 230400,
+   "levels": 2,
+   "errors": []
+  },
+  {
+   "band": "|lat| < 60",
+   "lat_deg": 16.3282,
+   "lon_deg": 122.2416,
+   "cold_ms": 1099,
+   "compute_ms": 50,
+   "trek_bytes": 533500,
+   "trek_ms_per_level": [
+    693,
+    1048
+   ],
+   "c5_tile_bytes_new": 460800,
+   "levels": 2,
+   "errors": []
+  },
+  {
+   "band": "|lat| < 60",
+   "lat_deg": -21.5818,
+   "lon_deg": 146.7216,
+   "cold_ms": 1311,
+   "compute_ms": 52,
+   "trek_bytes": 534523,
+   "trek_ms_per_level": [
+    1258,
+    1140
+   ],
+   "c5_tile_bytes_new": 230400,
+   "levels": 2,
+   "errors": []
+  },
+  {
+   "band": "|lat| < 60",
+   "lat_deg": 39.6125,
+   "lon_deg": 56.1125,
+   "cold_ms": 1044,
+   "compute_ms": 49,
+   "trek_bytes": 511803,
+   "trek_ms_per_level": [
+    704,
+    996
+   ],
+   "c5_tile_bytes_new": 230400,
+   "levels": 2,
+   "errors": []
+  },
+  {
+   "band": "75\u00e2\u20ac\u201c85\u00c2\u00b0S (30 m)",
+   "lat_deg": -81.3812,
+   "lon_deg": -170.5275,
+   "cold_ms": 2907,
+   "compute_ms": 79,
+   "trek_bytes": 696968,
+   "trek_ms_per_level": [
+    1032,
+    2828,
+    1635
+   ],
+   "c5_tile_bytes_new": 0,
+   "levels": 3,
+   "errors": []
+  },
+  {
+   "band": "75\u00e2\u20ac\u201c85\u00c2\u00b0S (30 m)",
+   "lat_deg": -80.471,
+   "lon_deg": -119.3142,
+   "cold_ms": 1166,
+   "compute_ms": 76,
+   "trek_bytes": 727342,
+   "trek_ms_per_level": [
+    1065,
+    1068,
+    1091
+   ],
+   "c5_tile_bytes_new": 0,
+   "levels": 3,
+   "errors": []
+  },
+  {
+   "band": "85\u00e2\u20ac\u201c90\u00c2\u00b0S (20 m)",
+   "lat_deg": -87.3617,
+   "lon_deg": 163.0661,
+   "cold_ms": 954,
+   "compute_ms": 74,
+   "trek_bytes": 695901,
+   "trek_ms_per_level": [
+    630,
+    880,
+    854
+   ],
+   "c5_tile_bytes_new": 0,
+   "levels": 3,
+   "errors": []
+  },
+  {
+   "band": "85\u00e2\u20ac\u201c90\u00c2\u00b0S (20 m)",
+   "lat_deg": -89.0908,
+   "lon_deg": 102.6379,
+   "cold_ms": 1152,
+   "compute_ms": 78,
+   "trek_bytes": 704802,
+   "trek_ms_per_level": [
+    674,
+    680,
+    1075
+   ],
+   "c5_tile_bytes_new": 0,
+   "levels": 3,
+   "errors": []
+  },
+  {
+   "band": "75\u00e2\u20ac\u201c90\u00c2\u00b0N (30 m)",
+   "lat_deg": 81.8103,
+   "lon_deg": 88.746,
+   "cold_ms": 2482,
+   "compute_ms": 65,
+   "trek_bytes": 728826,
+   "trek_ms_per_level": [
+    950,
+    2416,
+    996
+   ],
+   "c5_tile_bytes_new": 1382400,
+   "levels": 3,
+   "errors": []
+  }
+ ],
+ "run_utc": "2026-11-14T14:33:56.692Z",
+ "note": "on-demand = web/js/terrain computeTerrain (Moon Trek LOLA grids + C5 tiles); tiles = C5 tiles only (horizonFromTiles); C3 = web/data/horizons. Angles in deg, heights in m, times in ms.",
+ "sites": [
+  {
+   "id": "apollo11",
+   "name": "Apollo 11 (Tranquility Base)",
+   "lat_deg": 0.6741,
+   "lon_deg": 23.473,
+   "c3_near_field": "SLDEM2015 LOLA+SELENE TC (512 px/deg, ~59 m; Barker et al. 2016), NASA PDS",
+   "ground_m": {
+    "on_demand": -1926.59,
+    "c3": -1929.55
+   },
+   "on_demand_vs_c3": {
+    "rms": 1.144,
+    "bias": -1.003,
+    "max": 2.217,
+    "n": 1440
+   },
+   "on_demand_vs_c3_far_gt5km": null,
+   "tiles_vs_c3": {
+    "rms": 1.312,
+    "bias": -1.198,
+    "max": 2.281,
+    "n": 1440
+   },
+   "patch_vs_c4": {
+    "rms_m": 6.57,
+    "bias_m": -2.44,
+    "max_m": 101.5,
+    "c4_sources": [
+     "SLDEM2015 LOLA+SELENE TC (512 px/deg, ~59 m; Barker et al. 2016), NASA PDS"
+    ]
+   },
+   "levels": [
+    "LRO_LOLA_DEM_Global_256ppd_v06 118.45 m \u00c2\u00b123.7 km",
+    "LRO_LOLA_DEM_Global_128ppd_v04 473.8 m \u00c2\u00b195.0 km"
+   ],
+   "resolution_m": 118.5,
+   "cold_ms": 1844,
+   "timing_ms": {
+    "fetch": 1779,
+    "march": 29,
+    "patch": 35
+   },
+   "trek_bytes": 425290,
+   "trek_ms_per_level": [
+    1397,
+    1751
+   ],
+   "c5_tile_bytes_new": 462638,
+   "unterminated_rays": 0,
+   "errors": []
+  },
+  {
+   "id": "apollo15",
+   "name": "Apollo 15 (Hadley-Apennine)",
+   "lat_deg": 26.1322,
+   "lon_deg": 3.6339,
+   "c3_near_field": "SLDEM2015 LOLA+SELENE TC (512 px/deg, ~59 m; Barker et al. 2016), NASA PDS",
+   "ground_m": {
+    "on_demand": -1925.76,
+    "c3": -1928.29
+   },
+   "on_demand_vs_c3": {
+    "rms": 0.19,
+    "bias": -0.148,
+    "max": 0.509,
+    "n": 1440
+   },
+   "on_demand_vs_c3_far_gt5km": {
+    "rms": 0.164,
+    "bias": -0.119,
+    "max": 0.509,
+    "n": 1086
+   },
+   "tiles_vs_c3": {
+    "rms": 1.208,
+    "bias": -1.005,
+    "max": 3.409,
+    "n": 1440
+   },
+   "patch_vs_c4": {
+    "rms_m": 24.08,
+    "bias_m": 0.29,
+    "max_m": 270.1,
+    "c4_sources": [
+     "SLDEM2015 LOLA+SELENE TC (512 px/deg, ~59 m; Barker et al. 2016), NASA PDS"
+    ]
+   },
+   "levels": [
+    "LRO_LOLA_DEM_Global_256ppd_v06 118.45 m \u00c2\u00b123.7 km",
+    "LRO_LOLA_DEM_Global_128ppd_v04 473.8 m \u00c2\u00b195.0 km"
+   ],
+   "resolution_m": 118.5,
+   "cold_ms": 907,
+   "timing_ms": {
+    "fetch": 845,
+    "march": 25,
+    "patch": 37
+   },
+   "trek_bytes": 513082,
+   "trek_ms_per_level": [
+    828,
+    844
+   ],
+   "c5_tile_bytes_new": 345600,
+   "unterminated_rays": 0,
+   "errors": []
+  },
+  {
+   "id": "apollo16",
+   "name": "Apollo 16 (Descartes Highlands)",
+   "lat_deg": -8.973,
+   "lon_deg": 15.5002,
+   "c3_near_field": "SLDEM2015 LOLA+SELENE TC (512 px/deg, ~59 m; Barker et al. 2016), NASA PDS",
+   "ground_m": {
+    "on_demand": 13,
+    "c3": 12.13
+   },
+   "on_demand_vs_c3": {
+    "rms": 0.946,
+    "bias": -0.536,
+    "max": 2.774,
+    "n": 1440
+   },
+   "on_demand_vs_c3_far_gt5km": {
+    "rms": 0.087,
+    "bias": -0.057,
+    "max": 0.307,
+    "n": 846
+   },
+   "tiles_vs_c3": {
+    "rms": 1.711,
+    "bias": -1.37,
+    "max": 3.798,
+    "n": 1440
+   },
+   "patch_vs_c4": {
+    "rms_m": 14.2,
+    "bias_m": -0.39,
+    "max_m": 143.8,
+    "c4_sources": [
+     "SLDEM2015 LOLA+SELENE TC (512 px/deg, ~59 m; Barker et al. 2016), NASA PDS"
+    ]
+   },
+   "levels": [
+    "LRO_LOLA_DEM_Global_256ppd_v06 118.45 m \u00c2\u00b123.7 km",
+    "LRO_LOLA_DEM_Global_128ppd_v04 473.8 m \u00c2\u00b195.0 km"
+   ],
+   "resolution_m": 118.5,
+   "cold_ms": 947,
+   "timing_ms": {
+    "fetch": 862,
+    "march": 48,
+    "patch": 38
+   },
+   "trek_bytes": 501183,
+   "trek_ms_per_level": [
+    703,
+    862
+   ],
+   "c5_tile_bytes_new": 0,
+   "unterminated_rays": 0,
+   "errors": []
+  },
+  {
+   "id": "apollo17",
+   "name": "Apollo 17 (Taurus-Littrow)",
+   "lat_deg": 20.1908,
+   "lon_deg": 30.7717,
+   "c3_near_field": "SLDEM2015 LOLA+SELENE TC (512 px/deg, ~59 m; Barker et al. 2016), NASA PDS",
+   "ground_m": {
+    "on_demand": -2627.64,
+    "c3": -2627.35
+   },
+   "on_demand_vs_c3": {
+    "rms": 0.191,
+    "bias": -0.059,
+    "max": 1.528,
+    "n": 1440
+   },
+   "on_demand_vs_c3_far_gt5km": {
+    "rms": 0.192,
+    "bias": -0.059,
+    "max": 1.528,
+    "n": 1431
+   },
+   "tiles_vs_c3": {
+    "rms": 1.763,
+    "bias": -1.395,
+    "max": 3.969,
+    "n": 1440
+   },
+   "patch_vs_c4": {
+    "rms_m": 28.45,
+    "bias_m": -0.23,
+    "max_m": 289.2,
+    "c4_sources": [
+     "SLDEM2015 LOLA+SELENE TC (512 px/deg, ~59 m; Barker et al. 2016), NASA PDS"
+    ]
+   },
+   "levels": [
+    "LRO_LOLA_DEM_Global_256ppd_v06 118.45 m \u00c2\u00b123.7 km",
+    "LRO_LOLA_DEM_Global_128ppd_v04 473.8 m \u00c2\u00b195.0 km"
+   ],
+   "resolution_m": 118.5,
+   "cold_ms": 705,
+   "timing_ms": {
+    "fetch": 647,
+    "march": 21,
+    "patch": 36
+   },
+   "trek_bytes": 509252,
+   "trek_ms_per_level": [
+    639,
+    647
+   ],
+   "c5_tile_bytes_new": 115200,
+   "unterminated_rays": 0,
+   "errors": []
+  },
+  {
+   "id": "surveyor7",
+   "name": "Surveyor 7",
+   "lat_deg": -40.98,
+   "lon_deg": -11.514,
+   "c3_near_field": "SLDEM2015 LOLA+SELENE TC (512 px/deg, ~59 m; Barker et al. 2016), NASA PDS",
+   "ground_m": {
+    "on_demand": 69.72,
+    "c3": 70.5
+   },
+   "on_demand_vs_c3": {
+    "rms": 0.144,
+    "bias": -0.016,
+    "max": 0.452,
+    "n": 1440
+   },
+   "on_demand_vs_c3_far_gt5km": {
+    "rms": 0.094,
+    "bias": -0.05,
+    "max": 0.406,
+    "n": 377
+   },
+   "tiles_vs_c3": {
+    "rms": 2.745,
+    "bias": -2.386,
+    "max": 5.167,
+    "n": 1440
+   },
+   "patch_vs_c4": {
+    "rms_m": 10.46,
+    "bias_m": 0.91,
+    "max_m": 142.7,
+    "c4_sources": [
+     "SLDEM2015 LOLA+SELENE TC (512 px/deg, ~59 m; Barker et al. 2016), NASA PDS"
+    ]
+   },
+   "levels": [
+    "LRO_LOLA_DEM_Global_256ppd_v06 118.45 m \u00c2\u00b123.7 km",
+    "LRO_LOLA_DEM_Global_128ppd_v04 473.8 m \u00c2\u00b195.0 km"
+   ],
+   "resolution_m": 118.5,
+   "cold_ms": 863,
+   "timing_ms": {
+    "fetch": 809,
+    "march": 16,
+    "patch": 37
+   },
+   "trek_bytes": 531330,
+   "trek_ms_per_level": [
+    647,
+    809
+   ],
+   "c5_tile_bytes_new": 576000,
+   "unterminated_rays": 0,
+   "errors": []
+  },
+  {
+   "id": "change4",
+   "name": "Chang'e 4",
+   "lat_deg": -45.4561,
+   "lon_deg": 177.5885,
+   "c3_near_field": "SLDEM2015 LOLA+SELENE TC (512 px/deg, ~59 m; Barker et al. 2016), NASA PDS",
+   "ground_m": {
+    "on_demand": -5926.06,
+    "c3": -5928.55
+   },
+   "on_demand_vs_c3": {
+    "rms": 0.372,
+    "bias": -0.202,
+    "max": 1.264,
+    "n": 1440
+   },
+   "on_demand_vs_c3_far_gt5km": {
+    "rms": 0.053,
+    "bias": -0.027,
+    "max": 0.302,
+    "n": 906
+   },
+   "tiles_vs_c3": {
+    "rms": 0.465,
+    "bias": -0.364,
+    "max": 1.281,
+    "n": 1440
+   },
+   "patch_vs_c4": {
+    "rms_m": 5.66,
+    "bias_m": -1.78,
+    "max_m": 117.2,
+    "c4_sources": [
+     "SLDEM2015 LOLA+SELENE TC (512 px/deg, ~59 m; Barker et al. 2016), NASA PDS"
+    ]
+   },
+   "levels": [
+    "LRO_LOLA_DEM_Global_256ppd_v06 118.45 m \u00c2\u00b123.7 km",
+    "LRO_LOLA_DEM_Global_128ppd_v04 473.8 m \u00c2\u00b195.0 km"
+   ],
+   "resolution_m": 118.5,
+   "cold_ms": 993,
+   "timing_ms": {
+    "fetch": 933,
+    "march": 25,
+    "patch": 35
+   },
+   "trek_bytes": 452799,
+   "trek_ms_per_level": [
+    640,
+    932
+   ],
+   "c5_tile_bytes_new": 460800,
+   "unterminated_rays": 0,
+   "errors": []
+  },
+  {
+   "id": "chandrayaan3",
+   "name": "Chandrayaan-3 (Vikram)",
+   "lat_deg": -69.373,
+   "lon_deg": 32.319,
+   "c3_near_field": "LOLA LDEM_60S_60M (polar stereographic), LRO-L-LOLA-4-GDR-V1.0, NASA PDS Geosciences Node",
+   "ground_m": {
+    "on_demand": 529.42,
+    "c3": 529.02
+   },
+   "on_demand_vs_c3": {
+    "rms": 0.069,
+    "bias": -0.034,
+    "max": 0.261,
+    "n": 1440
+   },
+   "on_demand_vs_c3_far_gt5km": {
+    "rms": 0.023,
+    "bias": -0.011,
+    "max": 0.122,
+    "n": 1138
+   },
+   "tiles_vs_c3": {
+    "rms": 0.511,
+    "bias": -0.409,
+    "max": 1.381,
+    "n": 1440
+   },
+   "patch_vs_c4": {
+    "rms_m": 4.74,
+    "bias_m": 0.15,
+    "max_m": 104.2,
+    "c4_sources": [
+     "LOLA LDEM_60S_60M (polar stereographic), LRO-L-LOLA-4-GDR-V1.0, NASA PDS Geosciences Node"
+    ]
+   },
+   "levels": [
+    "LRO_LOLA_DEM_Global_256ppd_v06 118.45 m \u00c2\u00b123.7 km",
+    "LRO_LOLA_DEM_Global_128ppd_v04 473.8 m \u00c2\u00b195.0 km"
+   ],
+   "resolution_m": 118.5,
+   "cold_ms": 1047,
+   "timing_ms": {
+    "fetch": 989,
+    "march": 23,
+    "patch": 35
+   },
+   "trek_bytes": 513145,
+   "trek_ms_per_level": [
+    656,
+    988
+   ],
+   "c5_tile_bytes_new": 691200,
+   "unterminated_rays": 0,
+   "errors": []
+  },
+  {
+   "id": "shackleton_rim",
+   "name": "Shackleton rim (connecting ridge)",
+   "lat_deg": -89.4395,
+   "lon_deg": -137.1934,
+   "c3_near_field": "LOLA LDEM_80S_20M (polar stereographic), LRO-L-LOLA-4-GDR-V1.0, NASA PDS Geosciences Node",
+   "ground_m": {
+    "on_demand": 1958.46,
+    "c3": 1957.99
+   },
+   "on_demand_vs_c3": {
+    "rms": 0.123,
+    "bias": -0.091,
+    "max": 0.301,
+    "n": 1440
+   },
+   "on_demand_vs_c3_far_gt5km": {
+    "rms": 0.017,
+    "bias": -0.01,
+    "max": 0.071,
+    "n": 466
+   },
+   "tiles_vs_c3": {
+    "rms": 0.764,
+    "bias": -0.298,
+    "max": 1.953,
+    "n": 1440
+   },
+   "patch_vs_c4": {
+    "rms_m": 1.34,
+    "bias_m": -0.34,
+    "max_m": 33.1,
+    "c4_sources": [
+     "LOLA LDEM_80S_20M (polar stereographic), LRO-L-LOLA-4-GDR-V1.0, NASA PDS Geosciences Node"
+    ]
+   },
+   "levels": [
+    "ldem_85s_20m_Spole_float_SP 20 m \u00c2\u00b14.0 km",
+    "ldem_85s_20m_Spole_float_SP 80 m \u00c2\u00b116.0 km",
+    "LRO_LOLA_DEM_SPole75_30mp_v04 320 m \u00c2\u00b164.2 km"
+   ],
+   "resolution_m": 20,
+   "cold_ms": 1521,
+   "timing_ms": {
+    "fetch": 1403,
+    "march": 81,
+    "patch": 38
+   },
+   "trek_bytes": 730238,
+   "trek_ms_per_level": [
+    619,
+    845,
+    1402
+   ],
+   "c5_tile_bytes_new": 4071200,
+   "unterminated_rays": 0,
+   "errors": []
+  },
+  {
+   "id": "malapert_massif",
+   "name": "Malapert Massif",
+   "lat_deg": -85.99,
+   "lon_deg": 0.12,
+   "c3_near_field": "LOLA LDEM_80S_20M (polar stereographic), LRO-L-LOLA-4-GDR-V1.0, NASA PDS Geosciences Node",
+   "ground_m": {
+    "on_demand": 4843.27,
+    "c3": 4843.06
+   },
+   "on_demand_vs_c3": {
+    "rms": 0.109,
+    "bias": 0.005,
+    "max": 0.428,
+    "n": 1440
+   },
+   "on_demand_vs_c3_far_gt5km": {
+    "rms": 0.022,
+    "bias": -0.008,
+    "max": 0.054,
+    "n": 86
+   },
+   "tiles_vs_c3": {
+    "rms": 2.263,
+    "bias": -1.081,
+    "max": 5.855,
+    "n": 1440
+   },
+   "patch_vs_c4": {
+    "rms_m": 1.37,
+    "bias_m": 0.03,
+    "max_m": 41.8,
+    "c4_sources": [
+     "LOLA LDEM_80S_20M (polar stereographic), LRO-L-LOLA-4-GDR-V1.0, NASA PDS Geosciences Node"
+    ]
+   },
+   "levels": [
+    "ldem_85s_20m_Spole_float_SP 20 m \u00c2\u00b14.0 km",
+    "ldem_85s_20m_Spole_float_SP 80 m \u00c2\u00b116.0 km",
+    "LRO_LOLA_DEM_SPole75_30mp_v04 320 m \u00c2\u00b164.2 km"
+   ],
+   "resolution_m": 20,
+   "cold_ms": 1253,
+   "timing_ms": {
+    "fetch": 1170,
+    "march": 50,
+    "patch": 33
+   },
+   "trek_bytes": 747109,
+   "trek_ms_per_level": [
+    1018,
+    1170,
+    812
+   ],
+   "c5_tile_bytes_new": 0,
+   "unterminated_rays": 0,
+   "errors": []
+  },
+  {
+   "id": "south_pole",
+   "name": "Lunar south pole",
+   "lat_deg": -90,
+   "lon_deg": 0,
+   "c3_near_field": "LOLA LDEM_80S_20M (polar stereographic), LRO-L-LOLA-4-GDR-V1.0, NASA PDS Geosciences Node",
+   "ground_m": {
+    "on_demand": 1290.38,
+    "c3": 1290.12
+   },
+   "on_demand_vs_c3": {
+    "rms": 0.105,
+    "bias": -0.058,
+    "max": 0.642,
+    "n": 1440
+   },
+   "on_demand_vs_c3_far_gt5km": {
+    "rms": 0.048,
+    "bias": -0.037,
+    "max": 0.135,
+    "n": 461
+   },
+   "tiles_vs_c3": {
+    "rms": 5.622,
+    "bias": -3.931,
+    "max": 11.223,
+    "n": 1440
+   },
+   "patch_vs_c4": {
+    "rms_m": 1.35,
+    "bias_m": -0.25,
+    "max_m": 27.7,
+    "c4_sources": [
+     "LOLA LDEM_80S_20M (polar stereographic), LRO-L-LOLA-4-GDR-V1.0, NASA PDS Geosciences Node"
+    ]
+   },
+   "levels": [
+    "ldem_85s_20m_Spole_float_SP 20 m \u00c2\u00b14.0 km",
+    "ldem_85s_20m_Spole_float_SP 80 m \u00c2\u00b116.0 km",
+    "LRO_LOLA_DEM_SPole75_30mp_v04 320 m \u00c2\u00b164.2 km"
+   ],
+   "resolution_m": 20,
+   "cold_ms": 1115,
+   "timing_ms": {
+    "fetch": 1032,
+    "march": 36,
+    "patch": 46
+   },
+   "trek_bytes": 754916,
+   "trek_ms_per_level": [
+    628,
+    640,
+    1032
+   ],
+   "c5_tile_bytes_new": 0,
+   "unterminated_rays": 0,
+   "errors": []
+  },
+  {
+   "id": "art_haworth",
+   "name": "Haworth",
+   "lat_deg": -86.9555,
+   "lon_deg": -24.1657,
+   "c3_near_field": "LOLA LDEM_80S_20M (polar stereographic), LRO-L-LOLA-4-GDR-V1.0, NASA PDS Geosciences Node",
+   "ground_m": {
+    "on_demand": 1808.85,
+    "c3": 1808.64
+   },
+   "on_demand_vs_c3": {
+    "rms": 0.067,
+    "bias": -0.031,
+    "max": 0.345,
+    "n": 1440
+   },
+   "on_demand_vs_c3_far_gt5km": {
+    "rms": 0.015,
+    "bias": -0.004,
+    "max": 0.056,
+    "n": 693
+   },
+   "tiles_vs_c3": {
+    "rms": 1.1,
+    "bias": -0.608,
+    "max": 2.784,
+    "n": 1440
+   },
+   "patch_vs_c4": {
+    "rms_m": 1.18,
+    "bias_m": -0.03,
+    "max_m": 59.8,
+    "c4_sources": [
+     "LOLA LDEM_80S_20M (polar stereographic), LRO-L-LOLA-4-GDR-V1.0, NASA PDS Geosciences Node"
+    ]
+   },
+   "levels": [
+    "ldem_85s_20m_Spole_float_SP 20 m \u00c2\u00b14.0 km",
+    "ldem_85s_20m_Spole_float_SP 80 m \u00c2\u00b116.0 km",
+    "LRO_LOLA_DEM_SPole75_30mp_v04 320 m \u00c2\u00b164.2 km"
+   ],
+   "resolution_m": 20,
+   "cold_ms": 1197,
+   "timing_ms": {
+    "fetch": 1092,
+    "march": 67,
+    "patch": 38
+   },
+   "trek_bytes": 718153,
+   "trek_ms_per_level": [
+    665,
+    1092,
+    633
+   ],
+   "c5_tile_bytes_new": 0,
+   "unterminated_rays": 0,
+   "errors": []
+  },
+  {
+   "id": "degerlache_rim",
+   "name": "de Gerlache rim",
+   "lat_deg": -89.0056,
+   "lon_deg": -96.6455,
+   "c3_near_field": "LOLA LDEM_80S_20M (polar stereographic), LRO-L-LOLA-4-GDR-V1.0, NASA PDS Geosciences Node",
+   "ground_m": {
+    "on_demand": 1551.94,
+    "c3": 1551.47
+   },
+   "on_demand_vs_c3": {
+    "rms": 0.167,
+    "bias": -0.103,
+    "max": 0.415,
+    "n": 1440
+   },
+   "on_demand_vs_c3_far_gt5km": {
+    "rms": 0.018,
+    "bias": -0.01,
+    "max": 0.078,
+    "n": 894
+   },
+   "tiles_vs_c3": {
+    "rms": 1.112,
+    "bias": -0.566,
+    "max": 3.352,
+    "n": 1440
+   },
+   "patch_vs_c4": {
+    "rms_m": 1.2,
+    "bias_m": -0.45,
+    "max_m": 44.1,
+    "c4_sources": [
+     "LOLA LDEM_80S_20M (polar stereographic), LRO-L-LOLA-4-GDR-V1.0, NASA PDS Geosciences Node"
+    ]
+   },
+   "levels": [
+    "ldem_85s_20m_Spole_float_SP 20 m \u00c2\u00b14.0 km",
+    "ldem_85s_20m_Spole_float_SP 80 m \u00c2\u00b116.0 km",
+    "LRO_LOLA_DEM_SPole75_30mp_v04 320 m \u00c2\u00b164.2 km"
+   ],
+   "resolution_m": 20,
+   "cold_ms": 1146,
+   "timing_ms": {
+    "fetch": 1052,
+    "march": 56,
+    "patch": 38
+   },
+   "trek_bytes": 732729,
+   "trek_ms_per_level": [
+    673,
+    680,
+    1051
+   ],
+   "c5_tile_bytes_new": 0,
+   "unterminated_rays": 0,
+   "errors": []
+  }
+ ]
+}

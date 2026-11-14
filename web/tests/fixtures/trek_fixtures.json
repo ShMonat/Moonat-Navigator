@@ -1,0 +1,107 @@
+{
+ "_generated_by": "AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.",
+ "source": "NASA Moon Trek ArcGIS ImageServer exportImage (trek.nasa.gov/moon/trekarcgis), captured 2026-11-14",
+ "bsq_layout": "float32 LE row-major (row 0 = top), then a validity bitset (MSB first, 1 = valid) of ceil(n*n/8) bytes",
+ "cases": [
+  {
+   "name": "apollo15_global",
+   "layer": "LRO_LOLA_DEM_Global_256ppd_v06",
+   "lat": 26.1322,
+   "lon": 3.6339,
+   "half": 8000,
+   "n": 65,
+   "tol": 0.05,
+   "request": {
+    "f": "image",
+    "pixelType": "F32",
+    "interpolation": "RSP_BilinearInterpolation",
+    "bbox": "-8000,-8000,8000,8000",
+    "bboxSR": "{\"wkt\":\"PROJCS[\\\"Moon_Stereo_site\\\",GEOGCS[\\\"GCS_Moon_2000\\\",DATUM[\\\"D_Moon_2000\\\",SPHEROID[\\\"Moon_2000_IAU_IAG\\\",1737400.0,0.0]],PRIMEM[\\\"Reference_Meridian\\\",0.0],UNIT[\\\"Degree\\\",0.0174532925199433]],PROJECTION[\\\"Stereographic\\\"],PARAMETER[\\\"False_Easting\\\",0.0],PARAMETER[\\\"False_Northing\\\",0.0],PARAMETER[\\\"Central_Meridian\\\",3.6339],PARAMETER[\\\"Scale_Factor\\\",1.0],PARAMETER[\\\"Latitude_Of_Origin\\\",26.1322],UNIT[\\\"Meter\\\",1.0]]\"}",
+    "imageSR": "{\"wkt\":\"PROJCS[\\\"Moon_Stereo_site\\\",GEOGCS[\\\"GCS_Moon_2000\\\",DATUM[\\\"D_Moon_2000\\\",SPHEROID[\\\"Moon_2000_IAU_IAG\\\",1737400.0,0.0]],PRIMEM[\\\"Reference_Meridian\\\",0.0],UNIT[\\\"Degree\\\",0.0174532925199433]],PROJECTION[\\\"Stereographic\\\"],PARAMETER[\\\"False_Easting\\\",0.0],PARAMETER[\\\"False_Northing\\\",0.0],PARAMETER[\\\"Central_Meridian\\\",3.6339],PARAMETER[\\\"Scale_Factor\\\",1.0],PARAMETER[\\\"Latitude_Of_Origin\\\",26.1322],UNIT[\\\"Meter\\\",1.0]]\"}",
+    "size": "65,65",
+    "format": "lerc|bsq",
+    "compressionTolerance": 0.05
+   }
+  },
+  {
+   "name": "pole20m_edge",
+   "layer": "ldem_85s_20m_Spole_float_SP",
+   "lat": -85.05,
+   "lon": 30,
+   "half": 3000,
+   "n": 61,
+   "tol": 0.02,
+   "request": {
+    "f": "image",
+    "pixelType": "F32",
+    "interpolation": "RSP_BilinearInterpolation",
+    "bbox": "-3000,-3000,3000,3000",
+    "bboxSR": "{\"wkt\":\"PROJCS[\\\"Moon_Stereo_site\\\",GEOGCS[\\\"GCS_Moon_2000\\\",DATUM[\\\"D_Moon_2000\\\",SPHEROID[\\\"Moon_2000_IAU_IAG\\\",1737400.0,0.0]],PRIMEM[\\\"Reference_Meridian\\\",0.0],UNIT[\\\"Degree\\\",0.0174532925199433]],PROJECTION[\\\"Stereographic\\\"],PARAMETER[\\\"False_Easting\\\",0.0],PARAMETER[\\\"False_Northing\\\",0.0],PARAMETER[\\\"Central_Meridian\\\",30],PARAMETER[\\\"Scale_Factor\\\",1.0],PARAMETER[\\\"Latitude_Of_Origin\\\",-85.05],UNIT[\\\"Meter\\\",1.0]]\"}",
+    "imageSR": "{\"wkt\":\"PROJCS[\\\"Moon_Stereo_site\\\",GEOGCS[\\\"GCS_Moon_2000\\\",DATUM[\\\"D_Moon_2000\\\",SPHEROID[\\\"Moon_2000_IAU_IAG\\\",1737400.0,0.0]],PRIMEM[\\\"Reference_Meridian\\\",0.0],UNIT[\\\"Degree\\\",0.0174532925199433]],PROJECTION[\\\"Stereographic\\\"],PARAMETER[\\\"False_Easting\\\",0.0],PARAMETER[\\\"False_Northing\\\",0.0],PARAMETER[\\\"Central_Meridian\\\",30],PARAMETER[\\\"Scale_Factor\\\",1.0],PARAMETER[\\\"Latitude_Of_Origin\\\",-85.05],UNIT[\\\"Meter\\\",1.0]]\"}",
+    "size": "61,61",
+    "format": "lerc|bsq",
+    "compressionTolerance": 0.02
+   }
+  },
+  {
+   "name": "pole20m_outside",
+   "layer": "ldem_85s_20m_Spole_float_SP",
+   "lat": -85,
+   "lon": 90,
+   "half": 3000,
+   "n": 41,
+   "tol": 0.02,
+   "request": {
+    "f": "image",
+    "pixelType": "F32",
+    "interpolation": "RSP_BilinearInterpolation",
+    "bbox": "-3000,-3000,3000,3000",
+    "bboxSR": "{\"wkt\":\"PROJCS[\\\"Moon_Stereo_site\\\",GEOGCS[\\\"GCS_Moon_2000\\\",DATUM[\\\"D_Moon_2000\\\",SPHEROID[\\\"Moon_2000_IAU_IAG\\\",1737400.0,0.0]],PRIMEM[\\\"Reference_Meridian\\\",0.0],UNIT[\\\"Degree\\\",0.0174532925199433]],PROJECTION[\\\"Stereographic\\\"],PARAMETER[\\\"False_Easting\\\",0.0],PARAMETER[\\\"False_Northing\\\",0.0],PARAMETER[\\\"Central_Meridian\\\",90],PARAMETER[\\\"Scale_Factor\\\",1.0],PARAMETER[\\\"Latitude_Of_Origin\\\",-85],UNIT[\\\"Meter\\\",1.0]]\"}",
+    "imageSR": "{\"wkt\":\"PROJCS[\\\"Moon_Stereo_site\\\",GEOGCS[\\\"GCS_Moon_2000\\\",DATUM[\\\"D_Moon_2000\\\",SPHEROID[\\\"Moon_2000_IAU_IAG\\\",1737400.0,0.0]],PRIMEM[\\\"Reference_Meridian\\\",0.0],UNIT[\\\"Degree\\\",0.0174532925199433]],PROJECTION[\\\"Stereographic\\\"],PARAMETER[\\\"False_Easting\\\",0.0],PARAMETER[\\\"False_Northing\\\",0.0],PARAMETER[\\\"Central_Meridian\\\",90],PARAMETER[\\\"Scale_Factor\\\",1.0],PARAMETER[\\\"Latitude_Of_Origin\\\",-85],UNIT[\\\"Meter\\\",1.0]]\"}",
+    "size": "41,41",
+    "format": "lerc|bsq",
+    "compressionTolerance": 0.02
+   }
+  },
+  {
+   "name": "shackleton20m",
+   "layer": "ldem_85s_20m_Spole_float_SP",
+   "lat": -89.4395,
+   "lon": -137.1934,
+   "half": 8000,
+   "n": 65,
+   "tol": 0.05,
+   "request": {
+    "f": "image",
+    "pixelType": "F32",
+    "interpolation": "RSP_BilinearInterpolation",
+    "bbox": "-8000,-8000,8000,8000",
+    "bboxSR": "{\"wkt\":\"PROJCS[\\\"Moon_Stereo_site\\\",GEOGCS[\\\"GCS_Moon_2000\\\",DATUM[\\\"D_Moon_2000\\\",SPHEROID[\\\"Moon_2000_IAU_IAG\\\",1737400.0,0.0]],PRIMEM[\\\"Reference_Meridian\\\",0.0],UNIT[\\\"Degree\\\",0.0174532925199433]],PROJECTION[\\\"Stereographic\\\"],PARAMETER[\\\"False_Easting\\\",0.0],PARAMETER[\\\"False_Northing\\\",0.0],PARAMETER[\\\"Central_Meridian\\\",-137.1934],PARAMETER[\\\"Scale_Factor\\\",1.0],PARAMETER[\\\"Latitude_Of_Origin\\\",-89.4395],UNIT[\\\"Meter\\\",1.0]]\"}",
+    "imageSR": "{\"wkt\":\"PROJCS[\\\"Moon_Stereo_site\\\",GEOGCS[\\\"GCS_Moon_2000\\\",DATUM[\\\"D_Moon_2000\\\",SPHEROID[\\\"Moon_2000_IAU_IAG\\\",1737400.0,0.0]],PRIMEM[\\\"Reference_Meridian\\\",0.0],UNIT[\\\"Degree\\\",0.0174532925199433]],PROJECTION[\\\"Stereographic\\\"],PARAMETER[\\\"False_Easting\\\",0.0],PARAMETER[\\\"False_Northing\\\",0.0],PARAMETER[\\\"Central_Meridian\\\",-137.1934],PARAMETER[\\\"Scale_Factor\\\",1.0],PARAMETER[\\\"Latitude_Of_Origin\\\",-89.4395],UNIT[\\\"Meter\\\",1.0]]\"}",
+    "size": "65,65",
+    "format": "lerc|bsq",
+    "compressionTolerance": 0.05
+   }
+  },
+  {
+   "name": "southpole20m",
+   "layer": "ldem_85s_20m_Spole_float_SP",
+   "lat": -90,
+   "lon": 0,
+   "half": 8000,
+   "n": 65,
+   "tol": 0.05,
+   "request": {
+    "f": "image",
+    "pixelType": "F32",
+    "interpolation": "RSP_BilinearInterpolation",
+    "bbox": "-8000,-8000,8000,8000",
+    "bboxSR": "{\"wkt\":\"PROJCS[\\\"Moon_Stereo_site\\\",GEOGCS[\\\"GCS_Moon_2000\\\",DATUM[\\\"D_Moon_2000\\\",SPHEROID[\\\"Moon_2000_IAU_IAG\\\",1737400.0,0.0]],PRIMEM[\\\"Reference_Meridian\\\",0.0],UNIT[\\\"Degree\\\",0.0174532925199433]],PROJECTION[\\\"Stereographic\\\"],PARAMETER[\\\"False_Easting\\\",0.0],PARAMETER[\\\"False_Northing\\\",0.0],PARAMETER[\\\"Central_Meridian\\\",0],PARAMETER[\\\"Scale_Factor\\\",1.0],PARAMETER[\\\"Latitude_Of_Origin\\\",-90],UNIT[\\\"Meter\\\",1.0]]\"}",
+    "imageSR": "{\"wkt\":\"PROJCS[\\\"Moon_Stereo_site\\\",GEOGCS[\\\"GCS_Moon_2000\\\",DATUM[\\\"D_Moon_2000\\\",SPHEROID[\\\"Moon_2000_IAU_IAG\\\",1737400.0,0.0]],PRIMEM[\\\"Reference_Meridian\\\",0.0],UNIT[\\\"Degree\\\",0.0174532925199433]],PROJECTION[\\\"Stereographic\\\"],PARAMETER[\\\"False_Easting\\\",0.0],PARAMETER[\\\"False_Northing\\\",0.0],PARAMETER[\\\"Central_Meridian\\\",0],PARAMETER[\\\"Scale_Factor\\\",1.0],PARAMETER[\\\"Latitude_Of_Origin\\\",-90],UNIT[\\\"Meter\\\",1.0]]\"}",
+    "size": "65,65",
+    "format": "lerc|bsq",
+    "compressionTolerance": 0.05
+   }
+  }
+ ]
+}

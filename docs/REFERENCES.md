@@ -80,6 +80,13 @@ Challenge Resources tab (published 2026-11-13): Quickmap, Moon Trek, JPL Horizon
 - Bussey et al. 2010, Icarus 208, 558-564, "Illumination conditions of the south pole of the Moon derived using Kaguya topography" — Malapert M1/M2 illumination (74 %) for comparison with our site search — https://doi.org/10.1016/j.icarus.2010.03.028 — paper (cited only)
 - LROC NAC low-Sun controlled mosaics of the Artemis III candidate regions (ASU / NASA LRO; NAC_ROI_CABEUSPKLOA, HAWORTH_LOA, MALAPERTLOA, MOUTNPLTLO1, MTMOUTONLOB, NOBILE02LOA, DEGERRIMLO1) — region centres for the polar site search — https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_CABEUSPKLOA — public (NASA)
 
+### Terrain for any point (agent `terrain-everywhere`)
+- ★ NASA Solar System Treks, Moon Trek ArcGIS ImageServer `exportImage` (NASA/JPL-Caltech) — on-demand LOLA elevation grids (float32, LERC) for any clicked point: layers `ldem_85s_20m_Spole_float_SP` (LOLA 20 m, 85–90°S), `LRO_LOLA_DEM_SPole75_30mp_v04` / `LRO_LOLA_DEM_NPole75_30mp_v04` (LOLA 30 m polar), `LRO_LOLA_DEM_Global_256ppd_v06` (LOLA 118 m global), `LRO_LOLA_DEM_Global_128ppd_v04` (LDEM_128) — https://trek.nasa.gov/moon/trekarcgis/rest/services — public (NASA; no published API terms, credited and used at 2–3 requests per point)
+- Moon Trek service catalogue and configuration (TrekServices index, `jpl/config/config.json`) — finding the DEM layers and the 3D terrain endpoint — https://trek.nasa.gov/moon/TrekServices/ws/index/eq/searchItems — public
+- Moon Trek 3D terrain, Cesium quantized-mesh-1.0 tiles (evaluated, not used: simplified TIN) — https://marshub.s3.amazonaws.com/moon_v14/layer.json — public
+- USGS Astrogeology map mosaics on AWS (`planetarymaps.usgs.gov` / `asc-pds-services`): LOLA LDEM 118 m global BigTIFF and the LMAP south-pole 5 m COG `ldem_87s_5mpp_cog.tif` (evaluated as static alternatives, not used) — https://planetarymaps.usgs.gov/mosaic/ — public (USGS / NASA)
+- Esri LERC (Limited Error Raster Compression) version 1 format description — our decoder web/js/terrain/lerc1.js is written from it — https://github.com/Esri/lerc — Apache-2.0
+
 ### Additional entries (docs completeness check, 2026-11-14)
 - Smith et al. 2010, Space Sci. Rev. 150, 209-241, "The Lunar Orbiter Laser Altimeter investigation on the Lunar Reconnaissance Orbiter mission" — the LOLA instrument behind every terrain product above — https://doi.org/10.1007/s11214-009-9512-y — paper (cited only)
 - pytest and Ruff (dev dependencies in pyproject.toml) — Python tests, lint and format — https://docs.pytest.org/ and https://docs.astral.sh/ruff/ — MIT

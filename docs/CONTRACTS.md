@@ -170,6 +170,23 @@ await createSkyView(container /* HTMLElement */, {
   `"three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"`; Plotly `plotly.js-dist-min@2.35.2`; Leaflet `leaflet@1.9.4`.
 - ENU → three.js mapping: three.x = east, three.y = up, three.z = −north (right-handed). Units: metres near the site.
 
+## C9 `terrain-at` (producer: `terrain-everywhere`; consumers: `physics-js`, `sky-viewer`, `web-app`) — **proposed, not wired**
+Real LOLA terrain for any clicked point, computed in the browser (branch `shay/terrain-everywhere`; research and
+validation: docs/research/terrain-everywhere.md, docs/validation/terrain-everywhere.md). `web/js/terrain/index.js` exports:
+```js
+await terrainAt(lat_deg, lon_deg, {radius_km, observer_height_m = 2, az_step_deg = 0.25, patch = true,
+                                   online = true, demBaseUrl = "data/dem", worker = true}) -> {
+  horizon,  // C3 object (az_step 0.25, el_deg[1440], dist_km[1440], ground_elev_m, max_range_km, dem_sources)
+            // + source: "moon-trek+dem-tiles" | "dem-tiles", approximate (true only for the tiles fallback), label
+  patch,    // C4 fields + z_up_m: Float32Array(grid_n²) in site ENU (±12 km, 385²), or null without Moon Trek data
+  meta: { sources, resolution_m, ms, timing_ms, bytes, levels: [{layer, half_km, cell_m, n, bytes, ms}], fallback }
+}
+```
+- Near and mid field: site-centred stereographic LOLA grids (401², LERC) from the NASA Moon Trek ImageServer:
+  20/80/320 m (85–90°S), 30/120/480 m (75–90°), 118/474 m elsewhere. Far field: the C5 tiles. Same ray march as C3/C5.
+- Runs in a module Web Worker; cold load 1–3 s (up to 4.5 s when the server is busy) and 0.5–0.75 MB per point.
+- If Moon Trek fails: tiles-only horizon, `approximate: true`, `meta.fallback` says why.
+
 ## C7 `scenario` (producer: `web-app`; internal to the UI)
 `{ id, label, color, site_id | null, lat_deg, lon_deg, t_start_utc, t_end_utc | null }`. No limit on the number of scenarios.
 No end time = a single instant. Scenarios may share or differ in times.
