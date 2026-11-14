@@ -8,10 +8,16 @@
 //   - t_start_utc / t_end_utc: ISO-8601 UTC strings ("1969-07-20T20:17:40Z"); no end = a single instant.
 //   - color: index into PALETTE (an integer slot). The hex value depends on the theme (see colorHex).
 
-/** Categorical, colour-blind-safe palette (validated order; light and dark steps of the same hues). */
+/**
+ * Categorical palette: six colours that stay apart for colour-blind readers in every pair (lines overlap, so all pairs
+ * count). Hues of Paul Tol's "bright" scheme (blue, red, green, yellow, cyan, purple), stepped per theme with the
+ * dataviz skill's validator: all pairs ΔE ≥ 8.5 (OKLab ×100) under protan and deutan simulation, ≥ 16 for normal
+ * vision, contrast ≥ 3:1 on the chart surface (#ffffff light, #12151c dark), lightness inside each theme's band.
+ * A seventh scenario wraps to slot 0 and gets dashed lines (isWrappedSlot).
+ */
 export const PALETTE = {
-  light: ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"],
-  dark: ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#0ca30c", "#9085e9", "#e66767"],
+  light: ["#3a68a2", "#ed667f", "#198634", "#a39700", "#3fa0bf", "#aa3376"],
+  dark: ["#356ac9", "#d47276", "#218632", "#a79501", "#3da1c1", "#b43c98"],
 };
 
 export const HOUR_MS = 3600e3;

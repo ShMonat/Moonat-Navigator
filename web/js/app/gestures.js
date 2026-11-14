@@ -1,5 +1,56 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
-// Touch gestures for the sky views: pinch to zoom. Pure helpers (tested in web/tests/gestures.test.mjs) and one DOM binder.
+// Touch gestures for the sky views and the globe: pinch to zoom, and an axis lock so a vertical swipe scrolls the page.
+// Pure helpers (tested in web/tests/app_gestures.test.mjs) and DOM binders.
+
+/**
+ * Axis of a one-finger touch drag after it has moved (dx, dy) CSS px from where it started: null while it is shorter
+ * than `slop`, then "y" when it is mostly vertical (|dy| > |dx|) and "x" otherwise.
+ */
+export function touchAxis(dx, dy, slop = 10) {
+  if (!(Math.hypot(dx, dy) >= slop)) return null;
+  return Math.abs(dy) > Math.abs(dx) ? "y" : "x";
+}
+
+/**
+ * Axis lock for one-finger touch drags on an element whose CSS says `touch-action: pan-y`: the first `slop` px of motion
+ * decide. A clearly vertical swipe belongs to the browser, which scrolls the page (and then sends pointercancel); a
+ * horizontal drag belongs to the view, which turns and may then also move vertically. Two fingers (a pinch) and mouse or
+ * pen input pass through. Listens in the capture phase on `el`, so bind it on an ANCESTOR of the elements whose own
+ * pointer handlers turn the view: stopPropagation keeps the moves of an undecided or vertical swipe from reaching them.
+ * `active()` says whether the lock applies (e.g. not in a full-window mode, where the CSS says `touch-action: none`).
+ */
+export function bindAxisLock(el, { slop = 10, active = () => /pan-y/.test(getComputedStyle(el).touchAction) } = {}) {
+  const pts = new Map(); // pointerId -> { x0, y0, axis: null (undecided) | "x" (the view's) | "y" (the page's) }
+  el.addEventListener(
+    "pointerdown",
+    (e) => {
+      if (e.pointerType !== "touch") return;
+      const first = pts.size === 0;
+      pts.set(e.pointerId, { x0: e.clientX, y0: e.clientY, axis: first && active() ? null : "x" });
+      if (!first) for (const p of pts.values()) if (p.axis === null) p.axis = "x"; // a second finger: a pinch
+    },
+    true,
+  );
+  el.addEventListener(
+    "pointermove",
+    (e) => {
+      const p = pts.get(e.pointerId);
+      if (!p || p.axis === "x") return;
+      if (p.axis === null) {
+        p.axis = touchAxis(e.clientX - p.x0, e.clientY - p.y0, slop);
+        // A vertical swipe: end the view's gesture now (so it never becomes a tap), and leave the swipe to the page.
+        if (p.axis === "y" && typeof PointerEvent === "function") {
+          e.target.dispatchEvent(new PointerEvent("pointercancel", { pointerId: e.pointerId, pointerType: "touch", bubbles: true }));
+        }
+      }
+      if (p.axis !== "x") e.stopPropagation();
+    },
+    true,
+  );
+  const end = (e) => pts.delete(e.pointerId);
+  el.addEventListener("pointerup", end, true);
+  el.addEventListener("pointercancel", end, true);
+}
 
 /**
  * Field of view after a pinch.

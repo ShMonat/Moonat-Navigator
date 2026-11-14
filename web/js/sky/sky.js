@@ -7,7 +7,7 @@
 // an overlay at the Earth adds the refraction ring and the "diamond" (sky state sun.eclipse_frac, C6).
 
 import * as THREE from 'three';
-import { DEG, M_ZUP_TO_YUP, mat3Vec, lonLatToVec, enuToThree, yupRotationFromZup, earthBodyToEnu, bvToRgb } from './math.js';
+import { DEG, M_ZUP_TO_YUP, mat3Vec, lonLatToVec, enuToThree, yupRotationFromZup, earthBodyToEnu, bvToRgb, constellationCentroid } from './math.js';
 import { STAR_VERT, STAR_FRAG, EARTH_VERT, EARTH_FRAG, SUN_VERT, SUN_FRAG, ECLIPSE_VERT, ECLIPSE_FRAG } from './shaders.js';
 
 export const D_EARTH = 20000, D_SUN = 30000, D_PLANET = 40000, D_STAR = 50000;
@@ -60,6 +60,28 @@ export function parseStars(json) {
   return rows.map((s) => (Array.isArray(s)
     ? { ra_deg: s[ix.ra], dec_deg: s[ix.dec], vmag: s[ix.v], bv: s[ix.bv] }
     : s)).filter((s) => Number.isFinite(s.ra_deg) && Number.isFinite(s.dec_deg) && Number.isFinite(s.vmag));
+}
+
+/** English names of the constellations the sky view labels: well known, and spread over both hemispheres. */
+export const LABELLED_CONSTELLATIONS = {
+  Ori: 'Orion', UMa: 'Big Dipper', Cas: 'Cassiopeia', Cyg: 'Cygnus', Lyr: 'Lyra', Aql: 'Aquila', Leo: 'Leo', Tau: 'Taurus',
+  Gem: 'Gemini', Sco: 'Scorpius', Sgr: 'Sagittarius', Cru: 'Southern Cross', Cen: 'Centaurus', CMa: 'Canis Major',
+  Peg: 'Pegasus', Car: 'Carina', Boo: 'Boötes', Vir: 'Virgo',
+};
+
+/**
+ * Label positions for constellations: the normalised mean of the unit vectors of all the points of their lines, in ICRS
+ * (z = celestial north pole). `json.lines` maps IAU abbreviations to polylines of [ra_deg, dec_deg] (d3-celestial).
+ * Returns [{ abbr, name, icrs: [x, y, z] }] for the names in `names` that have lines.
+ */
+export function constellationLabels(json, names = LABELLED_CONSTELLATIONS) {
+  const out = [];
+  const lines = json && json.lines && typeof json.lines === 'object' ? json.lines : {};
+  for (const [abbr, name] of Object.entries(names)) {
+    const icrs = constellationCentroid(parseConstellationLines(lines[abbr]));
+    if (icrs) out.push({ abbr, name, icrs });
+  }
+  return out;
 }
 
 /** Collects every polyline of [ra_deg, dec_deg] points found anywhere in the constellation JSON. */
@@ -188,9 +210,9 @@ export function buildSky({ starsJson, constellationsJson, earthTexture, nightTex
 
   // Exposure: "eye" keeps the stars (dimmed) while the Sun is up, for orientation; "camera" is exposed for the sunlit
   // ground, so stars vanish whenever any of the Sun is visible, as in Apollo photographs.
-  let exposureMode = 'eye', sunVis = 0;
+  let exposureMode = 'eye', sunVis = 0, dim = 1;
   const applyExposure = () => {
-    const dim = 1 - (exposureMode === 'camera' ? 1 : 0.7) * Math.min(1, sunVis * 4);
+    dim = 1 - (exposureMode === 'camera' ? 1 : 0.7) * Math.min(1, sunVis * 4);
     starUniforms.uDim.value = dim;
     if (constellations) constellations.material.opacity = 0.3 * dim;
   };
@@ -260,6 +282,8 @@ export function buildSky({ starsJson, constellationsJson, earthTexture, nightTex
 
   return {
     group, fixed, update, starCount: stars.length, hasConstellations: !!constellations,
+    constellationLabels: constellations ? constellationLabels(constellationsJson) : [],
+    starDim: () => dim,   // 1 = full star brightness, 0 = washed out (camera exposure with the Sun up)
     setConstellations: (on) => { if (constellations) constellations.visible = on; },
     setExposureMode: (mode) => { exposureMode = mode === 'camera' ? 'camera' : 'eye'; applyExposure(); },
     setPixelScale: (pxRatio, pixAngRad) => {

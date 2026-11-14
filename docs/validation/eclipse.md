@@ -115,6 +115,14 @@ timelapse defaults to 10 min/s (35 s). Computed renders (Playwright + Edge, 1920
 |---|---|---|
 | ![partial](../figures/eclipse_sky_partial.png) | ![diamond](../figures/eclipse_sky_diamond.png) | ![total](../figures/eclipse_sky_total.png) |
 
+**Compare tab.** The Sun card names the eclipse in its footer ("Earth eclipses the Sun: total for 2 h 17 min
+(06:17–08:34 UTC), partly covered 05:00–09:51 UTC"); the terrain's sunset or sunrise follows only when one happens in the
+window. "% of the stay with sunlight" counts samples with `flux_frac` > 0, so totality counts as dark. The **Visible
+Sun** chart draws, as its solid line, the share of the Sun's light that reaches the site: C6 `flux_frac`, limb-darkened,
+with both the terrain and the Earth in the way. When the window holds an eclipse, a dashed line adds the terrain alone
+(C6 `vis_frac`, share of the disk), and a legend key says so. Outside eclipses the two differ only while the terrain
+cuts the disk, by the limb-darkening weight (a thin crescent at the edge carries less light than its area).
+
 The ring is drawn, not computed as flux: bright and orange where the needed deviation δ (from the limb point to the
 nearest point of the solar disk) is small, redder and fainter as δ grows, none beyond δ ≈ 1.2° (twice the horizontal
 refraction). Its brightness law is a visual stand-in, chosen to look like the Blue Ghost and Surveyor 3 pictures.

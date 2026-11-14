@@ -16,11 +16,12 @@
 
 import * as THREE from 'three';
 import {
-  DEG, enuToThree, azElToEnu, verticalFovDeg, flatHorizon, horizonFromPatch, horizonElAt, horizonDistKmAt, fitBodyView, fitPhotoView, signed1,
+  DEG, enuToThree, azElToEnu, verticalFovDeg, flatHorizon, horizonFromPatch, horizonElAt, horizonDistKmAt, fitBodyView, fitPhotoView, bodyFitAspect, signed1,
 } from './math.js';
 import { buildTerrain } from './terrain.js';
 import { buildSky, eclipseLook } from './sky.js';
 import { createHud } from './hud.js';
+import { hiddenReason, degText, earthNeverRises, EARTH_DEEP_BELOW_DEG } from './words.js';
 
 const FOV_MIN = 15, FOV_MAX = 100, EL_MIN = -60, EL_MAX = 90;
 // Photo framing: the widest "comfortable" horizontal FOV (deg), and the narrowest tall frame (width / height).
@@ -109,6 +110,7 @@ export async function createSkyView(container, {
   terrainPatch = null,           // an in-memory C4 patch { meta, data: Float32Array } instead of terrainPatchUrl
   stars = null,                  // in-memory star JSON instead of starsUrl
   exposure: initialExposure = 'eye',   // "eye": stars stay visible in daylight; "camera": exposed for the sunlit ground
+  onNotes = null,                // (notes: [{ id, text }]) => void, called when the HUD notes change (e.g. to show them elsewhere)
 } = {}) {
   const eyeH = site?.observer_height_m ?? 2;
   const [starsJson, constellationsJson, earthTexture, nightTexture, patch0] = await Promise.all([
@@ -128,6 +130,12 @@ export async function createSkyView(container, {
   // then it is a centred, narrower box, like a square Apollo Hasselblad photo, with black bars at the sides.
   const frameEl = document.createElement('div');
   frameEl.className = 'moonat-sky-frame';
+  // Behind a tall frame: the same view, stretched to the full width, small, blurred and dimmed (CSS), so the side bands
+  // continue the sky and the ground instead of being black bars.
+  const bandsEl = document.createElement('canvas'), bandsCtx = bandsEl.getContext('2d');
+  bandsEl.className = 'moonat-sky-bands';
+  bandsEl.setAttribute('aria-hidden', 'true');
+  container.appendChild(bandsEl);
   container.appendChild(frameEl);
   const canvas = document.createElement('canvas'), ctx2d = canvas.getContext('2d');
   frameEl.appendChild(canvas);
@@ -139,6 +147,7 @@ export async function createSkyView(container, {
 
   const sky = buildSky({ starsJson, constellationsJson, earthTexture, nightTexture });
   sky.setConstellations(showConstellations);
+  let constellationsOn = !!showConstellations && sky.hasConstellations, lastNotesKey = null;
   const floatLinear = renderer.capabilities.isWebGL2 && renderer.extensions.has('OES_texture_float_linear');
   let terrain = buildTerrain({ patch, horizon, eyeH, floatLinear });
   const skyScene = new THREE.Scene(), farScene = new THREE.Scene(), nearScene = new THREE.Scene();
@@ -148,6 +157,7 @@ export async function createSkyView(container, {
   const sunDir = new THREE.Vector3(0, 1, 0);
   let horizonMaxEl = Math.max(...horizon.el_deg);
   let sunFrac = 1;
+  let earthDeep = false;   // the Earth is far below the horizontal plane: a text message replaces its close-up
   let shadowDirty = true, exposureMode = initialExposure === 'camera' ? 'camera' : 'eye';
   sky.setExposureMode(exposureMode);
 
@@ -173,9 +183,10 @@ export async function createSkyView(container, {
   const hud = createHud(frameEl, {
     onLookAt: (name) => lookAtBody(name),
     hasConstellations: sky.hasConstellations, constellationsOn: showConstellations,
-    onToggleConstellations: (on) => { sky.setConstellations(on); requestRender(); },
+    onToggleConstellations: (on) => { constellationsOn = on; sky.setConstellations(on); requestRender(); },
     closeUpOn, onToggleCloseUp: (on) => { closeUpOn = on; requestRender(); },
     exposureMode, onExposureMode: (mode) => { exposureMode = mode; sky.setExposureMode(mode); requestRender(); },
+    skylineAt: (az) => horizonElAt(horizon, az),
   });
 
   function renderNow() {
@@ -221,6 +232,18 @@ export async function createSkyView(container, {
     const src = renderer.domElement;
     if (canvas.width !== src.width || canvas.height !== src.height) { canvas.width = src.width; canvas.height = src.height; }
     ctx2d.drawImage(src, 0, 0);
+    if (frameEl.classList.contains('tall')) {
+      // Stretched sideways only, so the horizon continues at the same height into the bands.
+      bandsCtx.drawImage(src, 0, 0, src.width, src.height, 0, 0, bandsEl.width, bandsEl.height);
+    }
+    // An Earth far below the horizontal plane (the far side, or the limb at the wrong libration) gets a text message
+    // instead of a close-up of the ground above it.
+    const e = state?.earth;
+    earthDeep = !!(e && hiddenReason(e) && e.el_deg + e.ang_radius_deg < EARTH_DEEP_BELOW_DEG);
+    const badgeHtml = !earthDeep ? ''
+      : earthNeverRises(site?.lat_deg, site?.lon_deg)
+        ? `<b>🌍 Earth is below your feet</b> (height ${degText(e.el_deg)})<br>It never rises here: this is the Moon's far side, which always faces away from Earth.`
+        : `<b>🌍 Earth is ${Math.round(-e.el_deg)}° below the horizon</b> (height ${degText(e.el_deg)})`;
     const insetRects = drawInsets(pr);
     // A planet within 3.5 deg of a visible Sun sits in its glare: its label is left out.
     const inGlare = (p) => state.sun.vis_frac > 0 && (state.sun.eclipse_frac ?? 0) < 1 && angleDeg(p.enu, state.sun.enu) < 3.5;
@@ -228,15 +251,39 @@ export async function createSkyView(container, {
       { name: 'Earth', enu: state.earth.enu, hidden: belowHorizon(state.earth) || view.hfov < 25, dx: (state.earth.ang_radius_deg / view.hfov) * width + 6,
         body: 'earth', edgeText: `▲ Earth ${signed1(state.earth.el_deg)}°` },
       ...(state.planets || []).map((p) => ({ name: p.name[0].toUpperCase() + p.name.slice(1), enu: p.enu, hidden: belowHorizon(p) || inGlare(p) })),
+      ...constellationMarks(),
     ] : [];
-    // Notes explain a frame that could look empty: no terrain data, night, or a camera pointed above the ground.
+    // Notes explain a frame that could look empty: no terrain data, night, or a camera pointed above the ground. One
+    // line, most useful first; the HUD shows the first two. "Below the horizon" only for a disk entirely below the local
+    // horizontal plane; above it, terrain hides the body (words.js).
     const notes = [];
-    if (horizon.smooth) notes.push('Terrain not included: smooth horizon');
-    if (state && sunFrac <= 0) notes.push('Night: the Sun is below the horizon, so the ground is dark');
-    else if (state && (state.sun.eclipse_frac ?? 0) >= 1) notes.push("Total eclipse: the Earth hides the Sun; only the red ring of Earth's atmosphere lights the ground");
-    if (view.el - camera.fov / 2 > horizonMaxEl) notes.push('Looking up: drag down to see the ground');
-    if (state && state.earth.el_deg + state.earth.ang_radius_deg < horizonElAt(horizon, state.earth.az_deg)) notes.push('Earth is below the horizon');
-    hud.update(state, view, project, marks, notes, insetRects);
+    if (view.el - camera.fov / 2 > horizonMaxEl) notes.push({ id: 'look-up', text: 'Looking up: drag down to see the ground' });
+    if (state && (state.sun.eclipse_frac ?? 0) >= 1 && sunFrac > 0) notes.push({ id: 'eclipse', text: "Total eclipse: only the red ring of Earth's atmosphere lights the ground" });
+    if (state && sunFrac <= 0) {
+      notes.push({ id: 'sun', text: state.sun.el_deg + state.sun.ang_radius_deg < 0 ? 'Night: the Sun is below the horizon' : 'In shadow: terrain hides the Sun' });
+    }
+    if (state && !earthDeep && state.earth.el_deg + state.earth.ang_radius_deg < horizonElAt(horizon, state.earth.az_deg)) {
+      notes.push({ id: 'earth', text: state.earth.el_deg + state.earth.ang_radius_deg < 0 ? 'Earth is below the horizon' : 'Earth is hidden behind terrain' });
+    }
+    if (horizon.smooth) notes.push({ id: 'smooth', text: 'Terrain not included: smooth horizon' });
+    hud.update(state, view, project, marks, notes.length ? [notes.slice(0, 2).map((n) => n.text).join(' · ')] : [], insetRects, badgeHtml);
+    const key = notes.map((n) => n.id).join('|');
+    if (onNotes && key !== lastNotesKey) { lastNotesKey = key; onNotes(notes); }
+  }
+
+  /**
+   * Names of a few well-known constellations at the centre of their lines, while the lines are shown and the stars are
+   * not washed out (camera exposure in daylight). Left out in small views and below the skyline.
+   */
+  function constellationMarks() {
+    if (!constellationsOn || !sky.constellationLabels.length || width < 360 || sky.starDim() < 0.15) return [];
+    const R = state.r_icrs_to_enu, out = [];
+    for (const c of sky.constellationLabels) {
+      const v = c.icrs, enu = [R[0] * v[0] + R[1] * v[1] + R[2] * v[2], R[3] * v[0] + R[4] * v[1] + R[5] * v[2], R[6] * v[0] + R[7] * v[1] + R[8] * v[2]];
+      const el = Math.asin(Math.max(-1, Math.min(1, enu[2]))) / DEG, az = Math.atan2(enu[0], enu[1]) / DEG;
+      if (el > horizonElAt(horizon, az) + 3) out.push({ name: c.name, enu, faint: true });
+    }
+    return out;
   }
   /**
    * Close-up insets (circular loupes, top right). Each one is the same scene seen from the same eye through a
@@ -260,8 +307,8 @@ export async function createSkyView(container, {
         body: e, fov: 5 * e.ang_radius_deg, hidden: eHidden,
         // Below the flat horizon the Moon itself hides the Earth; above it, a ridge or crater rim does.
         text: (mag) => (eHidden ? `${e.el_deg + e.ang_radius_deg < 0 ? 'Earth below the horizon' : 'Earth hidden behind terrain'} (${signed1(e.el_deg)}°)`
-          : ecl > 0 && sunUp ? `Earth ×${mag} · ${ecl >= 1 ? 'hiding the Sun' : 'eclipsing'}`
-            : `Earth ×${mag} · ${ePart ? Math.round(e.vis_frac * 100) + '% visible' : Math.round((e.phase_frac ?? 0) * 100) + '% lit'}`),
+          : ecl > 0 && sunUp ? `Earth, ${mag}× zoom · ${ecl >= 1 ? 'hiding the Sun' : 'eclipsing'}`
+            : `Earth, ${mag}× zoom · ${ePart ? Math.round(e.vis_frac * 100) + '% visible' : Math.round((e.phase_frac ?? 0) * 100) + '% lit'}`),
       };
       if (eHidden) {
         // Wide enough to hold the skyline and the hidden Earth (up to 30 deg); the skyline sits in the upper part.
@@ -269,12 +316,12 @@ export async function createSkyView(container, {
         eItem.fov = Math.min(30, Math.max(5 * e.ang_radius_deg, 2.6 * depth + 4 * e.ang_radius_deg));
         eItem.aim = azElToEnu(e.az_deg, Math.max(sky0 - 0.3 * eItem.fov, (sky0 + e.el_deg) / 2));
       }
-      list.push(eItem);
+      if (!earthDeep) list.push(eItem);
       if (ecl > 0 && ecl < 1 && sunUp) {
         // Partial eclipse: the Sun's loupe shows the Earth's limb crossing the disk (and the diamond at the end).
-        list.push({ body: s, fov: 8 * s.ang_radius_deg, text: (mag) => `Sun ×${mag} · ${eclipsePct(ecl)} % covered` });
+        list.push({ body: s, fov: 8 * s.ang_radius_deg, text: (mag) => `Sun, ${mag}× zoom · ${eclipsePct(ecl)}% covered` });
       } else if (s.vis_frac != null && s.vis_frac > 0.001 && s.vis_frac < 0.999) {
-        list.push({ body: s, fov: 8 * s.ang_radius_deg, text: (mag) => `Sun ×${mag} · ${Math.round(s.vis_frac * 100)}% visible` });
+        list.push({ body: s, fov: 8 * s.ang_radius_deg, text: (mag) => `Sun, ${mag}× zoom · ${Math.round(s.vis_frac * 100)}% visible` });
       }
       const fMain = width / 2 / Math.tan((view.hfov * DEG) / 2);
       const u = terrain.uniforms;
@@ -320,7 +367,8 @@ export async function createSkyView(container, {
         ctx2d.strokeStyle = 'rgba(200, 215, 240, 0.75)';
         ctx2d.stroke();
         const mag = Math.round((sizeCss / 2 / Math.tan((it.fov * DEG) / 2)) / fMain);
-        caps.push({ x: cx, y: cy + r + 4, text: it.text(mag) });
+        // Centred under the loupe and never wider than the room to the frame edge (it wraps instead).
+        caps.push({ x: cx, y: cy + r + 4, text: it.text(mag), maxW: Math.max(60, 2 * Math.min(cx, width - cx) - 8) });
         rects.push({ x0: cx - r, y0: cy - r, x1: cx + r, y1: cy + r + 32 });
       });
     }
@@ -380,6 +428,11 @@ export async function createSkyView(container, {
     frameEl.style.left = tall ? `${Math.floor((cw - fw) / 2)}px` : '0px';
     frameEl.style.width = tall ? `${fw}px` : '100%';
     frameEl.classList.toggle('tall', tall);
+    bandsEl.classList.toggle('on', tall);
+    if (tall) {
+      bandsEl.width = Math.max(32, Math.round(cw / 6));
+      bandsEl.height = Math.max(18, Math.round(ch / 6));
+    }
     width = fw;
     height = ch;
   }
@@ -404,7 +457,10 @@ export async function createSkyView(container, {
    *     close-up inset shows it);
    *   mode "body" (the opening view, "Look at Earth / Sun"): the body must be in frame, so the wider fitBodyView rule
    *     takes over.
-   * With tall frames on (focus mode), a body too high for the window's aspect gets a narrower, taller frame instead.
+   * With tall frames on, mode "body" keeps the full width whenever the body rule fits the horizon and the body there;
+   * only a body too high for that (e.g. the Earth at 59° in a 2:1 window, or at 77° in a 16:9 grid view) gets a
+   * centred, taller frame, as wide as the rule allows at the widest FOV (bodyFitAspect), with blurred side bands.
+   * Mode "photo" with tall frames: the frame narrows until the photo rule fits.
    */
   function lookAtBody(name, mode = 'body') {
     const b = state?.[name];
@@ -416,13 +472,19 @@ export async function createSkyView(container, {
     pendingFit = null;
     const args = { bodyElDeg: b.el_deg, bodyRadiusDeg: b.ang_radius_deg, horizonElDeg: horizonElAt(horizon, b.az_deg) };
     const photo = (aspect) => fitPhotoView({ ...args, aspect, hfovDeg: defaultHfov, maxHfovDeg: COMFORT_HFOV });
+    const body = (aspect) => fitBodyView({ ...args, aspect, defaultHfovDeg: defaultHfov, maxHfovDeg: FOV_MAX });
     const full = Math.max(1, container.clientWidth) / Math.max(1, container.clientHeight);
     let fit = photo(full);
     const tooHigh = !fit.body_in_frame && args.bodyElDeg + args.bodyRadiusDeg > args.horizonElDeg;
-    setFrameAspect(tallFrames && tooHigh && fit.aspect_max < full ? Math.max(TALL_MIN_ASPECT, fit.aspect_max) : null);
-    if (frameAspect) fit = photo(width / height);
-    if (!fit.body_in_frame && mode === 'body') {
-      fit = fitBodyView({ ...args, aspect: width / height, defaultHfovDeg: defaultHfov, maxHfovDeg: FOV_MAX });
+    if (tallFrames && tooHigh && mode === 'body') {
+      const wide = body(full);
+      const a = wide.both_fit ? null : Math.max(TALL_MIN_ASPECT, bodyFitAspect({ ...args, maxHfovDeg: FOV_MAX }));
+      setFrameAspect(a !== null && a < full ? a : null);
+      fit = frameAspect ? body(width / height) : wide;
+    } else {
+      setFrameAspect(tallFrames && tooHigh && fit.aspect_max < full ? Math.max(TALL_MIN_ASPECT, fit.aspect_max) : null);
+      if (frameAspect) fit = photo(width / height);
+      if (!fit.body_in_frame && mode === 'body') fit = body(width / height);
     }
     view.az = ((b.az_deg % 360) + 360) % 360;
     view.el = Math.min(EL_MAX, Math.max(EL_MIN, fit.el_deg));
@@ -507,6 +569,19 @@ export async function createSkyView(container, {
   el.addEventListener('pointerup', onUp);
   el.addEventListener('pointercancel', onUp);
   el.addEventListener('wheel', onWheel, { passive: false });
+  // Keyboard: the view takes focus; the arrow keys turn it (a step of 1/12 of the field), + and - zoom.
+  if (!container.hasAttribute('tabindex')) container.tabIndex = 0;
+  const onKey = (e) => {
+    if (e.altKey || e.ctrlKey || e.metaKey || e.target !== container) return;
+    const step = Math.max(0.5, view.hfov / 12), k = e.key;
+    if (k === 'ArrowLeft' || k === 'ArrowRight') turnTo(view.az + ((k === 'ArrowRight' ? 1 : -1) * step) / Math.max(0.3, Math.cos(view.el * DEG)), view.el);
+    else if (k === 'ArrowUp' || k === 'ArrowDown') turnTo(view.az, view.el + (k === 'ArrowUp' ? step : -step));
+    else if (k === '+' || k === '=') setFov(view.hfov / 1.25);
+    else if (k === '-' || k === '_') setFov(view.hfov * 1.25);
+    else return;
+    e.preventDefault();
+  };
+  container.addEventListener('keydown', onKey);
   const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(resize) : null;
   ro?.observe(container);
   resize();
@@ -515,6 +590,7 @@ export async function createSkyView(container, {
     disposed = true;
     if (frame) cancelAnimationFrame(frame);
     ro?.disconnect();
+    container.removeEventListener('keydown', onKey);
     hud.dispose();
     sky.dispose();
     terrain.dispose();
@@ -523,6 +599,7 @@ export async function createSkyView(container, {
     }
     gl.views--;
     frameEl.remove();
+    bandsEl.remove();
     container.classList.remove('moonat-sky', 'dragging');
   }
 
@@ -557,7 +634,7 @@ export async function createSkyView(container, {
   return {
     update, lookAt, lookAtBody, setFov, resize, dispose, setTerrain,
     // Extras beyond C8, for the app and for debugging:
-    setConstellations: (on) => { sky.setConstellations(on); requestRender(); },
+    setConstellations: (on) => { constellationsOn = !!on; sky.setConstellations(on); requestRender(); },
     setCloseUp: (on) => { closeUpOn = !!on; hud.setCloseUp(closeUpOn); requestRender(); },
     setExposure: (mode) => {
       exposureMode = mode === 'camera' ? 'camera' : 'eye';

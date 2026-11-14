@@ -21,6 +21,7 @@
   --danger: #ff8a80;
   --warn: #f5c26b;
   --sun: #ffc94d;
+  --sun-ink: #ffc94d;   /* Sun-coloured text */
   --earth: #5aa9ff;
   --grid: #2a2e38;
   --axis: #3a3f4b;
@@ -41,13 +42,14 @@
   --border-strong: rgba(11, 11, 11, 0.20);
   --text: #121316;
   --text-2: #4d4c48;
-  --muted: #74726b;
+  --muted: #68665f;   /* 5.2:1 on --bg, 4.7:1 on --surface-3 (small text) */
   --accent: #2557d6;
   --accent-ink: #ffffff;
   --accent-soft: rgba(37, 87, 214, 0.10);
   --danger: #c62828;
   --warn: #9a6400;
   --sun: #c98500;
+  --sun-ink: #946200;   /* Sun-coloured text: 5.2:1 on white (--sun is 3.1:1, for icons only) */
   --earth: #1f6fd1;
   --grid: #e4e2db;
   --axis: #c3c2b7;
@@ -293,7 +295,7 @@ button { cursor: pointer; }
 .seg.seg-lg.body-switch { display: flex; width: 100%; max-width: 420px; margin: 0 0 12px; padding: 4px; border-radius: 12px; background: var(--surface-2); }
 .seg-lg button { flex: 1; padding: 8px 16px; font-size: 15px; border-radius: 9px; }
 .seg-lg button[aria-pressed="true"] { background: var(--surface); box-shadow: 0 0 0 1px var(--border-strong), var(--shadow); }
-.seg-lg button[data-body="sun"][aria-pressed="true"] { color: var(--sun); }
+.seg-lg button[data-body="sun"][aria-pressed="true"] { color: var(--sun-ink); }
 .busy { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; margin: 0; }
 .spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--border-strong); border-top-color: var(--accent); animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -387,11 +389,24 @@ button { cursor: pointer; }
 .sky-view { container-type: inline-size; }
 @container (max-width: 560px) {
   .sky-view .moonat-sky-info { display: none; }
+  /* The note moves to the card footer (sky_tab.js footNote). */
+  .sky-view .moonat-sky-note { display: none; }
+  /* The buttons leave the top of the frame, where the framing rule puts the Earth: bottom left, above the compass. */
+  .sky-view .moonat-sky-bar { top: auto; bottom: 28px; left: 8px; right: auto; }
+  /* Glyphs only (the words stay as accessible names and tooltips), so the bar stays clear of the centre. */
+  .sky-view .moonat-sky-btn .i { display: inline; }
+  .sky-view .moonat-sky-btn .t { display: none; }
+  .sky-view .moonat-sky-btn { min-width: 34px; font-size: 15px; line-height: 1.2; }
   .sky-view .moonat-sky-bar .moonat-sky-btn:first-child { display: none; }
   .sky-view .moonat-sky-btn { font-size: 11px; padding: 2px 6px; }
 }
 .sky-view .moonat-sky-cap { white-space: normal; width: max-content; max-width: 130px; }
-.sky-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); }
+.sky-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); container: skycard / inline-size; }
+.sky-foot-note { display: none; }
+@container skycard (max-width: 560px) { .sky-foot-note:not(:empty) { display: inline; } }
+/* Keyboard focus on a sky view (arrow keys turn it, + and - zoom): a ring drawn above the canvas. */
+.sky-view:focus-visible { outline: none; }
+.sky-view:focus-visible::after { content: ""; position: absolute; inset: 0; z-index: 6; pointer-events: none; border: 2px solid var(--accent); border-radius: 2px; }
 .sky-card-head { display: flex; align-items: center; gap: 8px; padding: 7px 8px 7px 12px; min-height: 42px; }
 .sky-card-head .mcard-title { flex: 1; min-width: 0; }
 .sky-card-time { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -429,7 +444,11 @@ body.sky-focus { overflow: hidden; }
 #tab-sky.focus .sky-act-txt { display: inline; }
 #tab-sky.focus .sky-card-time { display: inline; }
 #tab-sky.focus #sky-empty { display: none; }
-.sky-view canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+/* Touch: a vertical swipe over a view scrolls the page and a horizontal drag turns it (axis lock in gestures.js); in
+   focus mode the view takes every gesture. */
+.sky-view.moonat-sky, .sky-view canvas { touch-action: pan-y; }
+#tab-sky.focus .sky-view.moonat-sky, #tab-sky.focus .sky-view canvas { touch-action: none; }
+.sky-view canvas { display: block; width: 100%; height: 100%; cursor: grab; }
 .sky-view canvas:active { cursor: grabbing; }
 .sky-card-foot { display: flex; gap: 14px; flex-wrap: wrap; padding: 8px 12px 10px; font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
 .sky-card-foot .note { color: var(--muted); }
@@ -465,6 +484,47 @@ body.sky-focus { overflow: hidden; }
 .metric-cards > .mcard:only-child .mrows { grid-template-columns: repeat(4, auto minmax(0, 1fr)); }
 .metric-cards > .mcard:only-child .mrows:has(> :nth-child(6):last-child) { grid-template-columns: repeat(3, auto minmax(0, 1fr)); }
 
+/* Metric cards by count (compare.js sets data-n): one row when they fit, otherwise equal rows (3 + 3, 2 + 2),
+   never a lone card on the last row. The section is the size container, so the side column's width counts. */
+.body-section { container: compare-sec / inline-size; }
+.metric-cards[data-n="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.metric-cards[data-n="3"], .metric-cards[data-n="5"], .metric-cards[data-n="6"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.metric-cards[data-n="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@container compare-sec (min-width: 1150px) { .metric-cards[data-n="5"] { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+@container compare-sec (min-width: 1340px) { .metric-cards[data-n="6"] { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+@container compare-sec (max-width: 960px) { .metric-cards[data-n="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container compare-sec (max-width: 680px) {
+  .metric-cards[data-n="3"] { grid-template-columns: minmax(0, 1fr); }
+  .metric-cards[data-n="5"], .metric-cards[data-n="6"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container compare-sec (max-width: 460px) { .metric-cards[data-n] { grid-template-columns: minmax(0, 1fr); } }
+
+/* Ranked summary of several scenarios (compare.js renderRank). */
+.rank-block { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); padding: 12px 14px 10px; margin: 6px 0 4px; }
+.rank-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 6px; }
+.rank-title { font-size: 15px; }
+.rank-sentence { margin: 0; font-size: 13px; color: var(--text-2); flex: 1; min-width: 220px; }
+.rank-scroll { overflow-x: auto; }
+.rank-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.rank-table th, .rank-table td { padding: 5px 8px; text-align: left; border-top: 1px solid var(--border); white-space: nowrap; }
+.rank-table thead th { border-top: 0; font-size: 12px; font-weight: 600; color: var(--muted); }
+.rank-table thead button { border: 0; background: none; padding: 2px 0; font: inherit; color: inherit; text-decoration: underline dotted; text-underline-offset: 3px; }
+.rank-table thead button[aria-pressed="true"] { color: var(--text); text-decoration: none; }
+.rank-table tbody th { font-weight: 600; }
+.rank-name { display: inline-block; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+.rank-table tbody th > * { vertical-align: middle; }
+.rank-table .swatch { display: inline-block; margin: 0 8px 0 2px; }
+.rank-n { display: inline-block; min-width: 1.4em; color: var(--muted); font-weight: 500; }
+.rank-table td.best { font-weight: 700; color: var(--text); background: var(--accent-soft); border-radius: 6px; }
+.rank-foot { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+@media (max-width: 520px) {
+  .rank-block { padding: 10px 8px 8px; }
+  .rank-table th, .rank-table td { padding: 5px 5px; }
+  .rank-name { max-width: 96px; }
+  .rank-n { display: none; }
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 1100px) {
   .metric-cards > .mcard:only-child .mrows,
@@ -499,14 +559,15 @@ body.sky-focus { overflow: hidden; }
 /* ---------- Small screens: output first, builder below; touch targets ---------- */
 .jump-link { display: none; font-size: 12.5px; color: var(--accent); text-underline-offset: 2px; }
 @media (max-width: 860px) {
-  /* The sky and the charts come right after the quick starts; the map and the scenario cards sit below them. */
+  /* The story first: the sky and the charts, then the scenario cards with the quick starts right under them, then the
+     map (a picker, and the tallest block). */
   .layout { display: flex; flex-direction: column; align-items: stretch; gap: 14px; }
   .layout > * { min-width: 0; }
   .side { display: contents; }
   .output { order: 1; }
-  .map-block { order: 2; }
-  .scen-block { order: 3; }
-  .qs-block { order: 4; }
+  .scen-block { order: 2; }
+  .qs-block { order: 3; }
+  .map-block { order: 4; }
   .jump-link { display: inline; }
   .topbar { position: static; }
   .chips { gap: 8px; }

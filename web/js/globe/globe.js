@@ -5,6 +5,7 @@
 // Geometry lives in geo.js (tested in web/tests/globe_geo.test.mjs). The scene uses MOON_ME coordinates directly.
 
 import * as THREE from "three";
+import { bindAxisLock } from "../app/gestures.js";
 import {
   DEG, PRESETS, latLonToVec, vecToLatLon, pickPx, projectPx, dragView, rotateView, quatAxisAngle, viewRight,
   radiusPx, frustumHalf, northUp, fitPoints, norm, dot,
@@ -267,6 +268,9 @@ export async function createGlobe(container, opts = {}) {
       " · Polar relief: NASA LRO LOLA",
   });
   root.append(stage, presets, tools, readout, credit);
+  // Touch: in the page, a vertical swipe scrolls the page and a horizontal drag turns the globe (globe.css: touch-action
+  // pan-y); two fingers pan and zoom. The enlarged globe (touch-action none) takes every gesture.
+  bindAxisLock(root, { active: () => !expanded && /pan-y/.test(getComputedStyle(stage).touchAction) });
   container.append(root);
 
   // ----- three.js -----

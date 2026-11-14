@@ -25,7 +25,7 @@ Challenge Resources tab (published 2026-11-13): Quickmap, Moon Trek, JPL Horizon
 - Plotly.js (plotly.js-dist-min 2.35.2) — Sun and Earth time-series charts, loaded from jsDelivr — https://plotly.com/javascript/ — MIT
 - three.js 0.160.0 — 3D sky view and the Moon globe site picker (import map shared with the sky viewer), loaded from jsDelivr — https://threejs.org — MIT
 - jsDelivr CDN — serves the pinned library versions above — https://www.jsdelivr.com — free public CDN
-- Colour-blind-safe categorical palette (reference palette of the Claude Code "dataviz" skill, validated for colour-vision deficiency in light and dark themes) — scenario colours — https://claude.com/claude-code — used with Claude Code
+- Paul Tol, "Colour schemes" (SRON technical note, 2021), qualitative scheme "bright" — hues of the six scenario colours, stepped per theme and checked with the palette validator of the Claude Code "dataviz" skill (all pairs, colour-vision deficiency, contrast) — https://personal.sron.nl/~pault/ — free to use
 - GitHub Pages and GitHub Actions (configure-pages v5, upload-pages-artifact v3, deploy-pages v4) — hosting the public site — https://pages.github.com — GitHub terms
 
 ## Code, algorithms and papers

@@ -75,6 +75,8 @@
   <link rel="modulepreload" href="js/rover/app.js">
   <link rel="modulepreload" href="js/rover/pick.js">
   <link rel="modulepreload" href="js/app/compare.js">
+  <link rel="modulepreload" href="js/app/compare_text.js">
+  <link rel="modulepreload" href="js/sky/words.js">
   <link rel="modulepreload" href="js/app/derive.js">
   <link rel="modulepreload" href="js/app/icons.js">
   <link rel="modulepreload" href="js/app/sky_tab.js">
@@ -89,7 +91,7 @@
       try {
         var PLOTLY = "https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"; // = PLOTLY_URL in js/app/compare.js
         var SKY_MODULES = ["https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "js/sky/index.js", "js/sky/math.js",
-          "js/sky/terrain.js", "js/sky/shaders.js", "js/sky/sky.js", "js/sky/hud.js"];
+          "js/sky/terrain.js", "js/sky/shaders.js", "js/sky/sky.js", "js/sky/hud.js", "js/sky/words.js"];
         var SKY_DATA = ["data/stars/stars.json", "data/stars/constellations.json"];
         var SKY_IMAGES = ["assets/earth_daymap.jpg", "assets/earth_night.jpg"];
         var FIRST_VISIT = ["data/ephem/1969.bin", "data/horizons/apollo11.json", "data/terrain/apollo11.bin"];
@@ -213,7 +215,7 @@
           </div>
           <div class="compare-bar" id="compare-bar">
             <div class="seg" role="group" aria-label="Time axis" id="xaxis-toggle">
-              <button data-x="met" aria-pressed="true">Mission elapsed time</button>
+              <button data-x="met" aria-pressed="true" title="Mission elapsed time: hours or days since each scenario's start">Time since start</button>
               <button data-x="utc" aria-pressed="false">Calendar time (UTC)</button>
               <button data-x="dist" aria-pressed="false" hidden title="Rover traverses: distance driven along the path">Distance travelled</button>
             </div>
@@ -337,6 +339,17 @@
         distance from the Sun, scaled by the actual distance and by how much of the Sun is visible.</dd>
       <dt>Earth phase</dt><dd>How much of Earth's disk is lit. It is the opposite of the Moon's phase seen from Earth: at new Moon, Earth looks full.</dd>
       <dt>Sets in / rises in</dt><dd>Time until the body next disappears behind (or clears) the horizon. For Earth this is the end of the direct radio window.</dd>
+      <dt>Height and direction</dt><dd>The words the sky view uses for elevation and azimuth. "Hidden behind terrain" means the body is above the flat
+        horizon but a hill or crater rim is higher in that direction; "below the horizon" means it is below the flat horizon itself.</dd>
+      <dt>Time since start (T+)</dt><dd>How far into each scenario the sky is shown. Several missions are compared at the same time since their own start.</dd>
+      <dt>Close-up (6× zoom)</dt><dd>The round inset magnifies the Earth (and the Sun while hills or the Earth cover part of it), so you can see
+        its phase and an eclipse. "6× zoom" means it looks six times larger than in the main view.</dd>
+      <dt>Exposure</dt><dd>Eye: the stars stay visible in daylight, dimmed, to help you find your way. Camera: set for the sunlit ground, so the
+        stars vanish while the Sun is up, as in the Apollo photographs.</dd>
+      <dt>LOLA</dt><dd>The Lunar Orbiter Laser Altimeter on NASA's Lunar Reconnaissance Orbiter. It measured the height of the Moon's surface with
+        a laser; Moonat builds the hills and the horizon from it.</dd>
+      <dt>Libration</dt><dd>A slow rocking of the Moon as seen from Earth, by up to about 8°, because its orbit is an ellipse and is tilted. Seen
+        from the Moon, it makes Earth drift in a small loop in the sky over a month, so near the poles and the edge of the near side Earth can set and rise.</dd>
     </dl>
 
     <h3>Why the far side never sees Earth</h3>

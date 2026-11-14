@@ -4,11 +4,12 @@
 // Views are created lazily, when the tab is shown and the card scrolls into view.
 
 import { formatDuration, formatUtc } from "./state.js";
-import { compassPoint } from "./derive.js";
+import { horizonElAt } from "./derive.js";
+import { bodyLine, compassPair, earthNeverRises } from "../sky/words.js";
 import { stateAt } from "./physics_adapter.js";
 import { makeSkyView, terrainPatchUrl, skyPatch } from "./sky_adapter.js";
 import { terrainStatusText } from "./terrain_live.js";
-import { bindPinchZoom } from "./gestures.js";
+import { bindPinchZoom, bindAxisLock } from "./gestures.js";
 import { rideAt, ridePatch, rideNote, frameTurnDeg } from "../rover/sky_ride.js";
 
 const $ = (id) => document.getElementById(id);
@@ -200,7 +201,7 @@ function buildCard(it, key) {
         <button type="button" class="sky-act sky-fs-btn" title="Full screen (Esc to exit)" aria-label="Full screen"><span aria-hidden="true">⛶</span><span class="sky-act-txt"> Full screen</span></button>
         <button type="button" class="sky-act sky-exit-btn" title="Back to the grid (Esc)"><span aria-hidden="true">✕</span> Exit focus</button>
       </span></div>
-    <div class="sky-view" role="img" aria-label="Sky view">${LOADING_HTML}</div>
+    <div class="sky-view" role="group" aria-roledescription="sky view" aria-label="Sky view">${LOADING_HTML}</div>
     <div class="sky-card-foot"></div>`;
   const rec = { key, it, root, viewEl: root.querySelector(".sky-view"), view: null, creating: false, state: null, engaged: false };
   root.querySelector(".sky-focus-btn").addEventListener("click", () => enterFocus(rec));
@@ -210,11 +211,17 @@ function buildCard(it, key) {
   root.querySelector(".sky-exit-btn").addEventListener("click", () => exitFocus());
   guardWheel(rec);
   bindPinchZoom(rec.viewEl, () => rec.view);
-  // A drag, a pinch or a zooming wheel makes the camera the user's own (shared links then keep it, skyShareState).
+  // Phones: a vertical swipe over a view scrolls the page, a horizontal drag turns the view (CSS touch-action: pan-y).
+  bindAxisLock(rec.viewEl);
+  // A drag, a pinch, a zooming wheel or the view's keys make the camera the user's own (shared links then keep it,
+  // skyShareState).
   rec.viewEl.addEventListener("pointerdown", () => (rec.camTouched = true));
   rec.viewEl.addEventListener("wheel", (e) => {
     if (e.ctrlKey || e.metaKey || rec.engaged) rec.camTouched = true;
   }, { passive: true });
+  rec.viewEl.addEventListener("keydown", (e) => {
+    if (/^Arrow|^[-+=_]$/.test(e.key)) rec.camTouched = true;
+  });
   return rec;
 }
 
@@ -227,10 +234,14 @@ let focusFullscreen = false;
 /** Drawing-buffer budget (device pixels) of a focused view: about a 2560 × 1440 screen at full resolution. */
 const FOCUS_PIXELS = 4.2e6;
 
-/** A focused view gets more pixels and may use a taller frame, so a high Earth fits with the horizon (C8 extras). */
+/**
+ * A focused view gets more pixels. Every view may use a taller frame (C8 extras), so a high Earth fits with the
+ * horizon: the frame keeps the full width whenever the body rule fits both, and narrows (with blurred side bands)
+ * only for an Earth too high for that, e.g. Apollo 11 in a wide focused window or Apollo 16 in a 16:9 grid view.
+ */
 function setViewFocus(view, on) {
   view.setPixelBudget?.(on ? FOCUS_PIXELS : null);
-  view.setTallFrames?.(on);
+  view.setTallFrames?.(true);
 }
 
 function enterFocus(rec, fullscreen = false) {
@@ -355,6 +366,10 @@ async function createView(rec) {
       site: ride ? { ...ride.site, horizon: ride.horizon } : it.site, terrainPatchUrl: patchUrl,
       terrainPatch: ride ? ridePatch(it, ride) : it.s.site_id ? null : skyPatch(it.patch),
       fovDeg: 70, earthNightTextureUrl: "assets/earth_night.jpg",
+      onNotes: (notes) => {
+        rec.notes = notes;
+        footNote(rec);
+      },
     });
     if (!cards.has(rec.key)) {
       view.dispose(); // the scenario was removed while the view was loading
@@ -364,7 +379,7 @@ async function createView(rec) {
     rec.mode = mode;
     // The terrain may have changed while the view was loading (live terrain of a custom point).
     if (rec.it.horizon !== it.horizon || rec.it.patch !== it.patch) swapTerrain(rec);
-    if (rec === focusRec) setViewFocus(view, true);
+    setViewFocus(view, rec === focusRec);
     rec.viewEl.querySelector(".sky-loading")?.remove();
     rec.lastT = null;
     await updateCard(rec);
@@ -412,18 +427,30 @@ async function updateCard(rec) {
   }
   if (ride) rec.rideSite = ride.site;
   const foot = rec.root.querySelector(".sky-card-foot");
-  const where = (b) => `${deg1(b.el_deg)} ${compassPoint(b.az_deg)}`;
-  const sunTxt = st.sun.vis_frac > 0 ? where(st.sun) : `hidden (${where(st.sun)})`;
-  const earthTxt = st.earth.vis_frac > 0 ? `${where(st.earth)} · ${Math.round(st.earth.phase_frac * 100)}% lit` : `hidden (${where(st.earth)})`;
-  foot.innerHTML = `<span>☀ Sun ${esc(sunTxt)}</span><span>🌍 Earth ${esc(earthTxt)}</span>${
+  // Plain words with the numbers (web/js/sky/words.js): "hidden behind terrain" when the skyline hides a body that is
+  // above the horizontal plane, "below the horizon" only when the whole disk is below that plane.
+  const skyline = ride ? ride.horizon : it.horizon;
+  const skyAt = (b) => (skyline ? horizonElAt(skyline, b.az_deg) : 0);
+  const [cs, ce] = compassPair(st.sun.az_deg, st.earth.az_deg);
+  const sunTxt = bodyLine("Sun", st.sun, cs, skyAt(st.sun));
+  const earthTxt = bodyLine("Earth", st.earth, ce, skyAt(st.earth), { neverRises: earthNeverRises(it.s.lat_deg, it.s.lon_deg) })
+    + (st.earth.vis_frac > 0 ? ` · ${Math.round(st.earth.phase_frac * 100)}% lit` : "");
+  foot.innerHTML = `<span>☀ ${esc(sunTxt)}</span><span>🌍 ${esc(earthTxt)}</span>${
     ride ? `<span class="note">${esc(rideNote(it, ride))}</span>` : terrainNote(it)
-  }`;
+  }<span class="note sky-foot-note"></span>`;
+  footNote(rec);
+  // Text alternative for screen readers, and the keys the view takes (C8 view: arrows turn, + and - zoom).
+  rec.viewEl.setAttribute("aria-label", `Sky from ${it.label} at ${formatUtc(t)}. ${sunTxt}. ${earthTxt}. Arrow keys turn the view; plus and minus zoom.`);
 }
 
-/** Elevation with one decimal and a true minus sign. */
-function deg1(x) {
-  const a = Math.abs(x).toFixed(1);
-  return `${x < 0 && Number(a) !== 0 ? "−" : ""}${a}°`;
+/**
+ * The sky view's notes, in the card footer for narrow cards (app.css shows this span only there; the view hides its own
+ * note there). The Sun and Earth notes are left out: the footer already says where they are.
+ */
+function footNote(rec) {
+  const span = rec.root.querySelector(".sky-foot-note");
+  if (!span) return;
+  span.textContent = (rec.notes || []).filter((n) => n.id !== "sun" && n.id !== "earth").map((n) => n.text).join(" · ");
 }
 
 function terrainNote(it) {
@@ -463,7 +490,9 @@ async function refresh() {
 function syncSlider() {
   const slider = $("sky-slider");
   slider.value = maxSpan > 0 ? String(Math.round((offsetMs / maxSpan) * 1000)) : "0";
-  $("sky-clock").textContent = maxSpan > 0 ? `T+${formatDuration(offsetMs)}` : "Single instant";
+  // Plain words for the time since the start (T+): "Start", "5 d 14 h after start".
+  $("sky-clock").textContent = maxSpan > 0 ? (offsetMs < 30e3 ? "Start" : `${formatDuration(offsetMs)} after start`) : "Single instant";
+  $("sky-clock").title = "Time since the start of each scenario (T+); missions are synchronised by it";
 }
 
 function play() {

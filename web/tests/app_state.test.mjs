@@ -152,7 +152,7 @@ test("colours follow the scenario: the lowest free slot is reused", () => {
   assert.deepEqual([a.color, b.color, c.color], [0, 1, 2]);
   assert.equal(nextColorSlot([a, c]), 1);
   assert.equal(colorHex(0, "light"), PALETTE.light[0]);
-  assert.equal(colorHex(9, "dark"), PALETTE.dark[1]);
+  assert.equal(colorHex(PALETTE.dark.length + 1, "dark"), PALETTE.dark[1]);
 });
 
 test("URL hash round-trips scenarios, tab and x-axis (unicode labels too)", () => {

@@ -146,7 +146,10 @@ await createSkyView(container /* HTMLElement */, {
   80° (`fitPhotoView` in `web/js/sky/math.js`). An Earth too high for that (e.g. Apollo 11, Earth at 59° in a 16:9 frame) gets
   the body rule below (`lookAtBody("earth")`). If the user turns away, an edge marker ("▲ Earth 59.2°", click = look up)
   points to an Earth above the frame. If the Earth is below the horizon: FOV = `fovDeg`, horizon at one third of the height,
-  and the HUD notes "Earth is below the horizon".
+  and the HUD notes "Earth is below the horizon". Wording (web/js/sky/words.js): "below the horizon" only when the whole disk
+  is below the local horizontal plane (el + r < 0); a hidden body with part of its disk above that plane is "hidden behind
+  terrain (skyline +x°)". An Earth more than 5° below the plane gets a text message instead of a close-up ("Earth is below
+  your feet … it never rises here" at sites more than 105° from the mean sub-Earth point, where libration can never lift it).
 - `lookAtBody("earth" | "sun")` ("Look at Earth", "Look at Sun") uses the photo rule when the body fits, and otherwise the
   body rule: horizon about 10% above the bottom edge and the top of the disk about 10% below the top edge, the FOV widening up
   to 100°; at 100° the horizon may slide to the bottom edge, and if both still cannot fit the body stays in frame
@@ -157,8 +160,14 @@ await createSkyView(container /* HTMLElement */, {
   `terrainPatchUrl`, and `view.setTerrain({ horizon, patch })` swaps the skyline and/or the patch in place (camera, sky and
   textures stay; an omitted key keeps its value; `horizon: null` = the patch's own skyline).
 - Extras beyond C8 used by the app's focus mode: `setPixelBudget(px | null)` (drawing-buffer size; pixel ratio ≤ 2) and
-  `setTallFrames(on)`: a body too high for the container's aspect gets a centred, taller frame (down to 3:4) in which the
-  photo rule fits both the horizon and the body, like a square Apollo Hasselblad photo.
+  `setTallFrames(on)` (the app turns it on for every view): `lookAtBody` keeps the full width whenever the body rule fits the
+  horizon and the body with its margins; only a body too high for that gets a centred, taller frame (down to 3:4), as wide
+  as the body rule allows at 100° (`bodyFitAspect` in math.js). The side bands show the same view stretched, blurred and
+  dimmed, so the sky and the ground continue past the frame.
+- More extras: option `onNotes(notes)` gets the HUD notes (`[{ id, text }]`, most useful first; the HUD shows the first two
+  on one line) whenever they change, so the app can show them in a narrow card's footer. The container takes keyboard
+  focus: arrow keys turn the view (1/12 of the field per press), `+`/`−` zoom. With the constellation lines on, the names of
+  18 well-known constellations sit at the centre of their lines (`constellationCentroid` in math.js).
 - **Eclipses** (C6 `sun.eclipse_frac` > 0): render order Earth (opaque, renderOrder −1, distance 20 000) → stars →
   Sun quad (additive, distance 30 000, depth-tested, so the Earth hides the part of the disk and glow behind it) → an
   eclipse overlay at the Earth (additive, no depth test, renderOrder 6). The glare scales with the visible flux and is

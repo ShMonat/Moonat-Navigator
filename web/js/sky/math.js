@@ -94,6 +94,17 @@ export function sphereGeomDirFromUv(u, v) {
   return [-Math.cos(phi) * Math.sin(theta), Math.cos(theta), Math.sin(phi) * Math.sin(theta)];
 }
 
+/**
+ * Label direction of a constellation: the normalised mean of the unit vectors of all the points of its lines.
+ * polylines: [[[ra_deg, dec_deg], ...], ...] (ICRS). Returns a unit vector [x, y, z] (z = celestial north pole), or null.
+ */
+export function constellationCentroid(polylines) {
+  const s = [0, 0, 0];
+  for (const line of polylines || []) for (const p of line) { const v = lonLatToVec(p[0], p[1]); s[0] += v[0]; s[1] += v[1]; s[2] += v[2]; }
+  const n = Math.hypot(s[0], s[1], s[2]);
+  return n > 1e-9 ? [s[0] / n, s[1] / n, s[2] / n] : null;
+}
+
 /** Texture coordinates of geographic (lon east-positive, lat) on an equirectangular map with lon 0 at the centre. */
 export function equirectUv(lonDeg, latDeg) {
   return [lonDeg / 360 + 0.5, latDeg / 180 + 0.5];
@@ -118,13 +129,27 @@ export function verticalFovDeg(hfovDeg, aspect) {
 export function fitBodyView({ bodyElDeg, bodyRadiusDeg = 0, horizonElDeg = 0, aspect = 16 / 9, defaultHfovDeg = 60, maxHfovDeg = 100, margin = 0.8 }) {
   const top = bodyElDeg + bodyRadiusDeg, h0 = horizonElDeg, at = (x) => Math.atan(x) / DEG;
   const T0 = Math.tan((defaultHfovDeg * DEG) / 2) / aspect, Tmax = Math.max(T0, Math.tan((maxHfovDeg * DEG) / 2) / aspect);
-  const out = (T, el) => ({ el_deg: el, hfov_deg: (2 * Math.atan(T * aspect)) / DEG });
+  // both_fit: the horizon and the whole disk fit with the rule's margins (false once the widest FOV is not enough and the
+  // horizon slides toward the bottom edge, or out of the frame).
+  const out = (T, el, both = true) => ({ el_deg: el, hfov_deg: (2 * Math.atan(T * aspect)) / DEG, both_fit: both });
   if (top <= h0) return out(T0, h0 + at(T0 / 3));
   const T = Math.tan(((top - h0) / 2) * DEG) / margin;
   if (T <= T0) return out(T0, h0 + at(margin * T0));
   if (T <= Tmax) return out(T, (top + h0) / 2);
   const wanted = top - at(margin * Tmax), horizonInFrame = h0 + at(0.97 * Tmax), bodyInFrame = top - at(0.95 * Tmax);
-  return out(Tmax, bodyInFrame <= horizonInFrame ? Math.max(bodyInFrame, Math.min(wanted, horizonInFrame)) : wanted);
+  return out(Tmax, bodyInFrame <= horizonInFrame ? Math.max(bodyInFrame, Math.min(wanted, horizonInFrame)) : wanted, false);
+}
+
+/**
+ * Widest frame (aspect = width / height) in which the fitBodyView rule fits both the horizon and a body at `maxHfovDeg`:
+ * horizon `margin` of the half-height below the centre, top of the disk the same distance above it. A body is in that
+ * frame exactly when tan(vfov / 2) >= tan((top - horizon) / 2) / margin, and tan(vfov / 2) = tan(hfov / 2) / aspect.
+ * Inputs in degrees; returns Infinity for a body at or below the horizon (any frame works).
+ */
+export function bodyFitAspect({ bodyElDeg, bodyRadiusDeg = 0, horizonElDeg = 0, maxHfovDeg = 100, margin = 0.8 }) {
+  const span = bodyElDeg + bodyRadiusDeg - horizonElDeg;
+  if (span <= 0) return Infinity;
+  return Math.tan((maxHfovDeg * DEG) / 2) / (Math.tan((span / 2) * DEG) / margin);
 }
 
 /**

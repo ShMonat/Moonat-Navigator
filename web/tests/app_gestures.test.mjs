@@ -40,3 +40,34 @@ test("bindPinchZoom: two touches set the field of view, one touch and the mouse 
   el.fire("pointerup", 2, 200, 0);
   assert.equal(el.fire("pointermove", 1, 8, 0).stopped, false); // back to one finger
 });
+
+test("touchAxis: undecided inside the slop, then the dominant axis", async () => {
+  const { touchAxis } = await import("../js/app/gestures.js");
+  assert.equal(touchAxis(3, 6), null);
+  assert.equal(touchAxis(2, 12), "y");
+  assert.equal(touchAxis(-12, 4), "x");
+  assert.equal(touchAxis(8, -8), "x"); // a 45° drag turns the view
+});
+
+test("bindAxisLock: a vertical swipe never reaches the view, a horizontal drag does, a second finger passes", async () => {
+  const { bindAxisLock } = await import("../js/app/gestures.js");
+  const el = fakeEl();
+  bindAxisLock(el, { active: () => true });
+  el.fire("pointerdown", 1, 100, 100);
+  assert.equal(el.fire("pointermove", 1, 101, 104).stopped, true); // undecided: held back
+  assert.equal(el.fire("pointermove", 1, 102, 115).stopped, true); // vertical: the page scrolls
+  assert.equal(el.fire("pointermove", 1, 140, 115).stopped, true); // stays the page's
+  el.fire("pointerup", 1, 140, 115);
+  el.fire("pointerdown", 2, 100, 100);
+  assert.equal(el.fire("pointermove", 2, 112, 103).stopped, false); // horizontal: the view turns
+  assert.equal(el.fire("pointermove", 2, 112, 160).stopped, false); // and may then move vertically
+  el.fire("pointerup", 2, 112, 160);
+  el.fire("pointerdown", 3, 100, 100);
+  el.fire("pointerdown", 4, 200, 100); // second finger before the first decided: a pinch
+  assert.equal(el.fire("pointermove", 3, 100, 130).stopped, false);
+  assert.equal(el.fire("pointerdown", 5, 0, 0, "mouse").stopped, false);
+  const off = fakeEl();
+  bindAxisLock(off, { active: () => false }); // focus mode: no lock
+  off.fire("pointerdown", 1, 0, 0);
+  assert.equal(off.fire("pointermove", 1, 0, 30).stopped, false);
+});

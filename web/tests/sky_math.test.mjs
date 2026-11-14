@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import {
   DEG, M_ZUP_TO_YUP, mat3Mul, mat3Vec, mat3Transpose, rotZ, enuToThree, azElToEnu, enuToAzEl, yupRotationFromZup,
   earthBodyToEnu, lonLatToVec, sphereGeomDirFromUv, equirectUv, verticalFovDeg, horizonElAt, flatHorizon,
-  horizonFromPatch, samplePatch, bvToRgb, fitBodyView, fitPhotoView,
+  horizonFromPatch, samplePatch, bvToRgb, fitBodyView, fitPhotoView, bodyFitAspect, constellationCentroid,
 } from '../js/sky/math.js';
 import { makeSite, skyStateSync } from '../js/sky/placeholder_physics.js';
 
@@ -38,6 +38,25 @@ test('opening view (C8 framing rule): horizon 10% above the bottom, body 10% bel
   f = fitBodyView({ bodyElDeg: -4, bodyRadiusDeg: 0.95, horizonElDeg: 0.2, aspect });
   close(f.hfov_deg, 60, 1e-9);
   close(frameY(f, 0.2, aspect), -1 / 3, 1e-9);
+});
+
+test('tall frames: both_fit says when the body rule fits; bodyFitAspect is the widest frame that fits both', () => {
+  // Apollo 17 (Earth at 45 deg) in a 16:9 view: fits with the margins. Apollo 11 (59.2 deg): only with the horizon
+  // sliding toward the bottom edge, so not with the margins.
+  assert.equal(fitBodyView({ bodyElDeg: 45, bodyRadiusDeg: 0.94, horizonElDeg: 0.3, aspect: 16 / 9 }).both_fit, true);
+  assert.equal(fitBodyView({ bodyElDeg: 59.2, bodyRadiusDeg: 0.94, horizonElDeg: 0.3, aspect: 16 / 9 }).both_fit, false);
+  // The same Earth in a focused 2.16:1 window, and Apollo 16 (77 deg) in 16:9: the body wins, so a taller frame is needed.
+  assert.equal(fitBodyView({ bodyElDeg: 59.2, bodyRadiusDeg: 0.94, horizonElDeg: 0.3, aspect: 2.16 }).both_fit, false);
+  assert.equal(fitBodyView({ bodyElDeg: 77, bodyRadiusDeg: 0.95, horizonElDeg: 0.5, aspect: 16 / 9 }).both_fit, false);
+  for (const [el, h] of [[59.2, 0.3], [77, 0.5]]) {
+    const a = bodyFitAspect({ bodyElDeg: el, bodyRadiusDeg: 0.95, horizonElDeg: h });
+    const f = fitBodyView({ bodyElDeg: el, bodyRadiusDeg: 0.95, horizonElDeg: h, aspect: a });
+    close(f.hfov_deg, 100, 1e-6);
+    close(frameY(f, h, a), -0.8, 1e-6); // horizon 10% above the bottom edge
+    close(frameY(f, el + 0.95, a), 0.8, 1e-6); // top of the disk 10% below the top edge
+  }
+  close(bodyFitAspect({ bodyElDeg: 59.2, bodyRadiusDeg: 0.94, horizonElDeg: 0.3 }), Math.tan(50 * DEG) / (Math.tan(29.92 * DEG) / 0.8), 1e-12);
+  assert.equal(bodyFitAspect({ bodyElDeg: -4, bodyRadiusDeg: 0.95, horizonElDeg: 0.2 }), Infinity);
 });
 
 test('opening "photo" framing: horizon 20% above the bottom, a comfortable FOV, taller frames for a high body', () => {
@@ -199,4 +218,17 @@ test('placeholder physics: sub-solar longitude on Earth is consistent with UTC n
   const lon = Math.atan2(sunBody[1], sunBody[0]) / DEG, lat = Math.asin(sunBody[2]) / DEG;
   assert.ok(Math.abs(lon) < 4.5, `sub-solar lon ${lon}`);
   assert.ok(Math.abs(lat) < 1.0, `sub-solar lat at equinox ${lat}`);
+});
+
+test('constellationCentroid: mean direction of the line points (labels of constellation names)', async () => {
+  // Points symmetric about RA 90°, Dec 0°: the centroid is that direction.
+  const c = constellationCentroid([[[80, 0], [100, 0]], [[90, 10], [90, -10]]]);
+  assert.ok(Math.abs(c[0]) < 1e-12 && Math.abs(c[1] - 1) < 1e-12 && Math.abs(c[2]) < 1e-12);
+  assert.equal(constellationCentroid([]), null);
+  // Orion from the shipped d3-celestial lines: between Betelgeuse (RA 88.8°, Dec +7.4°) and Rigel (78.6°, −8.2°).
+  const { readFileSync } = await import('node:fs');
+  const json = JSON.parse(readFileSync(new URL('../data/stars/constellations.json', import.meta.url)));
+  const o = constellationCentroid(json.lines.Ori);
+  const ra = Math.atan2(o[1], o[0]) / DEG, dec = Math.asin(o[2]) / DEG;
+  assert.ok(ra > 75 && ra < 92 && dec > -8 && dec < 12, `${ra} ${dec}`);
 });

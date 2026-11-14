@@ -415,7 +415,8 @@ function buildPicker(s) {
     type: "search", placeholder: "Historical missions & sites…", "aria-label": "Search historical missions and sites",
     role: "combobox", "aria-expanded": "false", "aria-controls": id, "aria-autocomplete": "list", autocomplete: "off",
   });
-  const list = el("ul", { class: "picker-list", id, role: "listbox", hidden: true });
+  // tabindex -1: the scrolling list is not a Tab stop of its own (the input drives it with the arrow keys).
+  const list = el("ul", { class: "picker-list", id, role: "listbox", hidden: true, tabindex: "-1" });
   const wrap = el("div", { class: "picker" }, input, list);
   let items = [];
   let sel = -1;
