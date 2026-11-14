@@ -57,8 +57,9 @@ export function fitTo(points, opts = {}) {
 }
 
 /**
- * Show or move dot `id` (e.g. a rover on its route): { lat, lon (deg), color (CSS), label, ahead: {lat, lon} | null };
- * with `ahead`, an arrow on the dot points toward it. lat_deg / lon_deg are accepted too.
+ * Show or move dot `id` (e.g. a rover on its route): { lat, lon (deg), color (CSS), label, ahead: {lat, lon} | null,
+ * text }; with `ahead`, an arrow on the dot points toward it; `text` (1–2 characters, e.g. a trip's stop letter) is
+ * written in the dot. lat_deg / lon_deg are accepted too.
  */
 export function setMarker(id, marker) {
   dots.set(String(id), marker);

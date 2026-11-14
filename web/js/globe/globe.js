@@ -660,9 +660,10 @@ export async function createGlobe(container, opts = {}) {
   }
 
   /**
-   * Show (or move) dot `id`, e.g. a rover on its route: { lat, lon (deg), color (CSS), label, ahead: {lat, lon} | null }.
-   * With `ahead` (a point further along), a small arrow on the dot points that way on screen. The dot does not take
-   * clicks. lat_deg / lon_deg are accepted too.
+   * Show (or move) dot `id`, e.g. a rover on its route: { lat, lon (deg), color (CSS), label, ahead: {lat, lon} | null,
+   * text }. With `ahead` (a point further along), a small arrow on the dot points that way on screen; `text` (one or
+   * two characters, e.g. a trip's stop letter) is written in a slightly larger dot. The dot does not take clicks.
+   * lat_deg / lon_deg are accepted too.
    */
   function setMarker(id, m = {}) {
     const lat = m.lat ?? m.lat_deg;
@@ -685,6 +686,11 @@ export async function createGlobe(container, opts = {}) {
     mk.ahead = a && Number.isFinite(a.lat ?? a.lat_deg) && Number.isFinite(a.lon ?? a.lon_deg) ? latLonToVec(a.lat ?? a.lat_deg, a.lon ?? a.lon_deg) : null;
     mk.el.style.setProperty("--c", m.color || "var(--accent, #8fb4ff)");
     if (m.label) mk.el.title = m.label;
+    // `text`: a short label in the dot (a trip's stop letter).
+    const text = m.text ? String(m.text).slice(0, 2) : "";
+    mk.el.classList.toggle("has-text", !!text);
+    if (text) mk.el.dataset.text = text;
+    else delete mk.el.dataset.text;
     requestRender();
   }
 

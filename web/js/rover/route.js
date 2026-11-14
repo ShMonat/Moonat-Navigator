@@ -275,9 +275,23 @@ export async function horizonsAt(m, { fetchFn, onProgress } = {}) {
 /**
  * C4-shaped terrain patch (in memory, {meta, data} as createSkyView's `terrainPatch` takes it) around a point of a
  * planned route, built from the route grids by the C9 patch builder (web/js/terrain/march.js terrainPatch).
- * Cells without data (outside both grids) take the lowest value of the patch.
+ * Cells without data (outside both grids) take the lowest value of the patch. A multi-stop trip (trip.js joinLegs) uses
+ * the grids of leg `leg`, or of the leg with the horizon sample nearest to the point.
  */
-export function routePatch(route, lat_deg, lon_deg, { half_extent_m = 6000, n = 257 } = {}) {
+export function routePatch(route, lat_deg, lon_deg, { half_extent_m = 6000, n = 257, leg = null } = {}) {
+  if (route.legs) {
+    let j = Number.isInteger(leg) ? leg : 0;
+    if (!Number.isInteger(leg)) {
+      const S = route.samples, c = Math.cos(lat_deg * Math.PI / 180);
+      let best = Infinity;
+      for (let k = 0; k < S.lat.length; k++) {
+        const dl = ((S.lon[k] - lon_deg + 540) % 360) - 180;
+        const e = (S.lat[k] - lat_deg) ** 2 + (dl * c) ** 2;
+        if (e < best) { best = e; j = S.leg[k]; }
+      }
+    }
+    return routePatch(route.legs[Math.max(0, Math.min(route.legs.length - 1, j))], lat_deg, lon_deg, { half_extent_m, n });
+  }
   const plane = makePlane(route.centre.lat_deg, route.centre.lon_deg);
   const grids = [route.terrain.fine, route.terrain.coarse].filter(Boolean).map((g) => gridView(plane, g, lat_deg, lon_deg));
   const h0 = grids[0].at(0, 0);

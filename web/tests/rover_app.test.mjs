@@ -1,6 +1,6 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
 // Rover traverse in the app: the scenario's `route` field in the URL hash and the physics key, the planning request,
-// the quick start, and the two-step pick on the globe (web/js/rover/pick.js).
+// the quick start, and choosing a trip point on the globe (web/js/rover/pick.js).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -63,26 +63,29 @@ test("rover quick start: appended last, a complete VIPER-class traverse from the
   assert.deepEqual([s.lat_deg, s.lon_deg], [-90, 0]);
 });
 
-test("two-step pick: start, then end, then done; a click on a static scenario is not taken", () => {
+test("choose on the globe: an armed row takes the next click; without one the click places the scenario as always", () => {
   setScenarios([{ lat_deg: 1, lon_deg: 2 }]);
   assert.equal(consumeMapClick(5, 6), false, "static scenario: the click places it as before");
   setScenarios([{ lat_deg: -90, lon_deg: 0, route: ROUTE }]);
   const id = store.scenarios[0].id;
   const got = [];
-  let done = 0;
-  const off = registerRouteCard(id, { onPoint: (w, la, lo) => got.push([w, la, lo]), onDone: () => done++ });
-  startPick(id);
-  assert.deepEqual(pickState(), { id, step: "start" });
-  assert.equal(consumeMapClick(-89.9, 10), true);
-  assert.deepEqual(pickState(), { id, step: "end" });
+  const off = registerRouteCard(id, { onPoint: (row, la, lo) => got.push([row, la, lo]) });
+  assert.equal(consumeMapClick(-89.9, 10), false, "a trip without an armed row: the click moves its start (map.js)");
+  startPick(id, 2, "C, the new end");
+  assert.deepEqual(pickState(), { id, row: 2, label: "C, the new end" });
   assert.equal(consumeMapClick(-89.5, -130), true);
   assert.equal(pickState(), null);
-  assert.deepEqual(got, [["start", -89.9, 10], ["end", -89.5, -130]]);
-  assert.equal(done, 1);
-  // With a traverse selected, a plain click starts a new two-step pick at that start.
-  assert.equal(consumeMapClick(-89.8, 20), true);
-  assert.deepEqual(pickState(), { id, step: "end" });
-  cancelPick();
+  assert.deepEqual(got, [[2, -89.5, -130]]);
+  // A card rebuilt for the same scenario keeps an armed pick; removing the card cancels it.
+  startPick(id, 1);
+  const off2 = registerRouteCard(id, { onPoint: (row, la, lo) => got.push(["rebuilt", row, la, lo]) });
   off();
+  assert.deepEqual(pickState(), { id, row: 1, label: "the end" });
+  assert.equal(consumeMapClick(-89.6, -120), true);
+  assert.deepEqual(got.at(-1), ["rebuilt", 1, -89.6, -120]);
+  startPick(id, 1);
+  off2();
+  assert.equal(pickState(), null);
   assert.equal(consumeMapClick(0, 0), false, "no card registered any more");
+  cancelPick();
 });

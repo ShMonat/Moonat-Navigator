@@ -35,8 +35,9 @@ Decisions in Shahar's domain are marked *(pending Shahar's review)*.
    docs/validation/suggest.md) *(definitions pending Shay's review; not yet wired into the UI)*.
 6. **UI: one flow** (2026-11-14, Shay's request after using the app on his phone; replaces the two tabs of the Main Tab
    verdict) *(pending Shahar's review: board flag `single-flow-layout`)*. The page reads in the order a visitor needs it:
-   the place (the globe, with catalog sites coloured by kind) and the time (scenario cards, with "✨ Suggest dates",
-   C11), or a story (the quick starts, right under the scenario box); then the sky from there (one view per scenario,
+   the place (the globe, with catalog sites coloured by kind) and the time (scenario cards; the Start and End fields
+   open a date picker with "✨ Suggested for this place", C11; a "Trip" toggle next to the place plans a rover trip
+   through stops, C10), or a story (the quick starts, right under the scenario box); then the sky from there (one view per scenario,
    drag to look around, the timelapse bar under the views, a hint when the window holds an eclipse or an Earthrise);
    then **one switch "☀ Sun | 🌍 Earth"** that aims every view at that body and shows its cards, the side-by-side
    table and the charts (with a time cursor at the sky's moment). Phones read it top to bottom; tablets put the globe

@@ -1,21 +1,25 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
 // Scenario cards: progressive builder (the place from the globe or typed coordinates, start and optional end time in
-// UTC), validation, the "+ Add location" / "+ Add time" buttons, and "✨ Suggest dates" next to the start time (dates
-// with the most sunlight, the best Earth contact or an eclipse, from web/js/suggest/). Missions and sites are chosen on
-// the globe (its "Search the Moon" box and pins, web/js/app/places.js).
+// UTC), validation, the "+ Add location" / "+ Add time" buttons, the date and time picker of the Start and End fields
+// with "✨ Suggested for this place" (time_picker.js, web/js/suggest/), and the trip rows of a rover trip
+// (web/js/rover/ui.js). Missions and sites are chosen on the globe (its "Search the Moon" box and pins,
+// web/js/app/places.js). A catalog mission's dates do not follow the scenario to another place.
 
 import {
   store, subscribe, addScenario, duplicateScenario, removeScenario, updateScenario, setActive, setScenarios, activeScenario,
+  setPlaceRule,
 } from "./store.js";
 import {
-  colorHex, validateScenario, parseUtc, toUtcText, isoUtc, normalizeLon, formatDuration, formatUtc, scenarioTimes, pointLabel,
-  isPointLabel, parseDuration, durationUnit, durationValueText, endFromDuration, coverageEnd, DAY_MS,
+  colorHex, validateScenario, parseUtc, toUtcText, isoUtc, normalizeLon, formatDuration, scenarioTimes, pointLabel,
+  isPointLabel, parseDuration, durationUnit, durationValueText, endFromDuration, MAX_SPAN_MS, hasMissionDates, defaultTimes,
+  timesForPlaceChange, coverageEnd,
 } from "./state.js";
 import { scenarioFieldsFromSite, siteById, catalogSites, isTrimmedMission, shortName } from "./catalog.js";
 import { physicsCoverage, siteFor } from "./physics_adapter.js";
-import { suggestDates, suggestIcon, SUGGEST_KINDS } from "./suggest_adapter.js";
+import { suggestDates } from "./suggest_adapter.js";
 import { terrainStatusText, onTerrainChange } from "./terrain_live.js";
-import { buildRouteCard, addRouteScenario } from "../rover/ui.js";
+import { attachTimePicker, closeTimePicker } from "./time_picker.js";
+import { buildTripToggle, buildTripPanel } from "../rover/ui.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -28,9 +32,14 @@ const endModes = new Map();
 const endUnits = new Map();
 let onSuggestPick = () => {};
 
+/** The catalog site of a scenario (null for a custom point). */
+const siteOf = (s) => (s?.site_id ? siteById(s.site_id) || null : null);
+
 /** opts.onSuggest(scenario, suggestion): a suggested date was chosen (main.js sets the times and the Sun | Earth switch). */
 export function initScenarioUI({ onSuggest } = {}) {
   if (onSuggest) onSuggestPick = onSuggest;
+  // A catalog mission's dates stay with the mission: another place gets today's date (state.js timesForPlaceChange).
+  setPlaceRule((s, patch) => timesForPlaceChange(s, patch, { siteById: (id) => siteById(id) || null, nowMs: Date.now(), years: physicsCoverage() }));
   cardsEl = $("#cards");
   addLocBtn = $("#btn-add-location");
   addTimeBtn = $("#btn-add-time");
@@ -50,15 +59,16 @@ export function initScenarioUI({ onSuggest } = {}) {
     const n = Math.max(2, store.scenarios.filter((x) => (x.label || "").replace(/ #\d+$/, "") === base).length + 1);
     addScenario({ lat_deg: src.lat_deg, lon_deg: src.lon_deg, site_id: src.site_id, label: `${base} #${n}`, t_start_utc: null, t_end_utc: null, route: src.route });
   });
-  // Advanced: a rover traverse (web/js/rover/). The button exists when index.html has it.
-  $("#btn-add-rover")?.addEventListener("click", () => addRouteScenario());
   clearBtn.addEventListener("click", clearAll);
 
   subscribe((kind, detail) => {
     if (kind === "structure") renderCards(detail.focus);
     else if (kind === "active") markActive();
     else if (kind === "ui" && "theme" in detail) recolor();
-    else if (kind === "field" && detail.id && detail.external) syncCard(detail.id);
+    else if (kind === "field" && detail.id) {
+      if (detail.external) syncCard(detail.id);
+      if (detail.timesReset) syncTimes(detail.id);
+    }
     if (kind !== "ui") updateAddButtons();
   });
   // Custom points: the status line follows the live terrain ("Loading NASA terrain…" → real terrain or fallback).
@@ -68,20 +78,21 @@ export function initScenarioUI({ onSuggest } = {}) {
       if (card && !s.site_id && !s.route) refreshCard(card, s);
     }
   });
-  document.addEventListener("pointerdown", (e) => {
-    if (openSuggest && !e.target.closest?.(".start-field")) closeSuggest();
-  });
 }
 
 /**
  * Start again with one empty scenario that keeps the selected scenario's times, so a click on the map (or typed
- * coordinates) gives results at once.
+ * coordinates) gives results at once. A catalog mission's dates are not kept: the new scenario starts now.
  */
 export function clearAll() {
   const src = activeScenario();
   const ok = src && validateScenario({ ...src, lat_deg: null, lon_deg: null }, physicsCoverage());
   const keep = ok && !ok.errors.t_start_utc && !ok.errors.t_end_utc;
-  setScenarios([keep ? { t_start_utc: src.t_start_utc, t_end_utc: src.t_end_utc } : {}]);
+  if (keep && hasMissionDates(src, siteOf(src))) {
+    setScenarios([{ ...defaultTimes(Date.now(), physicsCoverage()), t_src: "default" }]);
+    return;
+  }
+  setScenarios([keep ? { t_start_utc: src.t_start_utc, t_end_utc: src.t_end_utc, t_src: src.t_src } : {}]);
 }
 
 /** The catalog site at a typed point (within 1e-4° in latitude and longitude), or null. */
@@ -95,6 +106,7 @@ function scenarioColor(s) {
 }
 
 function renderCards(focusId) {
+  closeTimePicker();
   cardsEl.replaceChildren(...store.scenarios.map((s, i) => buildCard(s, i)));
   markActive();
   updateAddButtons();
@@ -146,8 +158,7 @@ function el(tag, attrs = {}, ...children) {
 }
 
 function buildCard(s, index) {
-  if (s.route) return buildRouteCard(s, index); // rover traverse (advanced mode, web/js/rover/ui.js)
-  const card = el("article", { class: "scen", "data-id": s.id, "aria-label": `Scenario ${index + 1}` });
+  const card = el("article", { class: `scen${s.route ? " is-trip" : ""}`, "data-id": s.id, "aria-label": `Scenario ${index + 1}${s.route ? ": rover trip" : ""}` });
   card.style.setProperty("--c", scenarioColor(s));
   card.addEventListener("focusin", () => setActive(s.id));
   card.addEventListener("pointerdown", () => setActive(s.id));
@@ -161,7 +172,8 @@ function buildCard(s, index) {
   dup.addEventListener("click", () => duplicateScenario(s.id));
   const rm = el("button", { class: "icon-btn", title: "Remove", "aria-label": "Remove scenario", text: "✕" });
   rm.addEventListener("click", () => (store.scenarios.length > 1 ? removeScenario(s.id) : clearAll()));
-  card.append(el("div", { class: "scen-head" }, el("span", { class: "swatch", "aria-hidden": "true" }), label, dup, rm));
+  // The "Trip" toggle next to the place's name: a rover trip from this place (web/js/rover/ui.js).
+  card.append(el("div", { class: "scen-head" }, el("span", { class: "swatch", "aria-hidden": "true" }), label, buildTripToggle(s), dup, rm));
 
   // Coordinates.
   const lat = numberField("Latitude (° north +)", "lat_deg", s.lat_deg, -90, 90, "e.g. 0.674");
@@ -196,12 +208,24 @@ function buildCard(s, index) {
     });
   }
 
+  // A rover trip: the points after this place, the rover, the plan and its summary (web/js/rover/ui.js).
+  if (s.route) card.append(buildTripPanel(s));
+
   // Times (UTC).
   // The end is given either as a date-time or as a mission duration; both are views of t_end_utc.
   const t0 = timeField("Start (UTC)", "t_start_utc", s.t_start_utc, false);
   const t1 = timeField("End (UTC)", "t_end_utc", s.t_end_utc, true);
   const end = buildEndField(s, card, t0, t1);
   card.append(el("div", { class: "fields times" }, buildStartField(s, t0), end.wrap));
+  attachPickers(s, t0, t1);
+  // After a change of place reset the times (timesForPlaceChange), the fields show the new ones.
+  card._syncTimes = () => {
+    t0.input.value = s.t_start_utc ? toUtcText(parseUtc(s.t_start_utc)) : "";
+    t1.input.value = s.t_end_utc ? toUtcText(parseUtc(s.t_end_utc)) : "";
+    if (t1.clear) t1.clear.hidden = !s.t_end_utc;
+    end.fill();
+    refreshCard(card, s);
+  };
   for (const f of [t0, t1]) {
     const commit = () => {
       const raw = f.input.value;
@@ -251,15 +275,69 @@ function timeField(text, key, value, clearable) {
     const t = parseUtc(input.value);
     if (Number.isFinite(t)) input.value = toUtcText(t);
   });
+  // The field and its buttons: ✕ (End) and the calendar (📅, time_picker.js, added by attachPickers).
   let clear = null;
-  let inner = input;
   if (clearable) {
     clear = el("button", { type: "button", class: "clear", title: "Remove the end time (single instant)", "aria-label": "Clear end time", text: "✕" });
     clear.hidden = !value;
-    inner = el("div", { class: "with-clear" }, input, clear);
   }
+  const inner = el("div", { class: `with-cal${clearable ? " with-clear" : ""}` }, input, clear);
   const wrap = el("label", { class: "field" }, el("span", { text }), inner);
   return { input, wrap, body: inner, key, clear };
+}
+
+/**
+ * The date and time pickers of a card's Start and End fields (time_picker.js), each with "✨ Suggested for this place"
+ * (the C11 engine): a chosen suggestion sets the start and the end (main.js onSuggest).
+ */
+function attachPickers(s, t0, t1) {
+  const cur = () => store.scenarios.find((x) => x.id === s.id) || s;
+  const startMs = () => parseUtc(cur().t_start_utc || "");
+  const suggest = {
+    place: () => {
+      const x = cur();
+      return x.lat_deg === null || x.lon_deg === null ? null : x.label || pointLabel(x.lat_deg, x.lon_deg);
+    },
+    // Windows as long as the card's mission; a single instant gets the engine's default, one lunar day.
+    durationMs: () => {
+      const x = cur();
+      const span = x.t_end_utc ? parseUtc(x.t_end_utc) - startMs() : NaN;
+      return span > 0 ? span : undefined;
+    },
+    // The place's terrain horizon: the catalog site's C3 profile, or the live one of a custom point once it is there.
+    run: async (o) => {
+      const x = cur();
+      const { horizon } = await siteFor(x);
+      return suggestDates({ lat_deg: x.lat_deg, lon_deg: x.lon_deg, horizon }, o);
+    },
+    pick: (g) => onSuggestPick(cur(), g),
+  };
+  const p0 = attachTimePicker(t0.input, { title: "Start (UTC)", coverage: physicsCoverage, emptyText: "No start yet", suggest });
+  t0.body.append(p0.button);
+  const p1 = attachTimePicker(t1.input, {
+    title: "End (UTC)",
+    coverage: physicsCoverage,
+    emptyText: s.route ? "No end: until the rover arrives" : "No end: a single instant",
+    rangeStart: startMs,
+    defaultTime: startMs,
+    // The end: after the start, and inside the start's run of covered years (a span may not cross a gap in the tables,
+    // validateScenario), within MAX_SPAN_MS.
+    limits: () => {
+      const t = startMs();
+      if (!Number.isFinite(t)) return {};
+      const runEnd = coverageEnd(t, physicsCoverage());
+      if (runEnd === null) return { min: t, note: "The end comes after the start." };
+      const max = Math.min(t + MAX_SPAN_MS, runEnd) - 1;
+      return { min: t, max, note: `The end comes after the start, by 31 Dec ${new Date(max).getUTCFullYear()} at the latest (the sky tables run without a break until then).` };
+    },
+    suggest,
+  });
+  t1.body.append(p1.button);
+}
+
+/** Show a scenario's times in its card again (after the place rule reset them). */
+function syncTimes(id) {
+  cardsEl.querySelector(`[data-id="${id}"]`)?._syncTimes?.();
 }
 
 /**
@@ -282,7 +360,7 @@ function buildEndField(s, card, t0, t1) {
   const bDur = el("button", { type: "button", text: "Duration", "aria-pressed": "false" });
   toggle.append(bEnd, bDur);
   const wrap = el("div", { class: "field end-field", role: "group", "aria-label": "End of the mission" },
-    el("div", { class: "end-head" }, el("span", { text: "End (UTC, optional)" }), toggle), t1.body, durBody);
+    el("div", { class: "end-head" }, el("span", { text: s.route ? "End (UTC; empty: on arrival)" : "End (UTC, optional)" }), toggle), t1.body, durBody);
 
   card._endHint = null;
   let prevUnit = "h";
@@ -353,6 +431,14 @@ function buildEndField(s, card, t0, t1) {
     followStart() {
       if (mode() === "dur") commitDuration();
     },
+    /** Show the scenario's end again (after its times changed from outside the card). */
+    fill() {
+      card._endHint = null;
+      if (mode() === "dur") {
+        input.value = "";
+        fillFromEnd();
+      }
+    },
   };
 }
 
@@ -385,148 +471,29 @@ function refreshCard(card, s) {
       const full = parseUtc(site.t_end_utc) - parseUtc(site.t_start_utc);
       parts.push(`First ${formatDuration(span)} of a ${formatDuration(full)} mission`);
     } else {
-      parts.push(span ? `Mission: ${formatDuration(span)}` : "Single instant (add an end time for a mission)");
+      parts.push(span ? `Mission: ${formatDuration(span)}` : s.route ? "Ends when the rover arrives" : "Single instant (add an end time for a mission)");
     }
     if (site && site.kind === "candidate") parts.push("· approximate location (Artemis III candidate region)");
-    if (!s.site_id) parts.push(`· ${terrainStatusText(s.lat_deg, s.lon_deg)}`);
+    if (!s.site_id && !s.route) parts.push(`· ${terrainStatusText(s.lat_deg, s.lon_deg)}`);
   }
   meta.textContent = parts.join(" ");
   meta.hidden = !parts.length;
-  syncSuggestButton(card, s);
   updateAddButtons();
 }
 
-// ---------------------------------------------------------------------------------------------
-// "✨ Suggest dates": a small list of dates for the card's place, from the suggestion engine (suggest_adapter.js):
-// the best sunlight, the best Earth contact, both, eclipses visible from there, Earthrise at limb and polar sites.
-// Choosing one sets the start and the end (main.js, onSuggest).
-
-let openSuggest = null; // { pop, btn, abort } of the open list
-
-/** The start field: its label, the "Suggest dates" button and the input; the list opens under it. */
+/** The start field: its label and the input with the calendar button (the picker with suggested dates opens under it). */
 function buildStartField(s, t0) {
   const id = `st-${s.id}`;
   t0.input.id = id;
-  const btn = el("button", {
-    type: "button", class: "suggest-btn", "aria-expanded": "false", "aria-haspopup": "dialog", hidden: true,
-    title: "Dates with the most sunlight, the best Earth contact, or an eclipse, seen from this place",
-  }, el("span", { class: "sg-ico", "aria-hidden": "true", text: "✨" }), "Suggest dates");
-  const pop = el("div", { class: "suggest-pop", role: "dialog", "aria-label": "Suggested dates", hidden: true });
-  btn.addEventListener("click", () => (openSuggest?.pop === pop ? closeSuggest() : showSuggest(s, btn, pop)));
-  pop.addEventListener("keydown", (e) => {
-    if (e.key !== "Escape") return;
-    e.stopPropagation();
-    closeSuggest(true);
-  });
-  const head = el("div", { class: "end-head" }, el("label", { for: id, text: "Start (UTC)" }), btn);
-  return el("div", { class: "field start-field" }, head, t0.input, pop);
-}
-
-function syncSuggestButton(card, s) {
-  const btn = card.querySelector(".suggest-btn");
-  if (btn) btn.hidden = s.lat_deg === null || s.lon_deg === null;
-}
-
-function closeSuggest(focusButton = false) {
-  if (!openSuggest) return;
-  const { pop, btn, abort } = openSuggest;
-  openSuggest = null;
-  abort.abort();
-  pop.hidden = true;
-  pop.replaceChildren();
-  btn.setAttribute("aria-expanded", "false");
-  if (focusButton) btn.focus();
-}
-
-/** The list searches this long from the card's start (C11 default: two years), inside the ephemeris coverage. */
-const SUGGEST_SPAN_MS = 2 * 365.25 * DAY_MS;
-
-async function showSuggest(s0, btn, pop) {
-  closeSuggest();
-  const abort = new AbortController();
-  openSuggest = { pop, btn, abort };
-  btn.setAttribute("aria-expanded", "true");
-  pop.hidden = false;
-  const s = store.scenarios.find((x) => x.id === s0.id) || s0;
-  // From the card's start day (or today), inside the years the ephemeris tables cover.
-  const years = physicsCoverage();
-  let from = parseUtc(s.t_start_utc || "");
-  if (!Number.isFinite(from) || coverageEnd(from, years) === null) from = Date.now();
-  if (coverageEnd(from, years) === null && years.length) from = Date.UTC(Math.min(...years), 0, 1);
-  from = Math.floor(from / DAY_MS) * DAY_MS;
-  const end = coverageEnd(from, years);
-  const to = Math.min(from + SUGGEST_SPAN_MS, end ?? Infinity);
-  // Windows as long as the card's mission; a single instant gets the engine's default, one lunar day.
-  const span = s.t_end_utc ? parseUtc(s.t_end_utc) - parseUtc(s.t_start_utc) : NaN;
-  const durationMs = span > 0 ? span : undefined;
-  const place = s.label || pointLabel(s.lat_deg, s.lon_deg);
-  const close = el("button", { type: "button", class: "icon-btn suggest-close", "aria-label": "Close", text: "✕" });
-  close.addEventListener("click", () => closeSuggest(true));
-  const sub = el("small", { text: `${formatUtc(from).split(",")[0]} to ${formatUtc(to).split(",")[0]}${durationMs ? ` · ${formatDuration(durationMs)} windows` : ""}` });
-  const status = el("p", { class: "suggest-status", role: "status" }, el("span", { class: "spinner", "aria-hidden": "true" }), el("span", { text: "Searching…" }));
-  const list = el("div", { class: "suggest-list" });
-  pop.replaceChildren(el("div", { class: "suggest-head" }, el("div", {}, el("strong", { text: `Good dates for ${place}` }), sub), close), status, list);
-  try {
-    // The place's terrain horizon: the catalog site's C3 profile, or the live one of a custom point once it is there.
-    const { horizon } = await siteFor(s);
-    if (abort.signal.aborted) return;
-    const progressText = status.lastChild;
-    const found = await suggestDates({ lat_deg: s.lat_deg, lon_deg: s.lon_deg, horizon }, {
-      from, to, durationMs, signal: abort.signal,
-      onProgress: (f) => (progressText.textContent = `Searching… ${Math.round(f * 100)}%`),
-    });
-    if (abort.signal.aborted) return;
-    status.hidden = !!found.length;
-    status.textContent = found.length ? "" : "Nothing stands out in these dates. Try another start date.";
-    const nodes = [];
-    for (const k of SUGGEST_KINDS) {
-      const group = found.filter((g) => g.kind === k.kind);
-      if (!group.length) continue;
-      nodes.push(el("p", { class: "suggest-kind", text: `${k.icon} ${k.heading}` }));
-      for (const g of group) nodes.push(suggestItem(s, g));
-    }
-    // Kinds this page does not list by name still show, at the end.
-    for (const g of found.filter((x) => !SUGGEST_KINDS.some((k) => k.kind === x.kind))) nodes.push(suggestItem(s, g));
-    list.replaceChildren(...nodes);
-    list.querySelector("button.suggest-item")?.focus();
-  } catch (err) {
-    if (abort.signal.aborted || err?.name === "AbortError") return;
-    console.warn("[moonat] date suggestions failed", err);
-    status.hidden = false;
-    status.textContent = err?.name === "RangeError" ? "No sky tables for these dates: pick a start in a covered year."
-      : "Suggestions are not available for this place right now.";
-  }
-}
-
-/**
- * One suggestion: its title, when, and its detail as a tooltip. A window or an event is a button that sets the card's
- * times (main.js onSuggest); a note (a statement about the whole range, e.g. "Earth always in view") is plain text.
- */
-function suggestItem(s, g) {
-  const t0 = g.t_start_utc ? parseUtc(g.t_start_utc) : NaN;
-  const t1 = g.t_end_utc ? parseUtc(g.t_end_utc) : NaN;
-  let when = "";
-  if (Number.isFinite(t0)) when = Number.isFinite(t1) && t1 > t0 ? `${formatUtc(t0)} · ${formatDuration(t1 - t0)}` : formatUtc(t0);
-  // The title says what and when; the exact times and the detail are in the tooltip.
-  const tip = [when, g.detail].filter(Boolean).join(" · ");
-  const text = el("span", { class: "si-text" }, el("b", { text: g.title || "Suggested dates" }),
-    g.note && g.detail ? el("small", { class: "si-detail", text: g.detail }) : null);
-  const icon = el("span", { class: "si-icon", "aria-hidden": "true", text: suggestIcon(g.kind) });
-  if (g.note || !Number.isFinite(t0)) return el("div", { class: "suggest-item note" }, icon, text);
-  const item = el("button", { type: "button", class: "suggest-item", title: tip }, icon, text);
-  if (tip) item.setAttribute("aria-description", tip);
-  item.addEventListener("click", () => {
-    closeSuggest();
-    onSuggestPick(s, g);
-  });
-  return item;
+  const head = el("div", { class: "end-head" }, el("label", { for: id, text: "Start (UTC)" }));
+  return el("div", { class: "field start-field" }, head, t0.body);
 }
 
 /** Re-sync a card's inputs after an external change (map click). */
 function syncCard(id) {
   const card = cardsEl.querySelector(`[data-id="${id}"]`);
   const s = store.scenarios.find((x) => x.id === id);
-  if (!card || !s || s.route) return;
+  if (!card || !s) return;
   card.querySelector('[name="lat_deg"]').value = s.lat_deg === null ? "" : String(+s.lat_deg.toFixed(5));
   card.querySelector('[name="lon_deg"]').value = s.lon_deg === null ? "" : String(+s.lon_deg.toFixed(5));
   card.querySelector(".scen-label").value = s.label || "";
@@ -552,8 +519,8 @@ function placeFocusTarget(card) {
 }
 
 /**
- * Load a catalog site into a scenario. Missions bring their landing-to-liftoff times. A site with no times keeps the
- * scenario's times.
+ * Load a catalog site into a scenario. Missions bring their landing-to-liftoff times (marked as the mission's). A site
+ * with no times keeps the scenario's times, unless those are another mission's: then it starts now (the place rule).
  */
 export function applySite(scenarioId, site) {
   const s = store.scenarios.find((x) => x.id === scenarioId);
@@ -563,6 +530,7 @@ export function applySite(scenarioId, site) {
   if (f.t_start_utc) {
     patch.t_start_utc = f.t_start_utc;
     patch.t_end_utc = f.t_end_utc;
+    patch.t_src = "mission";
   }
   updateScenario(scenarioId, patch, "structure");
 }

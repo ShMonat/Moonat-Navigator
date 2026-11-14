@@ -16,6 +16,7 @@ import { catalogSites, siteById, shortName, scenarioFieldsFromSite, HOME_SITE_ID
 import { applySite, clearAll } from "./scenarios_ui.js";
 import { placeResults, siteSubtitle, fmtSigned, fmtHemi, KIND_ONE } from "./place_search.js";
 import { HOUSE_PATH } from "../globe/globe.js";
+import { consumeMapClick } from "../rover/pick.js";
 
 /** Most places the map selects at once (one per palette colour). "+ Add location" in the cards has no limit. */
 export const MAX_PLACES = PALETTE.dark.length;
@@ -370,6 +371,8 @@ function buildSearch() {
     input.value = "";
     clear.hidden = true;
     input.blur();
+    // A rover trip's row waiting for "Choose on the globe" takes the place (web/js/rover/pick.js), as a click would.
+    if (it.type === "coords" ? consumeMapClick(it.lat, it.lon) : consumeMapClick(it.site.lat_deg, it.site.lon_deg)) return;
     // The card first, so the flight lands the place above it.
     if (it.type === "coords") {
       const s = dropPin(it.lat, it.lon);

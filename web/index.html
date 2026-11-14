@@ -32,6 +32,7 @@
   <link rel="stylesheet" href="css/app.css">
   <link rel="stylesheet" href="css/globe.css">
   <link rel="stylesheet" href="css/rover.css">
+  <link rel="stylesheet" href="css/picker.css">
   <script type="importmap">
   {
     "imports": {
@@ -65,6 +66,7 @@
   <link rel="modulepreload" href="js/terrain/trek.js">
   <link rel="modulepreload" href="js/terrain/lerc1.js">
   <link rel="modulepreload" href="js/app/scenarios_ui.js">
+  <link rel="modulepreload" href="js/app/time_picker.js">
   <link rel="modulepreload" href="js/app/suggest_adapter.js">
   <link rel="modulepreload" href="js/suggest/index.js">
   <link rel="modulepreload" href="js/suggest/core.js">
@@ -79,6 +81,9 @@
   <link rel="modulepreload" href="js/rover/series.js">
   <link rel="modulepreload" href="js/rover/app.js">
   <link rel="modulepreload" href="js/rover/pick.js">
+  <link rel="modulepreload" href="js/rover/trip.js">
+  <link rel="modulepreload" href="js/rover/globe_route.js">
+  <link rel="modulepreload" href="js/app/globe_api.js">
   <link rel="modulepreload" href="js/app/compare.js">
   <link rel="modulepreload" href="js/app/compare_text.js">
   <link rel="modulepreload" href="js/sky/words.js">
@@ -198,8 +203,6 @@
           <button class="add-btn" id="btn-add-location" title="Same times, new place">+ Add location</button>
           <button class="add-btn" id="btn-add-time" title="Same place, new time">+ Add time</button>
         </div>
-        <button class="rover-add" id="btn-add-rover" title="Plan a rover drive between two points and follow the Sun and Earth along it">
-          <span aria-hidden="true">🛞</span> Advanced: plan a rover traverse</button>
       </section>
 
       <section class="block qs-block" id="qs-block" aria-labelledby="qs-title">

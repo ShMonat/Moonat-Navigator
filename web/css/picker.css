@@ -1,0 +1,108 @@
+/* AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team. */
+/* Date and time picker of the Start and End fields (web/js/app/time_picker.js): a popover under the field on wide
+   screens (calendar and time on the left, suggested dates on the right), a sheet at the bottom on phones. */
+
+.with-cal { position: relative; }
+.field .with-cal input { padding-right: 36px; }
+.field .with-cal.with-clear input { padding-right: 62px; }
+.field .with-cal.with-clear .clear { right: 34px; }
+.tp-btn {
+  position: absolute; right: 3px; top: 50%; transform: translateY(-50%); display: grid; place-items: center;
+  width: 30px; height: 28px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--muted);
+}
+.tp-btn:hover, .tp-btn[aria-expanded="true"] { color: var(--accent); background: var(--accent-soft); }
+.tp-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.with-cal input[aria-expanded="true"] { border-color: var(--accent); }
+
+.tp-pop {
+  position: fixed; z-index: 2500; width: 640px; max-width: calc(100vw - 16px); overflow: auto; overscroll-behavior: contain;
+  padding: 10px 12px 12px; border-radius: 14px; background: var(--surface); color: var(--text);
+  border: 1px solid var(--border-strong); box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5);
+}
+:root[data-theme="light"] .tp-pop { box-shadow: 0 18px 48px rgba(20, 24, 40, 0.2); }
+.tp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.tp-title { display: flex; flex-direction: column; min-width: 0; }
+.tp-title strong { font-size: 13.5px; }
+.tp-value { font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.tp-close { width: 28px; height: 28px; border-color: transparent; font-size: 12px; flex: none; }
+.tp-body { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 16px; }
+.tp-body:not(:has(.tp-sg)) { grid-template-columns: 290px; }
+.tp-cal { min-width: 0; }
+
+.tp-nav { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
+.tp-nav select, .tp-time select {
+  min-width: 0; padding: 4px 6px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+  font-size: 13px; font-variant-numeric: tabular-nums;
+}
+.tp-nav select:focus, .tp-time select:focus { border-color: var(--accent); outline: none; }
+.tp-nav .tp-month { flex: 1; }
+.tp-nav .tp-year { flex: none; width: 82px; }
+.tp-nav .icon-btn { flex: none; width: 30px; height: 30px; font-size: 18px; line-height: 1; border-color: transparent; }
+.tp-nav .icon-btn:disabled { opacity: 0.35; cursor: default; }
+
+.tp-week, .tp-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+.tp-week span { padding: 2px 0; font-size: 11px; color: var(--muted); text-align: center; }
+.tp-day {
+  position: relative; height: 34px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--text);
+  font-size: 13px; font-variant-numeric: tabular-nums;
+}
+.tp-day:hover:not([aria-disabled="true"]) { background: var(--accent-soft); }
+.tp-day[aria-current="date"] { box-shadow: inset 0 0 0 1px var(--border-strong); font-weight: 650; }
+.tp-day.tp-in-range { background: color-mix(in srgb, var(--accent) 13%, transparent); }
+.tp-day.tp-range-start { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 70%, transparent); }
+.tp-day[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.tp-day[aria-disabled="true"] { color: var(--muted); opacity: 0.4; cursor: not-allowed; }
+.tp-day:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* A suggested date starts on this day: a dot in its kind's colour. */
+.tp-day.tp-has-sg::after {
+  content: ""; position: absolute; left: 50%; bottom: 3px; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%;
+  background: var(--sg, var(--accent));
+}
+.tp-day[data-sg="sun"] { --sg: var(--sun); }
+.tp-day[data-sg="earth"], .tp-day[data-sg="earthrise"] { --sg: var(--earth); }
+.tp-day[data-sg="both"] { --sg: var(--ok, #6fd69a); }
+.tp-day[data-sg="eclipse"] { --sg: #b07cff; }
+.tp-day[aria-pressed="true"].tp-has-sg::after { background: var(--accent-ink); }
+
+.tp-time { display: flex; align-items: center; gap: 5px; margin-top: 10px; }
+.tp-time-label { margin-right: auto; font-size: 12px; color: var(--muted); }
+.tp-time select { font-size: 14px; }
+.tp-colon { font-weight: 650; color: var(--text-2); }
+.tp-sec { min-width: 2.2em; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tp-actions { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
+.tp-actions .ghost { padding: 5px 10px; font-size: 13px; }
+.tp-actions .ghost:disabled { opacity: 0.45; cursor: default; }
+.tp-gap { flex: 1; }
+.tp-done { padding: 6px 16px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 650; }
+.tp-hint { margin: 8px 0 0; font-size: 11.5px; line-height: 1.35; color: var(--muted); }
+.tp-hint.bad { color: var(--danger); }
+
+.tp-sg { display: flex; flex-direction: column; min-width: 0; padding-left: 14px; border-left: 1px solid var(--border); }
+.tp-sg-head { padding: 2px 4px 6px; }
+.tp-sg-head strong { display: block; font-size: 13.5px; }
+.tp-sg-head small { display: block; font-size: 11.5px; color: var(--muted); }
+.tp-sg .suggest-status { margin: 4px 4px 6px; }
+.tp-sg .suggest-list { max-height: 320px; }
+
+/* Phones: a sheet at the bottom of the screen, over a dimmed page. */
+.tp-backdrop { position: fixed; inset: 0; z-index: 2400; background: rgba(0, 0, 0, 0.5); }
+.tp-pop.tp-sheet {
+  left: 0; right: 0; top: auto; bottom: 0; width: auto; max-width: none; max-height: 88svh;
+  padding: 12px 16px calc(14px + env(safe-area-inset-bottom, 0px)); border-radius: 16px 16px 0 0;
+}
+.tp-sheet .tp-body { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.tp-sheet .tp-sg { padding: 10px 0 0; border-left: 0; border-top: 1px solid var(--border); }
+.tp-sheet .tp-sg .suggest-list { max-height: none; }
+.tp-sheet .tp-day { height: 42px; font-size: 15px; }
+.tp-sheet .tp-nav .tp-year { width: 92px; }
+.tp-type { align-self: flex-start; margin-top: 4px; font-size: 12.5px; }
+:root.tp-sheet-open, :root.tp-sheet-open body { overflow: hidden; }
+
+@media (pointer: coarse) {
+  .tp-btn { width: 40px; height: 36px; }
+  .field .with-cal input { padding-right: 44px; }
+  .field .with-cal.with-clear input { padding-right: 80px; }
+  .field .with-cal.with-clear .clear { right: 42px; }
+  .tp-nav .icon-btn { width: 40px; height: 40px; }
+  .tp-nav select, .tp-time select, .tp-actions button { min-height: 40px; }
+}

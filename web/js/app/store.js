@@ -78,12 +78,36 @@ export function removeScenario(id) {
   emit("structure");
 }
 
-/** Patch one scenario. `kind` is "field" for physics inputs, "label" for the label, "structure" to rebuild its card. */
+let placeRule = null;
+
+/**
+ * The rule for times when a scenario moves to another place: fn(scenario, patch) -> extra fields for the patch
+ * (state.js timesForPlaceChange: a catalog mission's dates do not follow the scenario to another place).
+ */
+export function setPlaceRule(fn) {
+  placeRule = fn;
+}
+
+/**
+ * Patch one scenario. `kind` is "field" for physics inputs, "label" for the label, "structure" to rebuild its card.
+ * Times set without a source (t_src) are the user's. A move to another place goes through the place rule; when that
+ * changes the times, listeners get `timesReset: true` (the card then shows the new times).
+ */
 export function updateScenario(id, patch, kind = "field", extra = {}) {
   const s = getScenario(id);
   if (!s) return;
-  Object.assign(s, patch);
-  emit(kind, { id, ...extra });
+  let p = patch;
+  let timesReset = false;
+  if (("t_start_utc" in p || "t_end_utc" in p) && !("t_src" in p)) p = { ...p, t_src: "user" };
+  else if (placeRule && ("lat_deg" in p || "lon_deg" in p || "site_id" in p)) {
+    const t = placeRule(s, p) || {};
+    if ("t_start_utc" in t) {
+      p = { ...p, ...t };
+      timesReset = true;
+    }
+  }
+  Object.assign(s, p);
+  emit(kind, { id, ...extra, ...(timesReset ? { timesReset } : {}) });
 }
 
 export function setActive(id) {

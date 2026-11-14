@@ -1,31 +1,36 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
-// Two-step pick of a rover traverse on the Moon globe: "click the start", then "click the end".
-// The globe (web/js/app/map.js -> web/js/globe) offers every surface click to consumeMapClick() first. A click is
-// taken here while a pick is running, or when the selected scenario is a traverse (that click then starts a new
-// two-step pick at the clicked start). Route cards register a handler per scenario (registerRouteCard).
+// Picking a trip's points on the Moon globe ("Choose on the globe"): a trip card arms a pick for one of its rows
+// (the end, or a stop), and the next click on the globe, or the next place chosen in the globe's "Search the Moon"
+// box, sets that point. The globe (web/js/app/map.js, places.js) offers every surface, site and pin click and every
+// search choice to consumeMapClick() first; without an armed pick they do what they always do.
+// Trip cards register their handler per scenario (registerRouteCard).
 
-import { activeScenario } from "../app/store.js";
-
-const cards = new Map(); // scenario id -> { onPoint(which, lat, lon), onDone() }
-let pending = null; // { id, step: "start" | "end" }
+const cards = new Map(); // scenario id -> { onPoint(row, lat, lon) }
+let pending = null; // { id, row, label }
 let banner = null;
 
-/** A route card's pick handlers: onPoint("start" | "end", lat, lon) for each click, onDone() after the end. */
+/** A trip card's pick handler: onPoint(row, lat, lon) when the armed row gets a point. Returns an unregister function. */
 export function registerRouteCard(id, handlers) {
   cards.set(id, handlers);
+  // A card rebuilt for the same scenario registers again and keeps an armed pick.
   return () => {
-    if (cards.get(id) === handlers) cards.delete(id);
+    if (cards.get(id) !== handlers) return;
+    cards.delete(id);
     if (pending?.id === id) cancelPick();
   };
 }
 
-/** Start a two-step pick for a traverse scenario (first the start, then the end). */
-export function startPick(id, first = "start") {
-  pending = { id, step: first };
+/**
+ * Arm a pick: the next globe click sets row `row` (the waypoint index, 1 = the first point after the start) of trip
+ * `id`. `label` names the point in the banner ("B, the end").
+ */
+export function startPick(id, row = 1, label = "the end") {
+  pending = { id, row, label };
   showBanner();
 }
 
 export function cancelPick() {
+  if (!pending) return;
   pending = null;
   showBanner();
 }
@@ -34,33 +39,20 @@ export function pickState() {
   return pending ? { ...pending } : null;
 }
 
-/** Offer a globe click (lat, lon in deg). Returns true when the rover planner took it. */
+/** Offer a globe click (lat, lon in deg). Returns true when an armed trip pick took it. */
 export function consumeMapClick(lat, lon) {
-  if (!pending) {
-    const s = activeScenario();
-    if (!s || !s.route || !cards.has(s.id)) return false;
-    pending = { id: s.id, step: "start" };
-  }
+  if (!pending) return false;
   const h = cards.get(pending.id);
-  if (!h) {
-    cancelPick();
-    return false;
-  }
-  const step = pending.step;
-  h.onPoint(step, lat, lon);
-  if (step === "start") {
-    pending = { id: pending.id, step: "end" };
-    showBanner();
-  } else {
-    pending = null;
-    showBanner();
-    h.onDone?.();
-  }
+  const { row } = pending;
+  pending = null;
+  showBanner();
+  if (!h) return false;
+  h.onPoint(row, lat, lon);
   return true;
 }
 
 const listeners = new Set();
-/** Listen to pick state changes (start, next step, done, cancel). Returns an unsubscribe function. */
+/** Listen to pick state changes (armed, done, cancelled). Returns an unsubscribe function. */
 export function onPickChange(fn) {
   listeners.add(fn);
   return () => listeners.delete(fn);
@@ -86,9 +78,7 @@ function showBanner() {
     host.classList.remove("rover-picking");
     return;
   }
-  banner.querySelector(".rover-pick-text").textContent = pending.step === "start"
-    ? "Rover traverse: click the START point on the Moon"
-    : "Now click the END point (up to 60 km away)";
+  banner.querySelector(".rover-pick-text").textContent = `Click the Moon, or search it, to set ${pending.label}`;
   host.classList.add("rover-picking");
   if (!banner.isConnected) host.prepend(banner);
 }

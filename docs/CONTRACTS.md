@@ -248,7 +248,7 @@ showRoute(id, [{ lat_deg, lon_deg }, ...], { color, width })  // draw or replace
 clearRoute(id)
 fitTo([{ lat_deg, lon_deg }, ...], { padding, maxZoom })      // turn and zoom so all points are in view
 flyTo(lat_deg, lon_deg, zoom)                                 // zoom 1 = the whole disc; omitted = keep the zoom
-setMarker(id, { lat, lon, color, label, ahead: { lat, lon } | null })  // a moving dot, e.g. the rover
+setMarker(id, { lat, lon, color, label, ahead: { lat, lon } | null, text })  // a moving dot, e.g. the rover
 clearMarker(id)
 await globeReady()                                            // the globe object below, once it exists
 ```
@@ -263,7 +263,8 @@ await globeReady()                                            // the globe objec
   globe's limit (about 60 km across). Points that cannot all face the camera give the whole disc (`fitView` in geo.js;
   tested near the poles, across 180° and with asymmetric padding in web/tests/globe_routes.test.mjs).
 - `setMarker`: a dot in `color` with a white ring, above the pins, not clickable; with `ahead` (a point further on) a
-  small arrow on it points that way on screen. Call it again to move it. `lat_deg`/`lon_deg` work too.
+  small arrow on it points that way on screen; `text` (1–2 characters, added 2026-11-14 for trip stop letters) is
+  written in a slightly larger dot. Call it again to move it. `lat_deg`/`lon_deg` work too.
 - `flyTo`: a smooth turn and zoom (0.45–1.6 s, zooming out half-way on a long hop, `flightZoom`/`flightMs` in geo.js).
   `prefers-reduced-motion` jumps instead.
 - The globe object (`createGlobe` in web/js/globe/globe.js, also returned by `globeReady`) has the same six functions
@@ -313,10 +314,20 @@ No end time = a single instant. Scenarios may share or differ in times.
   card is filled first); a click on a selected pin removes its scenario (the last one leaves an empty card, as "Clear
   all"; the toast offers Undo); a click on the ground adds a custom point; a dragged custom pin moves it. The map adds
   at most 6 places (one per palette colour); "+ Add location" in the cards keeps no limit.
-- **Rover traverses** (C10) add `route: { end_lat_deg, end_lon_deg, preset: "viper" | "lrv" | "custom", speed_mps,
-  max_slope_deg, max_cross_deg, stop_every_km, stop_h }`; `lat_deg`/`lon_deg` is the start, and no end time = end on
-  arrival. URL hash rows get an 8th element `[end_lat, end_lon, preset, speed, max_slope, max_cross, stop_km, stop_h]`
-  (older links have 7 and stay valid); `x=dist` selects the distance axis.
+- **Rover trips** (C10) add `route: { end_lat_deg, end_lon_deg, via?: [{lat_deg, lon_deg}, …], preset: "viper" | "lrv" |
+  "custom", speed_mps, max_slope_deg, max_cross_deg, stop_every_km, stop_h }`; `lat_deg`/`lon_deg` is the start (A),
+  `via` the stops in order (B, C, …; at most 8, absent for a 2-point trip), `end_*` the last point, and no end time = end
+  on arrival. A trip whose end is not set yet is computed as its start place. URL hash rows get an 8th element
+  `[end_lat, end_lon, preset, speed, max_slope, max_cross, stop_km, stop_h(, [[lat, lon], …] stops)]`: the 9th element
+  only when there are stops, so 2-point links are unchanged (older links have 7 and stay valid); `x=dist` selects the
+  distance axis. **Changed 2026-11-14 (time-trip):** `via` added.
+- **Time source** `t_src` (optional, UI only, never in links): `"mission"` (a catalog mission's landing-to-liftoff
+  times, set when the mission is picked), `"user"` (typed or picked; any patch that sets times without a source),
+  `"default"` (set by the place rule). Rule (`state.js timesForPlaceChange`, applied by `store.updateScenario`): moving a
+  scenario with a mission's dates to another place (globe click, a site without dates, typed coordinates, Clear all)
+  resets its times to now (to the minute) when the ephemeris covers it, else 1 January of the nearest covered year,
+  with no end. Links and stories carry no mark: their times count as the mission's when the start is the landing time
+  of the scenario's catalog site (`hasMissionDates`).
 - **Share links** (`web/js/app/state.js` encodeHash / decodeHash): `#b=earth&x=utc&t=5250&v=258.9,12.5,40&s=<rows>`,
   every key optional. `b` = the Sun | Earth switch (the body every sky view is aimed at and whose data shows; default
   Sun), `x` = the charts' time axis (`utc` | `dist`; default time since start), `t` = the sky's moment (s after the
@@ -349,7 +360,30 @@ await planRoute(start {lat_deg, lon_deg}, end {lat_deg, lon_deg},
 await routeSeries(route, t0Ms, t1Ms, stepMs, {stop_every_km, stop_h}) -> C6 series() fields + {
   distance_km[], position[{lat, lon}], sample_index[], sun_hz_el[], earth_hz_el[],
   route: { arrival_ms, length_km, stops } }
+await planTrip([A, B, C, …] {lat_deg, lon_deg}, rover, {onProgress(stage, frac, leg, legs)}) -> route   // cached
+tripKey(points, rover), tripProblems(points) -> [message]      // a 2-point trip = planRoute(A, B), same cache key
 ```
+- **Trips (added 2026-11-14, time-trip):** `planTrip` plans leg by leg with `planRoute` (each leg cached, ≤ 60 km
+  straight) and joins the legs (`trip.js joinLegs`) into one route of the same shape: `path` and `samples` of all legs
+  with cumulative `dist_m` / `time_s` (consecutive legs joined by the short straight link between their snapped ends,
+  driven at the level speed); x, y in the trip's own stereographic plane tangent at `centre`, the waypoints' centroid;
+  `stats` summed (length, legs' straight lines, driving time, climb, descent) or maxed (slopes); plus `waypoints`,
+  `legs` (the leg routes, with their grids and previews; `routePatch` uses the leg that holds the point) and
+  `leg_info[{from, to, dist0_m, time0_s, length_m, drive_s, straight_m, sample0, vertex0}]`; `preview` and `terrain` are
+  null. A failing leg rejects with its RouteError, the message prefixed "B → C: ". `routeSeries` and `routeTrack` take a
+  trip as they take a leg.
+- **Ride (sky view):** `sky_ride.js rideAt(item, t)` gives the rover's exact position on the path at the drive
+  timeline, a skyline blended between the two nearest horizon samples (each turned into the local frame first), the
+  heading and slope of travel; the view's 3D ground and drawn skyline are rebuilt at the position rounded to
+  max(20 m, a fine cell), at most every 160 ms while the time runs. "🚙 Look ahead" (a trip's sky card) is the sky
+  panel's "ahead" track mode (`setTrackMode`); `ui.js` gives the direction with `setLookAheadSource(sky_ride.js
+  lookAheadDirection)`: the path's heading, the slope × 0.7 + 1.5° up; the view eases toward it (C8 `setTrack({az_deg,
+  el_deg})`). The last mode chosen (Track body or Look ahead) wins, and the Track button shows it.
+- **Globe:** `globe_route.js` draws each trip's path (`showRoute`), its stops as lettered dots (`setMarker` with `text`:
+  B, C …; the start and the end are the scenario's pins), the moving rover dot (`setMarker` with `ahead`), and fits the
+  globe to a trip when it is planned or selected (`fitTo`), all through `web/js/app/globe_api.js` (C8b). A row waiting
+  for "📍 Choose on the globe" takes the next globe click or the next place chosen in "Search the Moon" (`pick.js`
+  consumeMapClick, called by map.js and places.js).
 - **Terrain:** one Moon Trek LOLA grid (C9 layers and projection) covering both points plus max(3 km, 30 %) of margin, in
   the stereographic plane at the midpoint; ≤ 1001² px (20 m south of 85°S, 30 m poleward of 75°, 118 m elsewhere;
   coarser cells for long polar routes), and at least the C9 near-field extent (401 px). Plus a 401² mid-field grid out to
@@ -364,8 +398,11 @@ await routeSeries(route, t0Ms, t1Ms, stepMs, {stop_every_km, stop_h}) -> C6 seri
 - **Presets:** VIPER-class 0.2 m/s, 15° (NASA VIPER pages); Apollo LRV 2.5 m/s, 20° (Jacob et al., LPSC 2026). Editable.
 - **Runtime:** a module Web Worker fetches the terrain and plans; the horizons are spread over up to 4 short-lived
   workers. 2–7 s in the browser for 6–20 km routes; 0.9–6 MB downloaded (including C5 tiles on a first visit).
-- **App wiring:** `web/js/rover/app.js` `routeCore(s)` (called by the app's compute for scenarios with `route`), route
-  card `ui.js`, globe two-step pick `pick.js`, Sky-tab ride `sky_ride.js` (sky, skyline and ±8 km ground per station).
+- **App wiring:** `web/js/rover/app.js` `routeCore(s)` (called by the app's compute for complete trips, `isTrip`), the
+  trip rows of a scenario card `ui.js` (the "Trip" toggle next to the place; rows B, C … set by search, typed
+  coordinates or "Choose on the globe" `pick.js`; travel modes = presets; summary, live position and ETA while the
+  timelapse plays, `tripTime(offsetMs)` from main.js), the sky ride `sky_ride.js` (sky, skyline and ±8 km ground where
+  the rover is).
 
 ## C11 `suggest-dates` (producer: `suggest`; consumer: `web-app`) — **implemented**
 Suggested mission dates for one site: the best windows for solar power, direct-to-Earth contact or both, and special

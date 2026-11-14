@@ -17,7 +17,8 @@ import { renderCompare, rerenderCompare, initBodySwitch, syncBody, holdChartsUnt
 import { initSky, setSkyItems, queueSkyStart, skyShareState, setSkyBody, jumpTo, skyTime } from "./sky_panel.js";
 import { pickHint } from "./events.js";
 import { suggestBody, suggestWindow } from "./suggest_adapter.js";
-import { routeCore } from "../rover/app.js";
+import { routeCore, isTrip } from "../rover/app.js";
+import { tripTime } from "../rover/ui.js";
 
 const $ = (id) => document.getElementById(id);
 const LOOKAHEAD_MS = 30 * DAY_MS;
@@ -49,7 +50,7 @@ function initTheme() {
 const cache = new Map();
 
 /** Custom points are computed again once their real (Moon Trek) terrain arrives. */
-const terrainTag = (s) => (!s.site_id && !s.route && readyTerrain(s.lat_deg, s.lon_deg) ? "|trek" : "");
+const terrainTag = (s) => (!s.site_id && !isTrip(s) && readyTerrain(s.lat_deg, s.lon_deg) ? "|trek" : "");
 
 function computeCore(s) {
   const key = physicsKey(s);
@@ -57,8 +58,8 @@ function computeCore(s) {
   if (!cache.has(ckey)) {
     if (cache.size > 80) cache.delete(cache.keys().next().value);
     const p = (async () => {
-      // Rover traverse (advanced mode): planned route, the sky along it (web/js/rover/app.js).
-      if (s.route) return routeCore(s);
+      // Rover trip: planned route, the sky along it (web/js/rover/app.js). A trip without its end yet shows its start.
+      if (isTrip(s)) return routeCore(s);
       const { site, horizon, patch } = await siteFor(s);
       const { t0, t1, span } = scenarioTimes(s);
       const state0 = await stateAt(site, t0);
@@ -77,7 +78,7 @@ function computeCore(s) {
       }
       return { key, site, horizon, patch, t0, t1, span, state0, series, look, error: null };
     })().catch((error) => {
-      if (!error?.code) console.error("[moonat] compute failed", error); // route problems (code) show on the route card
+      if (!error?.code) console.error("[moonat] compute failed", error); // route problems (code) show on the trip card
       cache.delete(ckey);
       return { key, error };
     });
@@ -114,7 +115,7 @@ async function recompute() {
   const valid = store.scenarios
     .map((s, index) => ({ s, index }))
     .filter(({ s }) => validateScenario(s, physicsCoverage()).ok);
-  setBusy(true, valid.some(({ s }) => s.route) ? "Planning the rover route…" : "Computing…");
+  setBusy(true, valid.some(({ s }) => isTrip(s)) ? "Planning the rover route…" : "Computing…");
   // Stop fetching real terrain for points no scenario shows any more (rapid map clicks, edited coordinates).
   keepOnly(valid.filter(({ s }) => !s.site_id).map(({ s }) => [s.lat_deg, s.lon_deg]));
   const cores = await Promise.all(valid.map(({ s }) => computeCore(s)));
@@ -500,6 +501,7 @@ async function boot() {
   initSky({
     onTime: (offsetMs) => {
       setChartCursor(offsetMs);
+      tripTime(offsetMs); // trip cards: distance driven, to go and the arrival at this moment
       if (hint || lastItems.length) syncHint();
     },
   });

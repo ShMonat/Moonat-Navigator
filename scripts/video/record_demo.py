@@ -663,8 +663,9 @@ def exit_focus(d: Director, xfade: int = 6) -> None:
 
 
 def scene_suggest(d: Director) -> None:
-    """2: "✨ Suggest dates" on the Apollo 11 card lists the best windows for sunlight and Earth contact and the
-    eclipses visible from the site; the page scrolls so the whole list shows."""
+    """2: the calendar of the Apollo 11 card's Start field (📅) holds "✨ Suggested for this place": the best windows
+    for sunlight and Earth contact and the eclipses visible from the site. The picker opens over the page, fitted to
+    the window (web/js/app/time_picker.js), so nothing needs to scroll but its own list."""
     d.caption(None)
     exit_focus(d)
     d.cursor_on = True
@@ -672,37 +673,30 @@ def scene_suggest(d: Director) -> None:
     def wait_list() -> None:
         t0 = time.time()
         while time.time() - t0 < 30 and not d.page.evaluate(
-            "[...document.querySelectorAll('#cards .suggest-item')].some(e => /eclipse/i.test(e.textContent))"
+            "[...document.querySelectorAll('.tp-pop .suggest-item')].some(e => /eclipse/i.test(e.textContent))"
         ):
             time.sleep(0.1)
         time.sleep(0.4)
 
-    d.click("#cards .suggest-btn", wait=wait_list, xfade=6)
+    d.click("#cards .start-field .tp-btn", wait=wait_list, xfade=6)
     d.caption("suggest", pos="right")
-    delta = d.prepare_scroll("#cards .suggest-pop", bottom_margin=16)
-    n = 26
-    # Scroll the left column so the whole list shows; the drawn pointer stays, the list slides under it.
-    for i in range(1, n + 1):
-        d.scroll_by(delta * ease(i / n))
-        d.frame()
     d.hold(12)
     # The list scrolls on its own (max-height): roll it down to the eclipses visible from the site.
     span = d.page.evaluate(
-        "(() => { const l = document.querySelector('#cards .suggest-list'); return l.scrollHeight - l.clientHeight; })()"
+        "(() => { const l = document.querySelector('.tp-pop .suggest-list'); return l.scrollHeight - l.clientHeight; })()"
     )
     n = 22
     for i in range(1, n + 1):
         d.page.evaluate(
-            "y => { document.querySelector('#cards .suggest-list').scrollTop = y; }",
+            "y => { document.querySelector('.tp-pop .suggest-list').scrollTop = y; }",
             span * ease(i / n),
         )
         d.frame()
     d.hold(30)
     d.keyframe("suggest")
     d.hold(8)
-    # Close the list with its ✕, off camera: a click elsewhere would first close it and shift the column under the
-    # pointer.
-    d.page.evaluate("document.querySelector('#cards .suggest-pop .suggest-close')?.click()")
+    # Close the picker with its ✕, off camera.
+    d.page.evaluate("document.querySelector('.tp-pop .tp-close')?.click()")
     time.sleep(0.3)
 
 

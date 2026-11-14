@@ -7,6 +7,8 @@
 //   - lon_deg: east-positive longitude, deg, -180..180.
 //   - t_start_utc / t_end_utc: ISO-8601 UTC strings ("1969-07-20T20:17:40Z"); no end = a single instant.
 //   - color: index into PALETTE (an integer slot). The hex value depends on the theme (see colorHex).
+//   - t_src (optional, not in links): where the times came from, "mission" (a catalog mission's landing),
+//     "user" (typed or picked) or "default" (set when the place changed); see hasMissionDates.
 
 /**
  * Categorical palette: six colours that stay apart for colour-blind readers in every pair (lines overlap, so all pairs
@@ -68,9 +70,67 @@ export function makeScenario(partial = {}, existing = []) {
     lon_deg: numOrNull(partial.lon_deg),
     t_start_utc: partial.t_start_utc || null,
     t_end_utc: partial.t_end_utc || null,
-    // Rover traverse (contract C10, web/js/rover/): lat/lon is the start; the field exists only for traverses.
-    ...(partial.route ? { route: { ...partial.route } } : {}),
+    ...(TIME_SOURCES.includes(partial.t_src) ? { t_src: partial.t_src } : {}),
+    // Rover trip (contract C10, web/js/rover/): lat/lon is the start; the field exists only for trips.
+    ...(partial.route ? { route: copyRoute(partial.route) } : {}),
   };
+}
+
+const TIME_SOURCES = ["mission", "user", "default"];
+
+/** A copy of a C7 `route` (its `via` stops copied too, so scenarios never share them). */
+function copyRoute(r) {
+  const out = { ...r };
+  if (Array.isArray(r.via)) out.via = r.via.map((p) => ({ lat_deg: p.lat_deg, lon_deg: p.lon_deg }));
+  return out;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Mission dates: a catalog mission brings its landing time; another place must not keep it.
+
+/**
+ * Times for a scenario that moves to a new place and must not keep its old ones: now (UTC, to the whole minute) when
+ * the sky tables cover the current year, else 1 January 00:00 UTC of the covered year nearest to now (the later one
+ * on a tie); no end. `years`: the covered years (empty or null: now). Returns { t_start_utc, t_end_utc: null }.
+ */
+export function defaultTimes(nowMs, years) {
+  const y = new Date(nowMs).getUTCFullYear();
+  if (!years || !years.length || years.includes(y)) return { t_start_utc: isoUtc(Math.floor(nowMs / 60e3) * 60e3), t_end_utc: null };
+  const best = years.reduce((a, b) => {
+    const da = Math.abs(a - y), db = Math.abs(b - y);
+    return db < da || (db === da && b > a) ? b : a;
+  });
+  return { t_start_utc: isoUtc(Date.UTC(best, 0, 1)), t_end_utc: null };
+}
+
+/**
+ * True when a scenario's times are a catalog mission's and nobody changed them since: marked t_src "mission" (loaded
+ * with the mission), or not marked (a story or a shared link) with the start at the landing time of `site`, the
+ * scenario's own catalog site (null for a custom point). Times the user typed or picked (t_src "user") never are.
+ */
+export function hasMissionDates(s, site) {
+  if (!s || !s.t_start_utc) return false;
+  if (s.t_src === "mission") return true;
+  if (s.t_src) return false;
+  return !!(site && site.t_start_utc && parseUtc(site.t_start_utc) === parseUtc(s.t_start_utc));
+}
+
+/**
+ * The time fields to add to a patch that moves a scenario to another place (lat_deg, lon_deg or site_id) without
+ * setting times: {} keeps the times; mission dates (hasMissionDates) become defaultTimes, marked t_src "default".
+ * Nothing changes while the new place is incomplete (a coordinate field being retyped) or is the same catalog site.
+ * ctx = { siteById(id) -> catalog site | null, nowMs, years (covered years) }.
+ */
+export function timesForPlaceChange(s, patch, { siteById, nowMs, years }) {
+  if (!s || "t_start_utc" in patch || "t_end_utc" in patch) return {};
+  const lat = "lat_deg" in patch ? patch.lat_deg : s.lat_deg;
+  const lon = "lon_deg" in patch ? patch.lon_deg : s.lon_deg;
+  const site = "site_id" in patch ? patch.site_id : s.site_id;
+  if (lat === s.lat_deg && lon === s.lon_deg && site === s.site_id) return {};
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return {};
+  if (site && site === s.site_id) return {};
+  if (!hasMissionDates(s, s.site_id ? siteById(s.site_id) : null)) return {};
+  return { ...defaultTimes(nowMs, years), t_src: "default" };
 }
 
 function numOrNull(v) {
@@ -316,9 +376,12 @@ export function physicsKey(s) {
 //   Links from the page's Compare and Sky tabs also hold tab ("sky") and look ("earth" | "sun", the last Look
 //   button); they still decode, and hashBody turns them into the body they showed. The page no longer writes them.
 // s JSON = [[label, lat, lon, start, end|0, site_id|0, color(, route)], ...]
-// route (rover traverses only): [end_lat, end_lon, preset, speed_mps, max_slope_deg, max_cross_deg, stop_every_km, stop_h]
+// route (rover trips only): [end_lat, end_lon, preset, speed_mps, max_slope_deg, max_cross_deg, stop_every_km, stop_h
+//   (, [[lat, lon], ...] the stops between the start and the end, only when there are some)]
 
 const ROUTE_FIELDS = ["end_lat_deg", "end_lon_deg", "preset", "speed_mps", "max_slope_deg", "max_cross_deg", "stop_every_km", "stop_h"];
+/** Most stops between the start and the end of a trip that a link may hold. */
+export const MAX_VIA = 8;
 
 function b64urlEncode(str) {
   const bytes = new TextEncoder().encode(str);
@@ -346,7 +409,7 @@ export function encodeHash({ scenarios, tab = "compare", xaxis = "met", body = "
     s.t_end_utc || 0,
     s.site_id || 0,
     s.color,
-    ...(s.route ? [ROUTE_FIELDS.map((k) => s.route[k] ?? 0)] : []),
+    ...(s.route ? [encodeRoute(s.route)] : []),
   ]);
   const p = new URLSearchParams();
   if (tab !== "compare") p.set("tab", tab);
@@ -382,9 +445,7 @@ export function decodeHash(hash) {
     for (const r of rows.slice(0, 64)) {
       if (!Array.isArray(r)) continue;
       const [label, lat, lon, start, end, site, color, rt] = r;
-      const route = Array.isArray(rt)
-        ? Object.fromEntries(ROUTE_FIELDS.map((k, i) => [k, k === "preset" ? String(rt[i] || "viper").slice(0, 16) : Number(rt[i]) || 0]))
-        : null;
+      const route = Array.isArray(rt) ? decodeRoute(rt) : null;
       scenarios.push(
         makeScenario(
           {
@@ -428,6 +489,26 @@ export function hashBody(h) {
 function round(x, d) {
   const f = 10 ** d;
   return Math.round(x * f) / f;
+}
+
+/** A C7 `route` -> its link row; the stops (`via`) go in a 9th element only when there are some, so 2-point links stay as they were. */
+function encodeRoute(route) {
+  const row = ROUTE_FIELDS.map((k) => route[k] ?? 0);
+  const via = (route.via || []).filter((p) => Number.isFinite(p?.lat_deg) && Number.isFinite(p?.lon_deg));
+  if (via.length) row.push(via.slice(0, MAX_VIA).map((p) => [round(p.lat_deg, 5), round(p.lon_deg, 5)]));
+  return row;
+}
+
+/** A link's route row -> a C7 `route` (8 elements: no stops; a 9th: the stops, bad ones dropped). */
+function decodeRoute(rt) {
+  const route = Object.fromEntries(ROUTE_FIELDS.map((k, i) => [k, k === "preset" ? String(rt[i] || "viper").slice(0, 16) : Number(rt[i]) || 0]));
+  if (Array.isArray(rt[8])) {
+    const via = rt[8].slice(0, MAX_VIA)
+      .filter((p) => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]) && Math.abs(p[0]) <= 90 && Math.abs(p[1]) <= 180)
+      .map(([la, lo]) => ({ lat_deg: la, lon_deg: lo }));
+    if (via.length) route.via = via;
+  }
+  return route;
 }
 
 // ---------------------------------------------------------------------------------------------

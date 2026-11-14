@@ -12,7 +12,7 @@ import { stateAt } from "./physics_adapter.js";
 import { makeSkyView, terrainPatchUrl, skyPatch } from "./sky_adapter.js";
 import { terrainStatusText } from "./terrain_live.js";
 import { bindPinchZoom, bindAxisLock } from "./gestures.js";
-import { rideAt, ridePatch, rideNote, frameTurnDeg } from "../rover/sky_ride.js";
+import { rideAt, rideGround, rideNote, rideCamera, rideTerrain, addRideControls } from "../rover/sky_ride.js";
 import { autoSpeed } from "./playback.js";
 
 const $ = (id) => document.getElementById(id);
@@ -224,10 +224,12 @@ function onTrackButton() {
 
 /** The button's words and state: "🎯 Track", "🎯 Track Sun" (on), "… · paused", or "🚙 Look ahead". */
 function syncTrackBtn() {
-  const b = $("btn-track");
-  if (!b) return;
   const paused = !!trackMode && [...cards.values()].some((r) => r.view && r.trackPaused);
   const ahead = trackMode === "ahead";
+  // The trip cards' "🚙 Look ahead" buttons show the same state.
+  for (const r of document.querySelectorAll(".ride-ahead")) r.setAttribute("aria-pressed", !ahead ? "false" : paused ? "mixed" : "true");
+  const b = $("btn-track");
+  if (!b) return;
   const name = aimBody === "sun" ? "Sun" : "Earth";
   b.setAttribute("aria-pressed", !trackMode ? "false" : paused ? "mixed" : "true");
   b.classList.toggle("paused", paused);
@@ -372,7 +374,18 @@ function buildCard(it, key) {
   rec.viewEl.addEventListener("keydown", (e) => {
     if (/^Arrow|^[-+=_]$/.test(e.key)) rec.camTouched = true;
   });
+  // Rover trips: "🚙 Look ahead" turns on the "ahead" track mode (web/js/rover/sky_ride.js).
+  if (it.route) addRideControls(rec, { toggle: toggleLookAhead, isOn: () => trackMode === "ahead" });
   return rec;
+}
+
+/**
+ * "🚙 Look ahead" of a trip's sky card: every trip view faces the direction of travel (track mode "ahead"); pressed
+ * again, it stops, or, while a drag paused it, it follows again. The timelapse bar's Track button shows the mode.
+ */
+function toggleLookAhead() {
+  const paused = [...cards.values()].some((r) => r.view && r.trackPaused);
+  setTrackMode(trackMode === "ahead" && !paused ? null : "ahead");
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -556,7 +569,7 @@ function recycleViews() {
 function swapTerrain(rec) {
   const it = rec.it;
   if (it.route && typeof rec.view.setTerrain === "function") {
-    rec.rideStation = null; // the next update gives the rover's current station terrain
+    rec.rideGroundKey = null; // the next update gives the ground where the rover is
     return;
   }
   if (typeof rec.view.setTerrain === "function") {
@@ -577,15 +590,16 @@ async function createView(rec) {
     const it = rec.it;
     // Catalog sites: the precomputed C4 patch file. Custom points: the live Moon Trek patch once it has arrived.
     const patchUrl = it.s.site_id ? await terrainPatchUrl(it.s.site_id) : null;
-    // Rover traverses: the view starts where the rover is, with the ground of the route grid (web/js/rover).
+    // Rover trips: the view starts where the rover is, with the ground of the route grid (web/js/rover/sky_ride.js).
     const ride = it.route ? rideAt(it, timeFor(it)) : null;
+    const ground = ride ? rideGround(it, ride) : null;
     if (ride) {
-      rec.rideStation = ride.stationK;
+      rec.rideGroundKey = `${it.key}|${ride.ground.index}`;
       rec.rideSite = ride.site;
     }
     const { view, mode } = await makeSkyView(rec.viewEl, {
-      site: ride ? { ...ride.site, horizon: ride.horizon } : it.site, terrainPatchUrl: patchUrl,
-      terrainPatch: ride ? ridePatch(it, ride) : it.s.site_id ? null : skyPatch(it.patch),
+      site: ride ? { ...ride.site, horizon: ground.horizon } : it.site, terrainPatchUrl: patchUrl,
+      terrainPatch: ride ? ground.patch : it.s.site_id ? null : skyPatch(it.patch),
       fovDeg: 70, earthNightTextureUrl: "assets/earth_night.jpg",
       closeUp: viewOpts.closeUp, showConstellations: viewOpts.constellations, exposure: viewOpts.exposure,
       hudLevel: viewOpts.hudLevel, buttons: false, // the card's "⋯" menu holds the toggles
@@ -646,25 +660,17 @@ async function updateCard(rec) {
   const t = timeFor(it);
   rec.root.querySelector(".sky-card-time").textContent = formatUtc(t);
   if (rec.lastT === t && rec.state) return;
-  // Rover traverses: sky, skyline and ground of the station the rover has reached (web/js/rover/sky_ride.js).
+  // Rover trips: the sky at the rover's exact position on the path, the camera turned with it (or facing the way
+  // ahead), the 3D ground rebuilt where it is (web/js/rover/sky_ride.js).
   const ride = it.route ? rideAt(it, t) : null;
   const st = await stateAt(ride ? ride.site : it.site, t);
   rec.state = st;
   rec.lastT = t;
-  const moved = ride && rec.view?.setTerrain && rec.rideStation !== ride.stationK;
-  if (moved && rec.rideSite && rec.view.getView) {
-    // Keep looking at the same physical direction: the local azimuth frame turns as the rover moves.
-    const v = rec.view.getView();
-    rec.view.lookAt(v.az_deg + frameTurnDeg(rec.rideSite, ride.site), v.el_deg);
-  }
+  if (ride) rideCamera(rec, ride, { ahead: trackMode === "ahead" });
   if (rec.view) rec.view.update(st);
-  if (moved) {
-    rec.rideStation = ride.stationK;
-    rec.view.setTerrain({ horizon: ride.horizon, patch: ridePatch(it, ride) });
-  }
+  if (ride) rideTerrain(rec, it, ride);
   // Look ahead (rover traverses): a new direction of travel for every frame; the view eases toward it.
   if (trackMode === "ahead" && it.route && rec.view) applyTrack(rec, false, ride);
-  if (ride) rec.rideSite = ride.site;
   const foot = rec.root.querySelector(".sky-card-foot");
   // Plain words with the numbers (web/js/sky/words.js): "hidden behind terrain" when the skyline hides a body that is
   // above the horizontal plane, "below the horizon" only when the whole disk is below that plane.

@@ -1,20 +1,23 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
-// Public API of the rover traverse planner (contract C10 `rover-traverse`, docs/CONTRACTS.md).
+// Public API of the rover trip planner (contract C10 `rover-traverse`, docs/CONTRACTS.md).
 //
-//   import { planRoute, routeSeries } from './js/rover/index.js';
-//   const route = await planRoute({lat_deg, lon_deg}, {lat_deg, lon_deg}, {preset: 'viper'}, {onProgress});
+//   import { planTrip, planRoute, routeSeries } from './js/rover/index.js';
+//   const route = await planTrip([A, B, C], {preset: 'viper'}, {onProgress});   // waypoints {lat_deg, lon_deg}
+//   const leg = await planRoute(A, B, {preset: 'viper'}, {onProgress});          // one leg (= planTrip([A, B]))
 //   const s = await routeSeries(route, t0Ms, t1Ms, stepMs);   // C6 series + distance_km, position, ...
 //
 // planRoute runs in a module Web Worker when one is available (Moon Trek fetch + A* + ~200 horizon ray marches take
-// 5–20 s), inline in Node or with {worker: false}. Results are cached per (end points, rover).
+// 5–20 s), inline in Node or with {worker: false}. Results are cached per (end points, rover); a trip is cached per
+// (waypoints, rover) and reuses the cached legs, so adding a stop plans only the new legs.
 
 import { computeRoute, routePatch, timeline, distanceAtTime, pointAtDistance } from "./route.js";
-import { RouteError, MAX_ROUTE_KM, makePlane } from "./terrain.js";
+import { RouteError, MAX_ROUTE_KM, makePlane, greatCircle } from "./terrain.js";
 import { PRESETS, DEFAULT_PRESET, roverParams, speedFactor } from "./presets.js";
 import { routeSeries, routeTrack } from "./series.js";
+import { joinLegs, tripCentre, waypointLetter, legAtDistance } from "./trip.js";
 
 export { computeRoute, routePatch, timeline, distanceAtTime, pointAtDistance, RouteError, MAX_ROUTE_KM, makePlane };
-export { PRESETS, DEFAULT_PRESET, roverParams, speedFactor, routeSeries, routeTrack };
+export { PRESETS, DEFAULT_PRESET, roverParams, speedFactor, routeSeries, routeTrack, joinLegs, tripCentre, waypointLetter, legAtDistance };
 
 const CACHE = new Map(); // key -> Promise<route>
 const LISTENERS = new Map(); // key -> Set<fn(stage, frac)>
@@ -167,6 +170,82 @@ export function planRoute(start, end, rover = {}, opts = {}) {
     p = computeRoute(start, end, rover, { ...o, fetchFn, onProgress: emit });
   }
   if (!fetchFn) {
+    CACHE.set(key, p);
+    p.catch(() => CACHE.delete(key));
+  }
+  return p;
+}
+
+/** Cache key of a trip (waypoints to 1e-5°, rover parameters); a 2-point trip has its leg's key (routeKey). */
+export function tripKey(points, rover) {
+  if (points.length === 2) return routeKey(points[0], points[1], rover);
+  const r = roverParams(rover?.preset, rover || {});
+  const f = (x) => Math.round(x * 1e5) / 1e5;
+  return JSON.stringify(["trip", ...points.map((p) => [f(p.lat_deg), f(p.lon_deg)]), r.speed_mps, r.max_slope_deg, r.max_cross_deg, r.mu, r.power_margin]);
+}
+
+/**
+ * Problems with a trip before planning (messages naming the leg, e.g. "B → C is 75.2 km apart …"), empty when it can
+ * be planned: every waypoint inside −90..90° / −180..180°, every leg's straight line ≤ MAX_ROUTE_KM.
+ */
+export function tripProblems(points) {
+  const out = [];
+  points.forEach((p, i) => {
+    if (!Number.isFinite(p?.lat_deg) || !Number.isFinite(p?.lon_deg) || Math.abs(p.lat_deg) > 90 || Math.abs(p.lon_deg) > 180) {
+      out.push(`Set point ${waypointLetter(i)} (search a place or pick it on the globe).`);
+    }
+  });
+  if (out.length) return out;
+  for (let j = 0; j + 1 < points.length; j++) {
+    const km = greatCircle(points[j], points[j + 1]).dist_m / 1000;
+    if (km > MAX_ROUTE_KM) {
+      out.push(`${waypointLetter(j)} → ${waypointLetter(j + 1)} is ${km.toFixed(1)} km in a straight line: keep each leg under ${MAX_ROUTE_KM} km (add a stop in between).`);
+    }
+  }
+  return out;
+}
+
+/**
+ * Plan a trip through waypoints [A, B, C, …] ({lat_deg, lon_deg}, at least 2), leg by leg (planRoute, cached per leg),
+ * joined into one route (trip.js joinLegs: cumulative distance and time; a 2-point trip is its leg). Cached per trip.
+ * Progress: onProgress(stage, frac, leg, legs) and onRouteProgress(tripKey(...)). A leg that cannot be planned rejects
+ * with its RouteError, the message prefixed with the leg ("B → C: …").
+ * @param {object[]} points  waypoints
+ * @param {object} rover     {preset, speed_mps, max_slope_deg, max_cross_deg}
+ * @param {object} [opts]    planRoute options; planLeg (tests): fn(start, end, rover, opts) -> Promise<route>
+ */
+export function planTrip(points, rover = {}, opts = {}) {
+  if (!Array.isArray(points) || points.length < 2) return Promise.reject(new RouteError("incomplete", "A trip needs a start and an end."));
+  const key = tripKey(points, rover);
+  const { onProgress, planLeg = planRoute, ...rest } = opts;
+  if (onProgress) onRouteProgress(key, onProgress);
+  if (points.length === 2 && planLeg === planRoute) return planRoute(points[0], points[1], rover, rest);
+  if (CACHE.has(key) && planLeg === planRoute) return CACHE.get(key);
+  const probs = tripProblems(points);
+  if (probs.length) return Promise.reject(new RouteError("too_long", probs[0]));
+  const n = points.length - 1;
+  const emit = (stage, frac, leg) => {
+    LAST.set(key, { stage, frac, leg, legs: n });
+    for (const fn of LISTENERS.get(key) || []) fn(stage, frac, leg, n);
+  };
+  const p = (async () => {
+    const legs = [];
+    for (let j = 0; j < n; j++) {
+      const lk = routeKey(points[j], points[j + 1], rover);
+      const off = onRouteProgress(lk, (stage, frac) => emit(stage, frac, j));
+      try {
+        legs.push(await planLeg(points[j], points[j + 1], rover, rest));
+      } catch (err) {
+        if (err instanceof RouteError || err?.code) throw new RouteError(err.code || "error", `${waypointLetter(j)} → ${waypointLetter(j + 1)}: ${err.message}`);
+        throw err;
+      } finally {
+        off();
+      }
+    }
+    emit("horizons", 1, n - 1);
+    return joinLegs(legs);
+  })();
+  if (planLeg === planRoute) {
     CACHE.set(key, p);
     p.catch(() => CACHE.delete(key));
   }

@@ -18,9 +18,10 @@ can hide either one. Moonat computes both against the real terrain and lets you 
 One page, in the order you need it:
 1. **Place and time:** click the Moon globe (missions, Artemis III candidate regions and places of interest are marked
    in their own colours), type coordinates or search 40 catalog sites (Apollo, Luna, Surveyor, Chang'e, Chandrayaan-3,
-   Artemis III regions), and give a time or a mission span. **✨ Suggest dates** proposes the windows with the most
-   sunlight, the best Earth contact or both, and the eclipses and Earthrises seen from that place. Or start with a
-   story: Apollo 11, all Apollo landings, the south pole, the far side, an eclipse, a rover drive.
+   Artemis III regions), and give a time or a mission span in the date picker, where **✨ Suggested for this place**
+   proposes the windows with the most sunlight, the best Earth contact or both, and the eclipses and Earthrises seen
+   from that place. Or start with a story: Apollo 11, all Apollo landings, the south pole, the far side, an eclipse, a
+   rover drive.
 2. **The sky from there:** a first-person 3D view from 2 m above the ground, with terrain lit by the Sun, the Earth with
    its true phase and orientation, stars and planets, and a timelapse; one view per scenario. A hint offers the eclipse
    or the Earthrise a mission window holds ("Show me").
@@ -32,9 +33,11 @@ More:
 - **Eclipses seen from the Moon:** when the Earth crosses the Sun (a lunar eclipse on Earth), the share of sunlight it
   hides is computed and drawn, with the red ring of Earth's atmosphere; quick start "Eclipse from the Moon" replays
   Blue Ghost's 14 March 2025 view ([validation against NASA's contact times](docs/validation/eclipse.md)).
-- **Rover traverses (advanced):** pick a start and an end up to 60 km apart; Moonat fetches LOLA terrain from NASA Moon
-  Trek, finds the fastest drivable path for a VIPER-class rover or the Apollo LRV (slope limits), and charts the Sun and
-  Earth along the drive against time or distance travelled ([validation](docs/validation/rover.md)).
+- **Rover trips:** switch on **Trip** next to a place and add an end point and stops, as in Google Maps directions
+  (each leg up to 60 km); Moonat fetches LOLA terrain from NASA Moon Trek, finds the fastest drivable path for a
+  VIPER-class rover or the Apollo LRV (slope limits), draws it on the globe, and charts the Sun and Earth along the
+  drive against time or distance travelled. The timelapse rides along the route, with an optional "Look ahead" view
+  ([validation](docs/validation/rover.md)).
 
 | Compare all Apollo landings | South pole (Shackleton rim) | Far side (Chang'e 4) |
 |---|---|---|
