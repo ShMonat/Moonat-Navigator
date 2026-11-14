@@ -256,7 +256,7 @@ function b64urlDecode(str) {
 }
 
 /** Encode the app state into a URL hash string (with the leading "#"). */
-export function encodeHash({ scenarios, tab = "compare", xaxis = "met" }) {
+export function encodeHash({ scenarios, tab = "compare", xaxis = "met", body = "sun" }) {
   const rows = scenarios.map((s) => [
     s.label || "",
     s.lat_deg === null ? null : round(s.lat_deg, 5),
@@ -269,11 +269,12 @@ export function encodeHash({ scenarios, tab = "compare", xaxis = "met" }) {
   const p = new URLSearchParams();
   if (tab !== "compare") p.set("tab", tab);
   if (xaxis !== "met") p.set("x", xaxis);
+  if (body === "earth") p.set("b", body);
   p.set("s", b64urlEncode(JSON.stringify(rows)));
   return "#" + p.toString();
 }
 
-/** Decode a URL hash. Returns { scenarios, tab, xaxis } or null when the hash holds no scenarios. */
+/** Decode a URL hash. Returns { scenarios, tab, xaxis, body } or null when the hash holds no scenarios. */
 export function decodeHash(hash) {
   if (!hash || hash.length < 2) return null;
   try {
@@ -303,7 +304,8 @@ export function decodeHash(hash) {
     }
     const tab = p.get("tab") === "sky" ? "sky" : "compare";
     const xaxis = p.get("x") === "utc" ? "utc" : "met";
-    return { scenarios, tab, xaxis };
+    const body = p.get("b") === "earth" ? "earth" : "sun";
+    return { scenarios, tab, xaxis, body };
   } catch {
     return null;
   }
@@ -312,4 +314,60 @@ export function decodeHash(hash) {
 function round(x, d) {
   const f = 10 ** d;
   return Math.round(x * f) / f;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Mission duration as a view of the end time (the scenario model keeps t_end_utc).
+
+const DUR_UNIT_MS = { min: 60e3, h: 3600e3, d: 86400e3 };
+
+/**
+ * Parse a duration typed by the user: "36 h", "2.5 d", "90 min", "21h36m", "1d 6h" or a bare number (read in
+ * `defaultUnit`, "h" or "d"). A comma may be the decimal mark. Returns { ms, unit } where `unit` is the last unit the
+ * text used, or null when the text is not a positive finite duration.
+ */
+export function parseDuration(text, defaultUnit = "h") {
+  if (typeof text !== "string") return null;
+  const s = text.trim().toLowerCase().replace(/,/g, ".");
+  if (!s) return null;
+  const unitOf = (u) => {
+    if (/^(d|day|days)$/.test(u)) return "d";
+    if (/^(h|hr|hrs|hour|hours)$/.test(u)) return "h";
+    if (/^(m|min|mins|minute|minutes)$/.test(u)) return "min";
+    return null;
+  };
+  if (/^(\d+(\.\d+)?|\.\d+)$/.test(s)) {
+    const v = Number(s);
+    return v > 0 ? { ms: v * DUR_UNIT_MS[defaultUnit], unit: defaultUnit } : null;
+  }
+  const re = /(\d+(?:\.\d+)?|\.\d+)\s*([a-z]+)\s*/gy;
+  let ms = 0;
+  let unit = null;
+  let pos = 0;
+  let m;
+  while ((m = re.exec(s)) !== null) {
+    unit = unitOf(m[2]);
+    if (!unit) return null;
+    ms += Number(m[1]) * DUR_UNIT_MS[unit];
+    pos = re.lastIndex;
+  }
+  if (pos !== s.length || !unit || !(ms > 0) || !Number.isFinite(ms)) return null;
+  return { ms, unit };
+}
+
+/** Unit for showing a duration: hours below two days, days from two days up. */
+export function durationUnit(ms) {
+  return Math.abs(ms) < 2 * 86400e3 ? "h" : "d";
+}
+
+/** Duration in ms -> the number shown in a duration field for `unit` ("h" or "d"), rounded to 1 (hours) or 2 (days) decimals. */
+export function durationValueText(ms, unit = durationUnit(ms)) {
+  if (!Number.isFinite(ms)) return "";
+  return String(+(ms / DUR_UNIT_MS[unit]).toFixed(unit === "h" ? 1 : 2));
+}
+
+/** End time (ISO string) from a start time string and a duration in ms, or null when either is unusable. */
+export function endFromDuration(startUtc, ms) {
+  const t0 = parseUtc(startUtc);
+  return Number.isFinite(t0) && Number.isFinite(ms) && ms > 0 ? isoUtc(t0 + ms) : null;
 }

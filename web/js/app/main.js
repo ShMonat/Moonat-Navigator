@@ -8,7 +8,7 @@ import {
 import { loadCatalog, QUICK_STARTS, catalogSites } from "./catalog.js";
 import { initPhysics, physicsError, physicsCoverage, siteFor, stateAt, seriesFor } from "./physics_adapter.js";
 import { initScenarioUI } from "./scenarios_ui.js";
-import { renderCompare, rerenderCompare } from "./compare.js";
+import { renderCompare, rerenderCompare, initBodySwitch, syncBody } from "./compare.js";
 import { initSkyTab, setSkyItems, setSkyVisible } from "./sky_tab.js";
 
 const $ = (id) => document.getElementById(id);
@@ -147,7 +147,7 @@ let hashTimer = 0;
 function writeHash() {
   clearTimeout(hashTimer);
   hashTimer = setTimeout(() => {
-    const h = encodeHash({ scenarios: store.scenarios, tab: store.tab, xaxis: store.xaxis });
+    const h = encodeHash({ scenarios: store.scenarios, tab: store.tab, xaxis: store.xaxis, body: store.body });
     if (h !== location.hash) history.replaceState(null, "", h);
   }, 300);
 }
@@ -155,7 +155,7 @@ function writeHash() {
 function initShare() {
   $("btn-share").addEventListener("click", async () => {
     clearTimeout(hashTimer);
-    history.replaceState(null, "", encodeHash({ scenarios: store.scenarios, tab: store.tab, xaxis: store.xaxis }));
+    history.replaceState(null, "", encodeHash({ scenarios: store.scenarios, tab: store.tab, xaxis: store.xaxis, body: store.body }));
     try {
       await navigator.clipboard.writeText(location.href);
       toast("Link copied: it opens this exact comparison.");
@@ -234,6 +234,7 @@ async function boot() {
   initAbout();
   initShare();
   initXAxisToggle();
+  initBodySwitch();
   initSkyTab();
 
   await Promise.all([loadCatalog(), initPhysics("data/ephem")]);
@@ -267,6 +268,8 @@ async function boot() {
   const fromHash = decodeHash(location.hash);
   if (fromHash && fromHash.scenarios.length) {
     store.xaxis = fromHash.xaxis;
+    store.body = fromHash.body;
+    syncBody();
     for (const b of $("xaxis-toggle").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.x === store.xaxis));
     setScenarios(fromHash.scenarios);
     showTab(fromHash.tab);
@@ -278,9 +281,11 @@ async function boot() {
 
   window.addEventListener("hashchange", () => {
     const h = decodeHash(location.hash);
-    const cur = encodeHash({ scenarios: store.scenarios, tab: store.tab, xaxis: store.xaxis });
+    const cur = encodeHash({ scenarios: store.scenarios, tab: store.tab, xaxis: store.xaxis, body: store.body });
     if (h && location.hash !== cur) {
       store.xaxis = h.xaxis;
+      store.body = h.body;
+      syncBody();
       setScenarios(h.scenarios);
       showTab(h.tab);
     }

@@ -6,8 +6,50 @@ import assert from "node:assert/strict";
 import {
   parseUtc, isoUtc, toInputValue, formatDuration, normalizeLon, validateScenario, makeScenario, nextColorSlot,
   encodeHash, decodeHash, chooseStep, coverageEnd, describeYears, colorHex, PALETTE, scenarioTimes, physicsKey, formatUtc,
-  pointLabel, isPointLabel, toUtcText,
+  pointLabel, isPointLabel, toUtcText, parseDuration, durationUnit, durationValueText, endFromDuration,
 } from "../js/app/state.js";
+
+test("the Sun/Earth choice round-trips through the URL hash and defaults to Sun", () => {
+  const scenarios = [makeScenario({ lat_deg: 1, lon_deg: 2, t_start_utc: "1969-07-20T20:17:40Z" })];
+  assert.equal(decodeHash(encodeHash({ scenarios })).body, "sun");
+  assert.equal(decodeHash(encodeHash({ scenarios, body: "earth" })).body, "earth");
+  assert.ok(!encodeHash({ scenarios }).includes("b="));
+});
+
+test("parseDuration reads numbers with units", () => {
+  const H = 3600e3;
+  assert.equal(parseDuration("36 h").ms, 36 * H);
+  assert.equal(parseDuration("2.5 d").ms, 2.5 * 24 * H);
+  assert.equal(parseDuration("2,5 days").ms, 2.5 * 24 * H);
+  assert.equal(parseDuration("90 min").ms, 1.5 * H);
+  assert.equal(parseDuration("21h36m").ms, 21.6 * H);
+  assert.equal(parseDuration("1d 6h").ms, 30 * H);
+  assert.equal(parseDuration("2.5 d").unit, "d");
+  assert.deepEqual(parseDuration("48", "h"), { ms: 48 * H, unit: "h" });
+  assert.equal(parseDuration("2", "d").ms, 48 * H);
+});
+
+test("parseDuration rejects invalid text", () => {
+  for (const bad of ["", "  ", "abc", "h", "0", "0 h", "-3 h", "3 parsecs", "1.5.2 h", "2 h x", "1e3", null, undefined, 5]) {
+    assert.equal(parseDuration(bad), null, String(bad));
+  }
+});
+
+test("duration display converts the end instant to a number and back", () => {
+  const t0 = "1969-07-20T20:17:40Z";
+  const t1 = "1969-07-21T17:54:00Z"; // Apollo 11 surface stay: 21 h 36 min 20 s
+  const ms = parseUtc(t1) - parseUtc(t0);
+  assert.equal(durationUnit(ms), "h");
+  assert.equal(durationValueText(ms, "h"), "21.6");
+  assert.equal(durationValueText(ms, "d"), "0.9");
+  assert.equal(durationUnit(3 * 86400e3), "d");
+  assert.equal(durationValueText(3 * 86400e3), "3");
+  assert.equal(endFromDuration(t0, ms), t1);
+  assert.equal(endFromDuration(t0, parseDuration("21.6 h").ms), "1969-07-21T17:53:40Z");
+  assert.equal(endFromDuration("nonsense", 1000), null);
+  assert.equal(endFromDuration(t0, 0), null);
+  assert.equal(endFromDuration(t0, NaN), null);
+});
 
 test("parseUtc reads ISO strings and datetime-local values as UTC", () => {
   assert.equal(parseUtc("1969-07-20T20:17:40Z"), Date.UTC(1969, 6, 20, 20, 17, 40));

@@ -17,6 +17,7 @@ export const store = {
   activeId: null,
   tab: "compare",
   xaxis: "met",
+  body: "sun", // Compare tab section shown: "sun" | "earth"
   theme: "dark",
 };
 

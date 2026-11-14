@@ -2,6 +2,7 @@
 // Compare tab: Sun and Earth sections. Single instants get metric cards; missions get summary cards plus Plotly
 // charts against mission elapsed time (or calendar time), one line per scenario.
 
+import { store, subscribe, setUi } from "./store.js";
 import { formatDuration, formatUtc, DAY_MS } from "./state.js";
 import { horizonElAt, findEvents, stats, pctAbove, compassPoint } from "./derive.js";
 import { elevationIcon, azimuthIcon, visibleIcon, phaseIcon, fluxIcon, ringIcon } from "./icons.js";
@@ -74,6 +75,36 @@ export function renderCompare(items, opts) {
     .catch((err) => {
       for (const c of document.querySelectorAll(".chart")) c.textContent = "Charts could not load (offline?). " + err.message;
     });
+}
+
+/**
+ * The "☀ Sun | 🌍 Earth" switch: shows one section at a time. The choice lives in store.body (and the URL hash).
+ * Plotly cannot measure a hidden chart, so the charts of a section are resized when it is shown.
+ */
+export function initBodySwitch() {
+  const seg = document.getElementById("body-toggle");
+  seg.addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (b && b.dataset.body !== store.body) setUi({ body: b.dataset.body });
+  });
+  subscribe((kind, detail) => {
+    if (kind === "ui" && "body" in detail) syncBody();
+  });
+  syncBody();
+}
+
+/** Apply store.body to the DOM (button state, which section is visible) and resize the charts that just appeared. */
+export function syncBody() {
+  const body = store.body === "earth" ? "earth" : "sun";
+  for (const b of document.querySelectorAll("#body-toggle button")) b.setAttribute("aria-pressed", String(b.dataset.body === body));
+  document.getElementById("sec-sun").hidden = body !== "sun";
+  document.getElementById("sec-earth").hidden = body !== "earth";
+  if (!plotlyPromise) return;
+  plotlyPromise.then((Plotly) => {
+    requestAnimationFrame(() => {
+      for (const c of document.querySelectorAll(`#sec-${body} .chart`)) if (c.classList.contains("js-plotly-plot")) Plotly.Plots.resize(c);
+    });
+  }).catch(() => {});
 }
 
 /** Re-render with the last data (theme or toggle change). */

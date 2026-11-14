@@ -7,6 +7,7 @@ import {
 } from "./store.js";
 import {
   colorHex, validateScenario, parseUtc, toUtcText, isoUtc, normalizeLon, formatDuration, scenarioTimes, pointLabel, isPointLabel,
+  parseDuration, durationUnit, durationValueText, endFromDuration,
 } from "./state.js";
 import { searchSites, scenarioFieldsFromSite, siteById, KIND_LABEL, catalogSites, isTrimmedMission, shortName } from "./catalog.js";
 import { physicsCoverage } from "./physics_adapter.js";
@@ -17,6 +18,9 @@ let cardsEl;
 let addLocBtn;
 let addTimeBtn;
 let clearBtn;
+// Per scenario id: how the end is given ("end" | "dur") and the unit last used for the duration. UI view only.
+const endModes = new Map();
+const endUnits = new Map();
 
 export function initScenarioUI() {
   cardsEl = $("#cards");
@@ -161,9 +165,11 @@ function buildCard(s, index) {
   }
 
   // Times (UTC).
+  // The end is given either as a date-time or as a mission duration; both are views of t_end_utc.
   const t0 = timeField("Start (UTC)", "t_start_utc", s.t_start_utc, false);
-  const t1 = timeField("End (UTC, optional)", "t_end_utc", s.t_end_utc, true);
-  card.append(el("div", { class: "fields times" }, t0.wrap, t1.wrap));
+  const t1 = timeField("End (UTC)", "t_end_utc", s.t_end_utc, true);
+  const end = buildEndField(s, card, t0, t1);
+  card.append(el("div", { class: "fields times" }, t0.wrap, end.wrap));
   for (const f of [t0, t1]) {
     const commit = () => {
       const raw = f.input.value;
@@ -171,6 +177,8 @@ function buildCard(s, index) {
       const val = raw ? (Number.isFinite(ms) ? isoUtc(ms) : raw) : null;
       updateScenario(s.id, { [f.key]: val });
       if (f.clear) f.clear.hidden = !raw;
+      // In duration mode the duration stays and the end follows a new start.
+      if (f === t0) end.followStart();
       refreshCard(card, s);
     };
     f.input.addEventListener("change", commit);
@@ -219,7 +227,101 @@ function timeField(text, key, value, clearable) {
     inner = el("div", { class: "with-clear" }, input, clear);
   }
   const wrap = el("label", { class: "field" }, el("span", { text }), inner);
-  return { input, wrap, key, clear };
+  return { input, wrap, body: inner, key, clear };
+}
+
+/**
+ * The "End" part of a card: a segmented "End time | Duration" toggle over either the end date-time field or a
+ * duration field (number and unit). Only t_end_utc is stored; the mode (per scenario, kept across card rebuilds) is a
+ * view. Switching converts, so the end instant stays the same.
+ */
+function buildEndField(s, card, t0, t1) {
+  const startMs = () => parseUtc(t0.input.value);
+  const unitSel = el("select", { class: "dur-unit", "aria-label": "Duration unit" },
+    el("option", { value: "h", text: "hours" }), el("option", { value: "d", text: "days" }));
+  const input = el("input", {
+    type: "text", name: "duration", inputmode: "decimal", autocomplete: "off", spellcheck: "false", class: "dur-input",
+    placeholder: "e.g. 21.6 or 1 d 6 h", "aria-label": "Mission duration (a number, optionally with h, d or min)",
+    title: "Mission length: a number in the unit on the right, or text like 36 h, 2.5 d, 90 min",
+  });
+  const durBody = el("div", { class: "dur-row" }, input, unitSel);
+  const toggle = el("div", { class: "seg seg-sm", role: "group", "aria-label": "How to give the end" });
+  const bEnd = el("button", { type: "button", text: "End time", "aria-pressed": "true" });
+  const bDur = el("button", { type: "button", text: "Duration", "aria-pressed": "false" });
+  toggle.append(bEnd, bDur);
+  const wrap = el("div", { class: "field end-field", role: "group", "aria-label": "End of the mission" },
+    el("div", { class: "end-head" }, el("span", { text: "End (UTC, optional)" }), toggle), t1.body, durBody);
+
+  card._endHint = null;
+  let prevUnit = "h";
+  const mode = () => endModes.get(s.id) || "end";
+  const showMode = () => {
+    const dur = mode() === "dur";
+    t1.body.hidden = dur;
+    durBody.hidden = !dur;
+    bEnd.setAttribute("aria-pressed", String(!dur));
+    bDur.setAttribute("aria-pressed", String(dur));
+  };
+  /** Fill the duration field from the current end (the end instant is the truth). */
+  const fillFromEnd = () => {
+    const ms = parseUtc(s.t_end_utc || "") - parseUtc(s.t_start_utc || "");
+    if (s.t_end_utc && ms > 0) {
+      unitSel.value = endUnits.get(s.id) || durationUnit(ms);
+      prevUnit = unitSel.value;
+      input.value = durationValueText(ms, unitSel.value);
+    } else if (!s.t_end_utc && !card._endHint) input.value = "";
+  };
+  /** Read the duration field, set t_end_utc from it and mirror it into the date-time field. */
+  const commitDuration = () => {
+    const text = input.value.trim();
+    card._endHint = null;
+    let endIso = null;
+    if (text) {
+      const p = parseDuration(text, unitSel.value);
+      if (!p) card._endHint = { text: "Enter a duration such as 36 h, 2.5 d or 90 min.", bad: true };
+      else {
+        // Text with its own unit moves the selector (not for minutes, which the selector does not offer).
+        if (p.unit !== "min" && !/^[\d.,\s]+$/.test(text)) unitSel.value = p.unit;
+        prevUnit = unitSel.value;
+        endUnits.set(s.id, unitSel.value);
+        endIso = endFromDuration(t0.input.value, p.ms);
+        if (!endIso && !Number.isFinite(startMs())) card._endHint = { text: "Set the start time first; the end follows from it." };
+      }
+    }
+    updateScenario(s.id, { t_end_utc: endIso });
+    t1.input.value = endIso ? toUtcText(parseUtc(endIso)) : "";
+    if (t1.clear) t1.clear.hidden = !endIso;
+    refreshCard(card, s);
+  };
+  const setMode = (m) => {
+    if (m === mode()) return;
+    endModes.set(s.id, m);
+    card._endHint = null;
+    if (m === "dur") {
+      endUnits.delete(s.id);
+      fillFromEnd();
+    } else t1.input.value = s.t_end_utc ? toUtcText(parseUtc(s.t_end_utc)) : "";
+    showMode();
+    refreshCard(card, s);
+  };
+  bEnd.addEventListener("click", () => setMode("end"));
+  bDur.addEventListener("click", () => setMode("dur"));
+  input.addEventListener("input", commitDuration);
+  unitSel.addEventListener("change", () => {
+    // A new unit converts the number, so the duration stays the same.
+    const p = parseDuration(input.value, prevUnit);
+    if (p) input.value = durationValueText(p.ms, unitSel.value);
+    prevUnit = unitSel.value;
+    commitDuration();
+  });
+  if (mode() === "dur") fillFromEnd();
+  showMode();
+  return {
+    wrap,
+    followStart() {
+      if (mode() === "dur") commitDuration();
+    },
+  };
 }
 
 /** Update validation messages and the meta line of a card in place (no rebuild, so focus is kept). */
@@ -229,12 +331,15 @@ function refreshCard(card, s) {
     const input = card.querySelector(`[name="${key}"]`);
     if (input) input.setAttribute("aria-invalid", key in v.errors ? "true" : "false");
   }
+  const durInput = card.querySelector('[name="duration"]');
+  if (durInput) durInput.setAttribute("aria-invalid", ("t_end_utc" in v.errors || card._endHint?.bad) ? "true" : "false");
   const msg = card.querySelector(".scen-msg");
   const errs = Object.values(v.errors);
-  const text = errs[0] || v.warnings[0] || "";
+  const hint = card._endHint;
+  const text = (hint && hint.bad ? hint.text : "") || errs[0] || (hint ? hint.text : "") || v.warnings[0] || "";
   msg.textContent = text;
   msg.hidden = !text;
-  msg.classList.toggle("warn", !errs.length && !!v.warnings.length);
+  msg.classList.toggle("warn", !errs.length && !(hint && hint.bad) && !!text);
 
   const meta = card.querySelector(".scen-meta");
   const parts = [];

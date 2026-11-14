@@ -52,14 +52,6 @@
 
   <main class="layout">
     <aside class="side" aria-label="Scenarios">
-      <section class="block qs-block">
-        <div class="block-head">
-          <h2 class="block-title">Quick start</h2>
-          <a class="jump-link" href="#map-block">Map and scenarios &darr;</a>
-        </div>
-        <div class="chips" id="quickstarts"></div>
-      </section>
-
       <section class="block map-block" id="map-block">
         <div id="map" class="map" role="application" aria-label="Moon map: click to set the location of the selected scenario"></div>
         <p class="map-hint" id="map-hint">Click the map to place the selected scenario.</p>
@@ -76,6 +68,14 @@
           <button class="add-btn" id="btn-add-time" title="Same place, new time">+ Add time</button>
         </div>
       </section>
+
+      <section class="block qs-block">
+        <div class="block-head">
+          <h2 class="block-title">Quick start</h2>
+          <a class="jump-link" href="#output">Results &uarr;</a>
+        </div>
+        <div class="chips" id="quickstarts"></div>
+      </section>
     </aside>
 
     <section class="output" id="output" aria-live="polite">
@@ -86,6 +86,10 @@
           <p>Use the map, type coordinates, or load a historical mission. A quick start is the fastest way in.</p>
         </div>
         <div id="compare-body">
+          <div class="body-switch seg seg-lg" role="group" aria-label="Show Sun data or Earth data" id="body-toggle">
+            <button type="button" data-body="sun" aria-pressed="true"><span aria-hidden="true">☀</span> Sun</button>
+            <button type="button" data-body="earth" aria-pressed="false"><span aria-hidden="true">🌍</span> Earth</button>
+          </div>
           <div class="compare-bar" id="compare-bar">
             <div class="seg" role="group" aria-label="Time axis" id="xaxis-toggle">
               <button data-x="met" aria-pressed="true">Mission elapsed time</button>
