@@ -10,6 +10,8 @@
 // All matrices are row-major arrays of 9 numbers; `mat3Vec(R, v)` computes R·v.
 // Angles are degrees at function interfaces unless the name ends in `Rad`.
 
+import { ghostText, offsetText } from './words.js';
+
 export const DEG = Math.PI / 180;
 export const R_MOON_M = 1737400;
 
@@ -302,4 +304,145 @@ export function signed1(x, digits = 1) {
 /** ISO-8601 UTC string (seconds precision) for a JS epoch in milliseconds. */
 export function isoUtc(tMs) {
   return new Date(tMs).toISOString().replace(/\.\d+Z$/, 'Z');
+}
+
+// --- Body markers (contract C8): where the Sun and the Earth are when the frame does not show them -----------------
+//   - In the frame but hidden: a dashed outline at the body's true place and size, labelled "Earth · behind terrain" or
+//     "Earth · below the horizon (−7.5°)" (wording rule in words.js).
+//   - Out of the frame in any direction: an arrow on that edge, pointing at the body, labelled "Sun · 35° right"; a
+//     click turns the view to it (lookAtBody).
+// Camera model: the view's three.js camera (rotation order YXZ, no roll). Yaw = view azimuth `az` (deg, clockwise from
+// north), pitch = view elevation `el` (deg), horizontal field of view `hfov` (deg) across the frame width, square pixels.
+// Directions are unit ENU vectors. Screen coordinates are CSS pixels from the frame's top-left corner, x right, y down.
+// Tested in web/tests/sky_markers.test.mjs.
+
+/** Margins (CSS px) of the band along the frame edges where the arrows sit; the bottom one clears the compass strip. */
+export const EDGE_INSET = { left: 8, right: 8, top: 8, bottom: 30 };
+
+/** A body this close to the camera plane (cosine of its angle from the view axis) is treated as behind the camera. */
+const Z_SIDE = 0.05;
+
+/**
+ * Camera-frame coordinates [x (right), y (up), z (forward)] of a unit ENU direction, for a camera at azimuth `azDeg` and
+ * elevation `elDeg` (deg). For a body at (az_b, el_b): x = cos(el_b)·sin(az_b − az), so x > 0 means right of the view
+ * centre; z is the cosine of the angle between the body and the view axis.
+ */
+export function cameraCoords(enu, azDeg, elDeg) {
+  const a = azDeg * DEG, e = elDeg * DEG, sa = Math.sin(a), ca = Math.cos(a), se = Math.sin(e), ce = Math.cos(e);
+  const [E, N, U] = enu;
+  return [E * ca - N * sa, -E * se * sa - N * se * ca + U * ce, E * ce * sa + N * ce * ca + U * se];
+}
+
+/**
+ * Perspective projection of a unit ENU direction into a frame of width × height CSS px for the view { az, el, hfov }
+ * (deg), the same as the view's three.js camera. Returns { x, y, z, f, front }: the screen position (NaN when the
+ * direction is behind the camera), z = cosine of the angle from the view axis, f = focal length in px
+ * (width / 2 / tan(hfov / 2), the same on both axes), front = z > 0.
+ */
+export function projectDir(enu, view, width, height) {
+  const [cx, cy, cz] = cameraCoords(enu, view.az, view.el);
+  const f = width / 2 / Math.tan((view.hfov * DEG) / 2);
+  if (!(cz > 1e-9)) return { x: NaN, y: NaN, z: cz, f, front: false };
+  return { x: width / 2 + (f * cx) / cz, y: height / 2 - (f * cy) / cz, z: cz, f, front: true };
+}
+
+/** Signed azimuth turn (deg) from the view azimuth to a body azimuth, in (−180, 180]: positive = turn right (clockwise). */
+export function azTurn(bodyAzDeg, viewAzDeg) {
+  const d = ((((bodyAzDeg - viewAzDeg) % 360) + 540) % 360) - 180;
+  return d === -180 ? 180 : d;
+}
+
+/** Great-circle angle (deg) between two directions given by azimuth and elevation (deg). */
+export function angularSeparation(az1, el1, az2, el2) {
+  const a = azElToEnu(az1, el1), b = azElToEnu(az2, el2);
+  const c = a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  return Math.acos(Math.max(-1, Math.min(1, c))) / DEG;
+}
+
+/**
+ * Where a ray from the frame centre in the screen direction (dx, dy) (y down) leaves the frame shrunk by `inset`.
+ * Returns { x, y, edge } with edge "left" | "right" | "top" | "bottom" (the first edge the ray meets).
+ */
+export function rayToEdge(dx, dy, width, height, inset = EDGE_INSET) {
+  const cx = width / 2, cy = height / 2;
+  let t = Infinity, edge = 'right';
+  const tryEdge = (k, name) => { if (k >= 0 && k < t) { t = k; edge = name; } };
+  if (dx > 0) tryEdge((width - inset.right - cx) / dx, 'right');
+  if (dx < 0) tryEdge((inset.left - cx) / dx, 'left');
+  if (dy > 0) tryEdge((height - inset.bottom - cy) / dy, 'bottom');
+  if (dy < 0) tryEdge((inset.top - cy) / dy, 'top');
+  if (!Number.isFinite(t)) return { x: width - inset.right, y: cy, edge: 'right' };
+  return { x: cx + t * dx, y: cy + t * dy, edge };
+}
+
+/**
+ * Marker for one body (the Sun or the Earth) in the current frame.
+ *   name:   "Sun" | "Earth" (label text)
+ *   body:   C6 body state { az_deg, el_deg, ang_radius_deg, enu? }
+ *   view:   { az, el, hfov } of the camera (deg); width, height: frame size (CSS px)
+ *   hidden: null (at least part of the disk is visible), "terrain" or "below" (why it is out of sight, words.js)
+ * Returns one of
+ *   { kind: "in", x, y, r }                       centre in the frame, visible: the plain label does the job
+ *   { kind: "ghost", x, y, r, text }              centre in the frame, hidden: dashed outline at its true place and size
+ *   { kind: "edge", edge, x, y, angle, text }     centre out of the frame: an arrow at (x, y) on that edge
+ * r is the disk's radius in px; angle (rad, screen frame, y down) is the direction the arrow points.
+ * Off-frame direction: toward the projected position for a body in front of the camera; for one behind it (or nearly
+ * at right angles to the view axis), the turn that brings it into view: (azimuth turn × cos(el), elevation change).
+ */
+export function bodyMarker({ name, body, view, width, height, hidden = null, inset = EDGE_INSET }) {
+  const enu = body.enu ?? azElToEnu(body.az_deg, body.el_deg);
+  const p = projectDir(enu, view, width, height);
+  if (p.front && p.x >= 0 && p.x <= width && p.y >= 0 && p.y <= height) {
+    const r = (p.f * Math.tan((body.ang_radius_deg ?? 0) * DEG)) / p.z;
+    if (!hidden) return { kind: 'in', x: p.x, y: p.y, r };
+    return { kind: 'ghost', x: p.x, y: p.y, r, text: ghostText(name, hidden, body.el_deg) };
+  }
+  const dAz = azTurn(body.az_deg, view.az), dEl = body.el_deg - view.el;
+  let dx, dy;
+  if (p.front && p.z > Z_SIDE) {
+    dx = p.x - width / 2;
+    dy = p.y - height / 2;
+  } else {
+    dx = dAz * Math.cos(body.el_deg * DEG);
+    dy = -dEl;
+    if (Math.abs(dx) < 1e-9 && Math.abs(dy) < 1e-9) dx = 1;
+  }
+  const at = rayToEdge(dx, dy, width, height, inset);
+  const sep = angularSeparation(view.az, view.el, body.az_deg, body.el_deg);
+  return { kind: 'edge', edge: at.edge, x: at.x, y: at.y, angle: Math.atan2(dy, dx), text: `${name} · ${offsetText(at.edge, dAz, dEl, sep)}` };
+}
+
+/**
+ * Box (CSS px) of an edge marker of size w × h, anchored at (x, y) on `edge`: flush with that edge of the inset frame,
+ * centred on the anchor along the edge, kept inside the frame, and slid along the edge (nearest free spot first) off
+ * the `boxes` it must not cover ([{ x0, y0, x1, y1 }]: the button bar, the readout, the close-up insets, the other
+ * body). If the whole edge is taken, it steps inward instead. Returns { x0, y0, x1, y1 }.
+ */
+export function placeOnEdge({ edge, x, y, w, h, width, height, inset = EDGE_INSET, boxes = [], step = 4 }) {
+  const side = edge === 'left' || edge === 'right';
+  const L = inset.left, R = width - inset.right, T = inset.top, B = height - inset.bottom;
+  const box = (a, inward = 0) => {
+    if (side) {
+      const x0 = edge === 'left' ? L + inward : R - w - inward;
+      return { x0, y0: a - h / 2, x1: x0 + w, y1: a + h / 2 };
+    }
+    const y0 = edge === 'top' ? T + inward : B - h - inward;
+    return { x0: a - w / 2, y0, x1: a + w / 2, y1: y0 + h };
+  };
+  const [aMin, aMax] = side ? [T + h / 2, Math.max(T + h / 2, B - h / 2)] : [L + w / 2, Math.max(L + w / 2, R - w / 2)];
+  const a0 = Math.min(aMax, Math.max(aMin, side ? y : x));
+  const free = (b) => !boxes.some((o) => b.x0 < o.x1 && b.x1 > o.x0 && b.y0 < o.y1 && b.y1 > o.y0);
+  for (let d = 0; d <= aMax - aMin; d += step) {
+    for (const a of d ? [a0 + d, a0 - d] : [a0]) {
+      if (a < aMin - 1e-9 || a > aMax + 1e-9) continue;
+      const b = box(a);
+      if (free(b)) return b;
+    }
+  }
+  const depth = (side ? width : height) / 3;
+  for (let k = step; k <= depth; k += step) {
+    const b = box(a0, k);
+    if (free(b)) return b;
+  }
+  return box(a0);
 }

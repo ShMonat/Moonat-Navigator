@@ -75,6 +75,47 @@ export function bodyLine(name, body, compassName, skylineEl = null, { neverRises
 }
 
 /**
+ * Label of a hidden body's dashed outline in the sky view (math.js bodyMarker): "Earth · behind terrain" or
+ * "Earth · below the horizon (−7.5°)". hidden: "terrain" | "below" (hiddenReason); elDeg: the body's height.
+ */
+export function ghostText(name, hidden, elDeg) {
+  return hidden === 'below' ? `${name} · below the horizon (${degText(elDeg)})` : `${name} · behind terrain`;
+}
+
+/**
+ * Short offset text of an edge arrow (math.js bodyMarker): how far to turn, and which way. Left and right edges: the
+ * azimuth turn ("35° right"); top and bottom: the elevation change ("44° up"). Where those do not describe the turn
+ * (a body over the zenith side, or a change under 0.5°), the great-circle angle `sepDeg` from the view centre is used.
+ * edge: "left" | "right" | "top" | "bottom"; dAzDeg: signed azimuth turn (+ = right); dElDeg: body − view elevation.
+ */
+export function offsetText(edge, dAzDeg, dElDeg, sepDeg) {
+  const side = edge === 'left' || edge === 'right';
+  let n = Math.round(Math.abs(side ? dAzDeg : dElDeg));
+  const sameWay = side || (edge === 'top' ? dElDeg > 0 : dElDeg < 0);
+  if (!sameWay || n < 1) n = Math.max(1, Math.round(sepDeg));
+  return `${n}° ${{ left: 'left', right: 'right', top: 'up', bottom: 'down' }[edge]}`;
+}
+
+/**
+ * Covered share of the Sun during an eclipse (C6 sun.eclipse_frac, 0..1) as percent text without the sign: "100" only
+ * when total, one decimal below 1 % and above 99 % (so a sliver is never rounded to "100"), else a whole number.
+ */
+export function eclipsePctText(ecl) {
+  if (ecl >= 1) return '100';
+  const p = ecl * 100;
+  return p > 99 || p < 1 ? (Math.floor(p * 10) / 10).toFixed(1) : String(Math.round(p));
+}
+
+/** One short eclipse status line, e.g. "Earth eclipses the Sun · 81 %", or "" without an eclipse (eclipse_frac 0). */
+export function eclipseStatus(sun) {
+  const e = sun?.eclipse_frac ?? 0;
+  return e > 0 ? `Earth eclipses the Sun · ${eclipsePctText(e)} %` : '';
+}
+
+/** Tooltip of the "ring illustrative" note of the close-up during an eclipse (Shay's decision: keep the ring, labelled). */
+export const RING_NOTE = "Sunlight refracted by Earth's atmosphere; drawn for illustration, not computed.";
+
+/**
  * True when the Earth can never rise above the local horizontal plane at a site, whatever the date.
  * Geometry: the Earth's direction from a site is about 90° minus the angular distance d between the site and the
  * sub-Earth point. Libration moves the sub-Earth point at most about 10.4° from (0° N, 0° E) (up to 7.9° in longitude

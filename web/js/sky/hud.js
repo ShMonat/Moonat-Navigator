@@ -1,11 +1,12 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
 //
-// DOM overlay of the sky view: time and Sun/Earth readout, compass ticks along the bottom edge, planet and body
-// labels, and a constellation toggle. The view itself is always a black sky, so the HUD uses light text in both
-// page themes.
+// DOM overlay of the sky view: time and Sun/Earth readout ("full", or "minimal": the time and at most one status line),
+// compass ticks along the bottom edge, planet and body labels, the body markers (math.js bodyMarker: a label for a hidden
+// body's dashed outline, edge arrows toward a body out of the frame) and the view-option buttons. The view itself is
+// always a black sky, so the HUD uses light text with a dark halo in both page themes.
 
-import { isoUtc, signed1 } from './math.js';
-import { compassPair, hiddenPhrase } from './words.js';
+import { isoUtc, signed1, DEG, placeOnEdge } from './math.js';
+import { compassPair, hiddenPhrase, eclipsePctText, eclipseStatus } from './words.js';
 
 const CSS = `
 .moonat-sky{position:relative;overflow:hidden;background:#000;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
@@ -15,8 +16,17 @@ const CSS = `
 .moonat-sky-frame.tall{box-shadow:0 0 0 1px rgba(160,185,225,.22),0 0 30px 8px rgba(0,0,0,.6)}
 .moonat-sky canvas.moonat-sky-bands{position:absolute;inset:0;display:none;pointer-events:none;filter:blur(10px) brightness(.62) saturate(1.1);transform:scale(1.04)}
 .moonat-sky canvas.moonat-sky-bands.on{display:block}
-.moonat-sky-edge{position:absolute;top:8px;transform:translateX(-50%);pointer-events:auto;cursor:pointer;color:#cfe0ff;background:rgba(20,26,38,.55);border:1px solid rgba(160,185,225,.35);border-radius:999px;padding:2px 10px;font:inherit;font-size:11.5px;white-space:nowrap;text-shadow:none}
-.moonat-sky-edge:hover{background:rgba(60,95,160,.75);color:#fff}
+.moonat-sky-edge{position:absolute;display:flex;align-items:center;gap:4px;box-sizing:border-box;height:20px;margin:0;padding:0 8px 0 5px;pointer-events:auto;cursor:pointer;color:#d3e2fb;background:rgba(8,12,20,.42);border:1px solid rgba(160,185,225,.32);border-radius:999px;font:inherit;font-size:11px;line-height:1;white-space:nowrap;text-shadow:0 0 3px #000}
+.moonat-sky-edge.e-right{padding:0 5px 0 8px}
+.moonat-sky-edge.hid{border-style:dashed}
+.moonat-sky-edge::after{content:"";position:absolute;inset:-8px -4px}
+.moonat-sky-edge:hover,.moonat-sky-edge:focus-visible{background:rgba(60,95,160,.72);border-color:rgba(200,215,245,.7);color:#fff}
+.moonat-sky-edge svg{flex:none;width:10px;height:10px;overflow:visible}
+.moonat-sky-edge path{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.moonat-sky-label.ghost{color:rgba(178,208,255,.9);font-size:10.5px}
+.moonat-sky-illus{pointer-events:auto;cursor:help;color:#9fb0c8;font-size:10px;border-bottom:1px dotted rgba(159,176,200,.6)}
+.moonat-sky-illus.open{color:#c9d5e6;border-bottom:0;white-space:normal}
+.moonat-sky-bar[hidden]{display:none}
 .moonat-sky-hud{position:absolute;inset:0;pointer-events:none;color:#e8edf5;font:12px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif;text-shadow:0 0 3px #000,0 0 6px #000}
 .moonat-sky-tl{position:absolute;left:10px;top:8px;display:flex;flex-direction:column;align-items:flex-start;gap:8px;max-width:calc(100% - 20px)}
 .moonat-sky-info{font-variant-numeric:tabular-nums;white-space:pre}
@@ -47,7 +57,8 @@ const CARDINALS = { 0: 'N', 45: 'NE', 90: 'E', 135: 'SE', 180: 'S', 225: 'SW', 2
  * skylineAt(az_deg) -> elevation (deg) of the terrain horizon in that direction, so a hidden body can be called
  * "hidden behind terrain (skyline +5.2°)" or "below the horizon" (wording rule in words.js).
  */
-export function createHud(container, { onLookAt = null, onToggleConstellations, constellationsOn, hasConstellations, onExposureMode, exposureMode = 'eye', onToggleCloseUp, closeUpOn = true, skylineAt = null }) {
+export function createHud(container, { onLookAt = null, onToggleConstellations, constellationsOn, hasConstellations, onExposureMode, exposureMode = 'eye', onToggleCloseUp, closeUpOn = true, skylineAt = null, level: level0 = 'full', buttons = true }) {
+  let level = level0 === 'minimal' ? 'minimal' : 'full';
   if (!document.getElementById('moonat-sky-css')) {
     const st = document.createElement('style');
     st.id = 'moonat-sky-css'; st.textContent = CSS;
@@ -58,6 +69,7 @@ export function createHud(container, { onLookAt = null, onToggleConstellations, 
   root.innerHTML = '<div class="moonat-sky-tl"><div class="moonat-sky-info"></div><div class="moonat-sky-badge" hidden></div></div><div class="moonat-sky-note"></div><div class="moonat-sky-compass"></div>';
   container.appendChild(root);
   const info = root.querySelector('.moonat-sky-info'), badge = root.querySelector('.moonat-sky-badge'), note = root.querySelector('.moonat-sky-note'), compass = root.querySelector('.moonat-sky-compass');
+  const topLeft = root.querySelector('.moonat-sky-tl');
   const labels = document.createElement('div');
   root.appendChild(labels);
   labels.addEventListener('pointerdown', (e) => { if (e.target.closest('.moonat-sky-edge')) e.stopPropagation(); });
@@ -67,6 +79,7 @@ export function createHud(container, { onLookAt = null, onToggleConstellations, 
   });
   const bar = document.createElement('div');
   bar.className = 'moonat-sky-bar';
+  bar.hidden = !buttons;
   root.appendChild(bar);
   // Each button has a glyph and a word; narrow views (app CSS) show only the glyph. The accessible name is the word.
   const setLabel = (b, text) => { b.querySelector('.t').textContent = text; b.setAttribute('aria-label', text); };
@@ -96,8 +109,18 @@ export function createHud(container, { onLookAt = null, onToggleConstellations, 
   }, '◎');
   const caps = document.createElement('div');
   root.appendChild(caps);
+  // The "ring illustrative" note of a close-up caption: the tooltip says why; a tap (no tooltips on touch screens)
+  // opens the same sentence in place, and another tap closes it.
+  let capList = [], noteOpen = false;
+  caps.addEventListener('pointerdown', (e) => { if (e.target.closest('.moonat-sky-illus')) e.stopPropagation(); });
+  caps.addEventListener('click', (e) => {
+    if (!e.target.closest('.moonat-sky-illus')) return;
+    noteOpen = !noteOpen;
+    setCaptions(capList);
+  });
+  let constellationsBtn = null;
   if (hasConstellations) {
-    addButton('Constellations', 'Show or hide the constellation lines and the names of well-known ones', constellationsOn, (b) => {
+    constellationsBtn = addButton('Constellations', 'Show or hide the constellation lines and the names of well-known ones', constellationsOn, (b) => {
       const on = b.getAttribute('aria-pressed') !== 'true';
       b.setAttribute('aria-pressed', String(on));
       onToggleConstellations(on);
@@ -108,8 +131,7 @@ export function createHud(container, { onLookAt = null, onToggleConstellations, 
   const eclipseLine = (sun) => {
     const e = sun.eclipse_frac ?? 0;
     if (!(e > 0)) return '';
-    const p = e * 100;
-    const pct = e >= 1 ? '100' : p > 99 || p < 1 ? (Math.floor(p * 10) / 10).toFixed(1) : String(Math.round(p));
+    const pct = eclipsePctText(e);
     const why = hiddenPhrase(sun, skyline(sun));
     const hidden = why ? `  <span class="dim">(Sun ${why})</span>` : '';
     return `
@@ -123,14 +145,21 @@ export function createHud(container, { onLookAt = null, onToggleConstellations, 
    * @param s        C6 skyState or null
    * @param view     { az, el, hfov } of the camera (deg)
    * @param project  (enuUnit) -> { x, y, visible } in CSS pixels
-   * @param marks    [{ name, enu, hidden, dx, body, edgeText }] labels to place
+   * @param marks    [{ name, enu, hidden, dx, must }] labels to place (must: placed even where it collides)
    * @param noteText [string] notes for the lower right corner
    * @param avoid    [{ x0, y0, x1, y1 }] boxes (CSS px) that labels must not cover, e.g. the close-up insets
    * @param badgeHtml a message box under the readout (e.g. "Earth is below your feet" on the far side), or ''
+   * @param bodies   body markers of the Sun and the Earth (math.js bodyMarker, plus { body: "sun" | "earth", title,
+   *                 hidden }): a label beside a hidden body's dashed outline ("ghost"), an arrow button on the frame
+   *                 edge for a body out of the frame ("edge"; a click calls onLookAt(body)). Nothing covers a body's disk.
    * Marks with `faint: true` are constellation names: centred, dim, and dropped where they would cover something.
    */
-  function update(s, view, project, marks, noteText, avoid = [], badgeHtml = '') {
-    if (s) {
+  function update(s, view, project, marks, noteText, avoid = [], badgeHtml = '', bodies = []) {
+    if (s && level === 'minimal') {
+      // Minimal: the time and at most one short status line (the full numbers live in the page, e.g. a card footer).
+      const st = eclipseStatus(s.sun);
+      info.innerHTML = `<b>${isoUtc(s.t_ms).replace('T', ' ').replace('Z', ' UTC')}</b>${st ? `\n<span style="color:#ffb27a">${st}</span>` : ''}`;
+    } else if (s) {
       // Plain words with the precise numbers: "height" is the elevation above the flat horizon, "direction" the compass
       // point and the azimuth (clockwise from north).
       // A second, indented line says what hides a body (or how much of it shows) and the Earth's phase.
@@ -165,52 +194,73 @@ export function createHud(container, { onLookAt = null, onToggleConstellations, 
       html += `<div class="moonat-sky-tick${card ? ' major' : ''}" style="left:${p.x.toFixed(1)}px">${card || a + '°'}</div>`;
     }
     compass.innerHTML = html;
-    // Boxes labels must stay off: the button bar (measured again only when the view's width changes) and the
-    // caller's (close-up insets).
+    // Boxes labels and arrows must stay off: the button bar (measured again only when the view's width changes), the
+    // caller's (close-up insets), the readout with its badge, the note, and the disks of the Sun and the Earth.
     if (barBox.w !== w) {
-      const rr = root.getBoundingClientRect(), rb = bar.getBoundingClientRect();
-      barBox = { w, x0: rb.left - rr.left - 4, y0: rb.top - rr.top - 4, x1: rb.right - rr.left + 4, y1: rb.bottom - rr.top + 4 };
+      barBox = { w, ...boxOf(bar) };
     }
-    const boxes = [...avoid, barBox];
-    if (badgeHtml) {
-      const rr = root.getBoundingClientRect(), rb = badge.getBoundingClientRect();
-      boxes.push({ x0: rb.left - rr.left - 4, y0: rb.top - rr.top - 4, x1: rb.right - rr.left + 4, y1: rb.bottom - rr.top + 4 });
+    const boxes = [...avoid];
+    for (const b of [barBox, boxOf(topLeft), noteText?.length ? boxOf(note) : null]) if (b && b.x1 - b.x0 > 8) boxes.push(b);
+    for (const b of bodies) {
+      if (b.kind === 'in' || b.kind === 'ghost') boxes.push({ x0: b.x - b.r - 4, y0: b.y - b.r - 4, x1: b.x + b.r + 4, y1: b.y + b.r + 4 });
     }
     const hits = (x0, y0, x1, y1) => boxes.some((b) => x0 < b.x1 && x1 > b.x0 && y0 < b.y1 && y1 > b.y0);
     let lh = '';
-    for (const m of marks) {
-      if (m.hidden) continue;
-      const p = project(m.enu);
-      if (m.faint) {
-        // Constellation names: centred on the lines, faint, and left out where they would cover a button or an inset.
-        const lw = 6 * m.name.length;
-        if (p.visible && p.y > 20 && p.x - lw / 2 > 4 && p.x + lw / 2 < w - 4 && !hits(p.x - lw / 2, p.y - 8, p.x + lw / 2, p.y + 8)) {
-          lh += `<div class="moonat-sky-label const" style="left:${p.x.toFixed(1)}px;top:${p.y.toFixed(1)}px">${m.name}</div>`;
+    // Right of the body by default; to its left, or below it, when that would cover a button, an inset, a disk or
+    // another label, or run past the frame's edge. A planet's label that fits nowhere is left out (`must`: kept anyway).
+    const bad = (x0, y0, x1, y1) => x0 < 2 || x1 > w - 2 || y0 < 0 || hits(x0, y0, x1, y1);
+    const label = (p, dx, name, extra = '', must = false) => {
+      const lw = 6.6 * name.length + 6;
+      let x = p.x + dx, y = p.y, cls = extra, box = [x + 8, y - 8, x + 8 + lw, y + 8];
+      if (bad(...box)) {
+        if (!bad(p.x - dx - 8 - lw, y - 8, p.x - dx - 8, y + 8)) { x = p.x - dx; cls += ' left'; box = [x - 8 - lw, y - 8, x - 8, y + 8]; }
+        else {
+          x = Math.min(w - 4 - lw / 2, Math.max(4 + lw / 2, p.x));
+          y = p.y + Math.max(8, dx - 6) + 4;
+          cls += ' below';
+          box = [x - lw / 2, y, x + lw / 2, y + 16];
+          if (!must && bad(...box)) return;
         }
-        continue;
       }
-      if (p.visible) {
-        // Right of the body by default; to its left, or below it, when that would cover a button or an inset.
-        const dx = m.dx || 0, lw = 6.6 * m.name.length + 6;
-        let x = p.x + dx, y = p.y, cls = '';
-        if (hits(x + 8, y - 8, x + 8 + lw, y + 8)) {
-          if (!hits(p.x - dx - 8 - lw, y - 8, p.x - dx - 8, y + 8)) { x = p.x - dx; cls = ' left'; }
-          else { x = p.x; y = p.y + Math.max(8, dx - 6) + 4; cls = ' below'; }
-        }
-        lh += `<div class="moonat-sky-label${cls}" style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px">${m.name}</div>`;
-      } else if (p.above && m.edgeText && m.body) {
-        // The body is above the frame: a marker on the top edge, at its azimuth, that turns the view up to it.
-        // It steps left of the button bar (or below it, in a narrow view) rather than cover a button.
-        const lw = 7 * m.edgeText.length + 22;
-        let x = Math.min(w - 60, Math.max(60, p.x)), top = 8;
-        if (hits(x - lw / 2, top, x + lw / 2, top + 22)) {
-          if (barBox.x0 - lw / 2 - 4 >= lw / 2 + 4) x = barBox.x0 - lw / 2 - 4;
-          else top = barBox.y1 + 2;
-        }
-        lh += `<button type="button" class="moonat-sky-edge" data-body="${m.body}" style="left:${x.toFixed(1)}px;top:${top}px" title="Look up at the ${m.name}">${m.edgeText}</button>`;
+      boxes.push({ x0: box[0], y0: box[1], x1: box[2], y1: box[3] });
+      lh += `<div class="moonat-sky-label${cls}" style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px">${name}</div>`;
+    };
+    // A hidden body in the frame first: its label beside the dashed outline (drawn into the canvas by the view).
+    for (const b of bodies) if (b.kind === 'ghost') label(b, b.r + 6, b.text, ' ghost', true);
+    for (const m of marks) {
+      if (m.hidden || m.faint) continue;
+      const p = project(m.enu);
+      if (p.visible) label(p, m.dx || 0, m.name, '', !!m.must);
+    }
+    // A body out of the frame: an arrow on that edge, slid along it off the boxes; a click turns the view to the body.
+    const h = container.clientHeight;
+    for (const b of bodies) {
+      if (b.kind !== 'edge') continue;
+      const bx = placeOnEdge({ edge: b.edge, x: b.x, y: b.y, w: Math.round(6.1 * b.text.length + 30), h: 20, width: w, height: h, boxes });
+      boxes.push(bx);
+      const arrow = `<svg viewBox="-5 -5 10 10" aria-hidden="true" style="transform:rotate(${(b.angle / DEG).toFixed(1)}deg)"><path d="M-2.5,-4 L2.5,0 L-2.5,4"/></svg>`;
+      const pos = b.edge === 'left' ? `left:${bx.x0.toFixed(1)}px` : b.edge === 'right' ? `right:${(w - bx.x1).toFixed(1)}px`
+        : `left:${((bx.x0 + bx.x1) / 2).toFixed(1)}px;transform:translateX(-50%)`;
+      lh += `<button type="button" class="moonat-sky-edge e-${b.edge}${b.hidden ? ' hid' : ''}" data-body="${b.body}" style="${pos};top:${bx.y0.toFixed(1)}px" title="${b.title || ''}">`
+        + (b.edge === 'right' ? `<span>${b.text}</span>${arrow}` : `${arrow}<span>${b.text}</span>`) + '</button>';
+    }
+    // Constellation names: centred on the lines, faint, and left out where they would cover anything above.
+    for (const m of marks) {
+      if (m.hidden || !m.faint) continue;
+      const p = project(m.enu), lw = 6 * m.name.length;
+      if (p.visible && p.y > 20 && p.x - lw / 2 > 4 && p.x + lw / 2 < w - 4 && !hits(p.x - lw / 2, p.y - 8, p.x + lw / 2, p.y + 8)) {
+        lh += `<div class="moonat-sky-label const" style="left:${p.x.toFixed(1)}px;top:${p.y.toFixed(1)}px">${m.name}</div>`;
       }
     }
     labels.innerHTML = lh;
+  }
+
+  /** Bounding box of an element relative to the HUD (CSS px), with a 4 px margin; null when it is not shown. */
+  function boxOf(el) {
+    const rb = el.getBoundingClientRect();
+    if (!rb.width || !rb.height) return null;
+    const rr = root.getBoundingClientRect();
+    return { x0: rb.left - rr.left - 4, y0: rb.top - rr.top - 4, x1: rb.right - rr.left + 4, y1: rb.bottom - rr.top + 4 };
   }
 
   /** Make the exposure button show a mode that was set through the API. */
@@ -220,11 +270,23 @@ export function createHud(container, { onLookAt = null, onToggleConstellations, 
     barBox = { w: -1 };
   }
 
-  /** Captions under the close-up insets: [{ x, y, text }] in CSS pixels (x = centre, y = top of the caption). */
+  /**
+   * Captions under the close-up insets: [{ x, y, text, maxW?, note? }] in CSS pixels (x = centre, y = top of the
+   * caption). note: { text, title }, a small second line with a tooltip (e.g. "ring illustrative" during an eclipse).
+   */
   function setCaptions(list) {
-    caps.innerHTML = list.map((c) => `<div class="moonat-sky-cap" style="left:${c.x.toFixed(1)}px;top:${c.y.toFixed(1)}px${c.maxW ? `;max-width:${Math.round(c.maxW)}px;white-space:normal` : ''}">${c.text}</div>`).join('');
+    capList = list;
+    caps.innerHTML = list.map((c) => {
+      const n = c.note ? `<br><span class="moonat-sky-illus${noteOpen ? ' open' : ''}" role="note" title="${c.note.title}">${noteOpen ? c.note.title : c.note.text}</span>` : '';
+      return `<div class="moonat-sky-cap" style="left:${c.x.toFixed(1)}px;top:${c.y.toFixed(1)}px${c.maxW ? `;max-width:${Math.round(c.maxW)}px;white-space:normal` : ''}">${c.text}${n}</div>`;
+    }).join('');
   }
   const setCloseUp = (on) => closeUpBtn.setAttribute('aria-pressed', String(on));
+  const setConstellations = (on) => constellationsBtn?.setAttribute('aria-pressed', String(on));
+  /** "full" (time, Sun and Earth heights and directions, phase, eclipse) or "minimal" (time and at most one status line). */
+  const setLevel = (l) => { level = l === 'minimal' ? 'minimal' : 'full'; };
+  /** Show or hide the HUD's own option buttons (a page can offer the same options in its own menu). */
+  const setButtons = (on) => { bar.hidden = !on; barBox = { w: -1 }; };
 
-  return { update, setExposureMode, setCaptions, setCloseUp, dispose: () => root.remove() };
+  return { update, setExposureMode, setCaptions, setCloseUp, setConstellations, setLevel, setButtons, dispose: () => root.remove() };
 }

@@ -7,7 +7,9 @@
 //   view.update(skyState)   // C6 sky state; re-positions everything and renders once
 //   view.lookAt(az_deg, el_deg); view.setFov(deg); view.resize(); view.dispose();
 //   view.setTerrain({ horizon, patch })   // extra: swap in new terrain (e.g. live terrain of a custom point)
+//   view.setHudLevel('minimal' | 'full'); view.setOption(name, value); view.getOptions()   // extras for a page menu
 // The C4 patch can also be passed in memory: createSkyView(container, { site, terrainPatch: { meta, data } }).
+// Body markers (math.js bodyMarker): a hidden Sun or Earth in the frame gets a dashed outline, one out of the frame an edge arrow.
 //
 // Geometry: the eye is the origin of the three.js frame (x = east, y = up, z = -north), observer_height_m above
 // the ground point. The view never computes physics; every direction and size comes from the sky state.
@@ -16,12 +18,12 @@
 
 import * as THREE from 'three';
 import {
-  DEG, enuToThree, azElToEnu, verticalFovDeg, flatHorizon, horizonFromPatch, horizonElAt, horizonDistKmAt, fitBodyView, fitPhotoView, bodyFitAspect, signed1,
+  DEG, enuToThree, azElToEnu, verticalFovDeg, flatHorizon, horizonFromPatch, horizonElAt, horizonDistKmAt, fitBodyView, fitPhotoView, bodyFitAspect, signed1, bodyMarker,
 } from './math.js';
 import { buildTerrain } from './terrain.js';
 import { buildSky, eclipseLook } from './sky.js';
 import { createHud } from './hud.js';
-import { hiddenReason, degText, earthNeverRises, EARTH_DEEP_BELOW_DEG } from './words.js';
+import { hiddenReason, hiddenPhrase, degText, earthNeverRises, eclipsePctText, EARTH_DEEP_BELOW_DEG, RING_NOTE } from './words.js';
 
 const FOV_MIN = 15, FOV_MAX = 100, EL_MIN = -60, EL_MAX = 90;
 // Photo framing: the widest "comfortable" horizontal FOV (deg), and the narrowest tall frame (width / height).
@@ -111,6 +113,9 @@ export async function createSkyView(container, {
   stars = null,                  // in-memory star JSON instead of starsUrl
   exposure: initialExposure = 'eye',   // "eye": stars stay visible in daylight; "camera": exposed for the sunlit ground
   onNotes = null,                // (notes: [{ id, text }]) => void, called when the HUD notes change (e.g. to show them elsewhere)
+  hudLevel: initialHudLevel = 'full',   // "full" readout, or "minimal": the time and at most one status line
+  buttons: initialButtons = true,       // the HUD's own option buttons (exposure, close-up, constellations)
+  onOptions = null,              // (options) => void, called when a view option changes (HUD button or setOption)
 } = {}) {
   const eyeH = site?.observer_height_m ?? 2;
   const [starsJson, constellationsJson, earthTexture, nightTexture, patch0] = await Promise.all([
@@ -180,14 +185,82 @@ export async function createSkyView(container, {
   }
   const belowHorizon = (b) => b.el_deg < horizonElAt(horizon, b.az_deg);
 
+  let hudLevel = initialHudLevel === 'minimal' ? 'minimal' : 'full', buttonsOn = !!initialButtons;
   const hud = createHud(frameEl, {
     onLookAt: (name) => lookAtBody(name),
-    hasConstellations: sky.hasConstellations, constellationsOn: showConstellations,
-    onToggleConstellations: (on) => { constellationsOn = on; sky.setConstellations(on); requestRender(); },
-    closeUpOn, onToggleCloseUp: (on) => { closeUpOn = on; requestRender(); },
-    exposureMode, onExposureMode: (mode) => { exposureMode = mode; sky.setExposureMode(mode); requestRender(); },
+    hasConstellations: sky.hasConstellations, constellationsOn,
+    onToggleConstellations: (on) => setOption('constellations', on),
+    closeUpOn, onToggleCloseUp: (on) => setOption('closeUp', on),
+    exposureMode, onExposureMode: (mode) => setOption('exposure', mode),
     skylineAt: (az) => horizonElAt(horizon, az),
+    level: hudLevel, buttons: buttonsOn,
   });
+
+  /**
+   * View options, for a page that offers them in its own menu (C8 extras):
+   *   exposure: "eye" | "camera"; constellations, closeUp, buttons: boolean; hudLevel: "full" | "minimal".
+   */
+  function getOptions() {
+    return { exposure: exposureMode, constellations: constellationsOn, closeUp: closeUpOn, hudLevel, buttons: buttonsOn };
+  }
+  function setOption(name, value) {
+    const before = JSON.stringify(getOptions());
+    if (name === 'exposure') {
+      exposureMode = value === 'camera' ? 'camera' : 'eye';
+      sky.setExposureMode(exposureMode);
+      hud.setExposureMode(exposureMode);
+    } else if (name === 'constellations') {
+      constellationsOn = !!value && sky.hasConstellations;
+      sky.setConstellations(constellationsOn);
+      hud.setConstellations(constellationsOn);
+    } else if (name === 'closeUp') {
+      closeUpOn = !!value;
+      hud.setCloseUp(closeUpOn);
+    } else if (name === 'hudLevel') {
+      hudLevel = value === 'minimal' ? 'minimal' : 'full';
+      hud.setLevel(hudLevel);
+    } else if (name === 'buttons') {
+      buttonsOn = !!value;
+      hud.setButtons(buttonsOn);
+    } else {
+      console.warn(`[moonat] sky view: unknown option "${name}"`);
+    }
+    const now = getOptions();
+    if (JSON.stringify(now) !== before) {
+      requestRender();
+      if (onOptions) onOptions(now);
+    }
+    return now;
+  }
+
+  /** Why a body is out of sight: null, "terrain" or "below" (words.js rule; the skyline when C6 gives no vis_frac). */
+  function hiddenKind(b) {
+    const hidden = b.vis_frac != null ? b.vis_frac <= 0.001 : belowHorizon(b);
+    return hidden ? (b.el_deg + b.ang_radius_deg < 0 ? 'below' : 'terrain') : null;
+  }
+  /** Markers of the Sun and the Earth for the current frame (math.js bodyMarker), with the HUD's click target and tooltip. */
+  function bodyMarkers() {
+    return [['sun', 'Sun'], ['earth', 'Earth']].map(([key, name]) => {
+      const b = state[key], hidden = hiddenKind(b);
+      const why = hidden ? hiddenPhrase({ ...b, vis_frac: 0 }, horizonElAt(horizon, b.az_deg)) : '';
+      const title = `${name}: height ${degText(b.el_deg)}, azimuth ${(((b.az_deg % 360) + 360) % 360).toFixed(1)}°${why ? `, ${why}` : ''}. Click to turn the view to it.`;
+      return { ...bodyMarker({ name, body: b, view, width, height, hidden }), body: key, hidden, title };
+    });
+  }
+  /** A hidden body in the frame: a thin dashed outline at its true place and size (under the close-up insets). */
+  function drawGhost(m, pr) {
+    ctx2d.save();
+    ctx2d.setLineDash([4 * pr, 3.5 * pr]);
+    ctx2d.beginPath();
+    ctx2d.arc(m.x * pr, m.y * pr, Math.max(4, m.r) * pr, 0, 2 * Math.PI);
+    ctx2d.lineWidth = 3 * pr;
+    ctx2d.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+    ctx2d.stroke();
+    ctx2d.lineWidth = Math.max(1, 1.2 * pr);
+    ctx2d.strokeStyle = 'rgba(175, 208, 255, 0.85)';
+    ctx2d.stroke();
+    ctx2d.restore();
+  }
 
   function renderNow() {
     frame = 0;
@@ -244,12 +317,16 @@ export async function createSkyView(container, {
       : earthNeverRises(site?.lat_deg, site?.lon_deg)
         ? `<b>🌍 Earth is below your feet</b> (height ${degText(e.el_deg)})<br>It never rises here: this is the Moon's far side, which always faces away from Earth.`
         : `<b>🌍 Earth is ${Math.round(-e.el_deg)}° below the horizon</b> (height ${degText(e.el_deg)})`;
+    // Where the Sun and the Earth are when the frame does not show them (math.js bodyMarker): a dashed outline for a hidden body
+    // in the frame (drawn here, under the insets), an arrow on the edge for one out of the frame (HUD).
+    const bodies = state ? bodyMarkers() : [];
+    for (const b of bodies) if (b.kind === 'ghost') drawGhost(b, pr);
     const insetRects = drawInsets(pr);
     // A planet within 3.5 deg of a visible Sun sits in its glare: its label is left out.
     const inGlare = (p) => state.sun.vis_frac > 0 && (state.sun.eclipse_frac ?? 0) < 1 && angleDeg(p.enu, state.sun.enu) < 3.5;
+    const earthMark = bodies[1];
     const marks = state ? [
-      { name: 'Earth', enu: state.earth.enu, hidden: belowHorizon(state.earth) || view.hfov < 25, dx: (state.earth.ang_radius_deg / view.hfov) * width + 6,
-        body: 'earth', edgeText: `▲ Earth ${signed1(state.earth.el_deg)}°` },
+      { name: 'Earth', enu: state.earth.enu, hidden: earthMark.kind !== 'in' || view.hfov < 25, dx: earthMark.r + 6, must: true },
       ...(state.planets || []).map((p) => ({ name: p.name[0].toUpperCase() + p.name.slice(1), enu: p.enu, hidden: belowHorizon(p) || inGlare(p) })),
       ...constellationMarks(),
     ] : [];
@@ -266,7 +343,7 @@ export async function createSkyView(container, {
       notes.push({ id: 'earth', text: state.earth.el_deg + state.earth.ang_radius_deg < 0 ? 'Earth is below the horizon' : 'Earth is hidden behind terrain' });
     }
     if (horizon.smooth) notes.push({ id: 'smooth', text: 'Terrain not included: smooth horizon' });
-    hud.update(state, view, project, marks, notes.length ? [notes.slice(0, 2).map((n) => n.text).join(' · ')] : [], insetRects, badgeHtml);
+    hud.update(state, view, project, marks, notes.length ? [notes.slice(0, 2).map((n) => n.text).join(' · ')] : [], insetRects, badgeHtml, bodies);
     const key = notes.map((n) => n.id).join('|');
     if (onNotes && key !== lastNotesKey) { lastNotesKey = key; onNotes(notes); }
   }
@@ -305,6 +382,9 @@ export async function createSkyView(container, {
       const sunUp = s.vis_frac == null || s.vis_frac > 0.001;
       const eItem = {
         body: e, fov: 5 * e.ang_radius_deg, hidden: eHidden,
+        // During an eclipse the overlay draws the red refraction ring round the Earth's limb: an illustration, not a
+        // computation, so the caption says so (Shay's decision).
+        note: ecl > 0 && !eHidden,
         // Below the flat horizon the Moon itself hides the Earth; above it, a ridge or crater rim does.
         text: (mag) => (eHidden ? `${e.el_deg + e.ang_radius_deg < 0 ? 'Earth below the horizon' : 'Earth hidden behind terrain'} (${signed1(e.el_deg)}°)`
           : ecl > 0 && sunUp ? `Earth, ${mag}× zoom · ${ecl >= 1 ? 'hiding the Sun' : 'eclipsing'}`
@@ -319,7 +399,7 @@ export async function createSkyView(container, {
       if (!earthDeep) list.push(eItem);
       if (ecl > 0 && ecl < 1 && sunUp) {
         // Partial eclipse: the Sun's loupe shows the Earth's limb crossing the disk (and the diamond at the end).
-        list.push({ body: s, fov: 8 * s.ang_radius_deg, text: (mag) => `Sun, ${mag}× zoom · ${eclipsePct(ecl)}% covered` });
+        list.push({ body: s, fov: 8 * s.ang_radius_deg, text: (mag) => `Sun, ${mag}× zoom · ${eclipsePctText(ecl)}% covered` });
       } else if (s.vis_frac != null && s.vis_frac > 0.001 && s.vis_frac < 0.999) {
         list.push({ body: s, fov: 8 * s.ang_radius_deg, text: (mag) => `Sun, ${mag}× zoom · ${Math.round(s.vis_frac * 100)}% visible` });
       }
@@ -367,9 +447,13 @@ export async function createSkyView(container, {
         ctx2d.strokeStyle = 'rgba(200, 215, 240, 0.75)';
         ctx2d.stroke();
         const mag = Math.round((sizeCss / 2 / Math.tan((it.fov * DEG) / 2)) / fMain);
-        // Centred under the loupe and never wider than the room to the frame edge (it wraps instead).
-        caps.push({ x: cx, y: cy + r + 4, text: it.text(mag), maxW: Math.max(60, 2 * Math.min(cx, width - cx) - 8) });
-        rects.push({ x0: cx - r, y0: cy - r, x1: cx + r, y1: cy + r + 32 });
+        // Centred under the loupe and never wider than the room to the frame edge, nor than the loupe's own column when
+        // there are two (it wraps instead). The box labels keep off covers the estimated lines of the caption.
+        const text = it.text(mag);
+        const maxW = Math.max(60, Math.min(2 * Math.min(cx, width - cx) - 8, list.length > 1 ? sizeCss + gap - 4 : Infinity));
+        caps.push({ x: cx, y: cy + r + 4, text, maxW, note: it.note ? { text: 'ring illustrative', title: RING_NOTE } : null });
+        const lines = Math.max(2, Math.ceil((6.2 * text.length) / maxW)) + (it.note ? 1 : 0);
+        rects.push({ x0: cx - Math.max(r, maxW / 2), y0: cy - r, x1: cx + Math.max(r, maxW / 2), y1: cy + r + 4 + 14 * lines });
       });
     }
     hud.setCaptions(caps);
@@ -401,13 +485,6 @@ export async function createSkyView(container, {
       ctx2d.fill();
     }
     ctx2d.restore();
-  }
-
-  /** Covered share of the Sun for captions: "100" only when total, one decimal near the ends. */
-  function eclipsePct(ecl) {
-    if (ecl >= 1) return '100';
-    const p = ecl * 100;
-    return p > 99 || p < 1 ? (Math.floor(p * 10) / 10).toFixed(1) : String(Math.round(p));
   }
 
   /** Angle (deg) between two direction vectors. */
@@ -603,7 +680,10 @@ export async function createSkyView(container, {
     container.classList.remove('moonat-sky', 'dragging');
   }
 
-  const info = { stars: sky.starCount, hasPatch: !!patch, hasEarthTexture: !!earthTexture, horizonSource: site?.horizon ? 'site' : patch ? 'patch' : 'smooth' };
+  const info = {
+    stars: sky.starCount, hasPatch: !!patch, hasEarthTexture: !!earthTexture, horizonSource: site?.horizon ? 'site' : patch ? 'patch' : 'smooth',
+    hasConstellations: sky.hasConstellations,   // whether a "constellations" option is worth offering
+  };
 
   /**
    * Replace the terrain without rebuilding the view: a new C3 skyline and/or C4 patch, e.g. when the real terrain of a
@@ -634,14 +714,13 @@ export async function createSkyView(container, {
   return {
     update, lookAt, lookAtBody, setFov, resize, dispose, setTerrain,
     // Extras beyond C8, for the app and for debugging:
-    setConstellations: (on) => { constellationsOn = !!on; sky.setConstellations(on); requestRender(); },
-    setCloseUp: (on) => { closeUpOn = !!on; hud.setCloseUp(closeUpOn); requestRender(); },
-    setExposure: (mode) => {
-      exposureMode = mode === 'camera' ? 'camera' : 'eye';
-      sky.setExposureMode(exposureMode);
-      hud.setExposureMode(exposureMode);
-      requestRender();
-    },
+    /** "full" (the default readout) or "minimal": the time and at most one status line; the sky's labels stay. */
+    setHudLevel: (level) => setOption('hudLevel', level),
+    /** View options for a page menu: exposure, constellations, closeUp, hudLevel, buttons (see getOptions). */
+    setOption, getOptions,
+    setConstellations: (on) => setOption('constellations', on),
+    setCloseUp: (on) => setOption('closeUp', on),
+    setExposure: (mode) => setOption('exposure', mode),
     getView: () => ({ az_deg: view.az, el_deg: view.el, fov_deg: view.hfov }),
     /** Drawing-buffer budget in device pixels (null = default); the pixel ratio never exceeds 2. */
     setPixelBudget: (px) => { pixelBudget = px > 0 ? px : DEFAULT_PIXELS; requestRender(); },

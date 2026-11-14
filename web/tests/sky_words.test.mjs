@@ -3,7 +3,17 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { compass16, compassPair, degText, hiddenReason, hiddenPhrase, bodyLine, earthNeverRises } from "../js/sky/words.js";
+import { compass16, compassPair, degText, hiddenReason, hiddenPhrase, bodyLine, earthNeverRises, eclipsePctText, eclipseStatus } from "../js/sky/words.js";
+
+test("eclipsePctText and eclipseStatus: the minimal HUD's one status line", () => {
+  assert.equal(eclipsePctText(0.81), "81");
+  assert.equal(eclipsePctText(0.9995), "99.9"); // a sliver of Sun left is never "100"
+  assert.equal(eclipsePctText(1), "100");
+  assert.equal(eclipsePctText(0.004), "0.4");
+  assert.equal(eclipseStatus({ eclipse_frac: 0.81 }), "Earth eclipses the Sun · 81 %");
+  assert.equal(eclipseStatus({ eclipse_frac: 0 }), "");
+  assert.equal(eclipseStatus({}), "");
+});
 
 test("compass16 and compassPair: same name for two bodies 0.3° apart across a sector boundary", () => {
   assert.equal(compass16(0), "N");

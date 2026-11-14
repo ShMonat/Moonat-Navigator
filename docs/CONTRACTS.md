@@ -148,8 +148,8 @@ await createSkyView(container /* HTMLElement */, {
   the Earth). Yaw = the Earth's azimuth. First the "photo" rule: the horizon line sits 20% of the frame height above the
   bottom edge, with FOV = `fovDeg`; if the top of the Earth's disk is then above 8% below the top edge, the FOV widens up to
   80° (`fitPhotoView` in `web/js/sky/math.js`). An Earth too high for that (e.g. Apollo 11, Earth at 59° in a 16:9 frame) gets
-  the body rule below (`lookAtBody("earth")`). If the user turns away, an edge marker ("▲ Earth 59.2°", click = look up)
-  points to an Earth above the frame. If the Earth is below the horizon: FOV = `fovDeg`, horizon at one third of the height,
+  the body rule below (`lookAtBody("earth")`). If the user turns away, the body markers (below) show where it is.
+  If the Earth is below the horizon: FOV = `fovDeg`, horizon at one third of the height,
   and the HUD notes "Earth is below the horizon". Wording (web/js/sky/words.js): "below the horizon" only when the whole disk
   is below the local horizontal plane (el + r < 0); a hidden body with part of its disk above that plane is "hidden behind
   terrain (skyline +x°)". An Earth more than 5° below the plane gets a text message instead of a close-up ("Earth is below
@@ -161,6 +161,16 @@ await createSkyView(container /* HTMLElement */, {
   (`fitBodyView`). `lookAt(az, el)` aimed within 0.5° of the Earth or the Sun does the same; any other `lookAt` only turns
   the camera. The user drags to look around the whole hemisphere and scrolls to zoom. After a resize, a view that the user
   has not turned or zoomed is framed again for the new aspect ratio.
+- **Body markers** (where the Sun and the Earth are when the frame does not show them; `bodyMarker` in math.js, wording
+  in words.js): a body whose disk centre is in the frame but hidden gets a thin dashed outline at its true place and size,
+  labelled "Earth · behind terrain" or "Earth · below the horizon (−7.5°)" (the wording rule above). A body out of the
+  frame in any direction gets a small arrow button on that edge, pointing at it: "Sun · 35° right" / "· 35° left" (the
+  azimuth turn, wrapped to ±180°; exactly behind = right) or "Earth · 44° up" / "· 55° down" (the elevation change; the
+  great-circle angle where that does not describe the turn). A body in front of the camera is pointed at along the ray
+  from the centre to its projected position; one behind it (or nearly at right angles) along (azimuth turn × cos el,
+  elevation change), so it lands on a side edge. A click or tap calls `lookAtBody`. Hidden bodies get a dashed border.
+  The arrows slide along their edge off the HUD buttons (bottom left in the app's narrow views), the readout, the
+  close-ups and the other body's disk, and they stay above the compass strip.
 - Terrain extras: `createSkyView(..., { terrainPatch: { meta, data: Float32Array } })` takes an in-memory C4 patch instead of
   `terrainPatchUrl`, and `view.setTerrain({ horizon, patch })` swaps the skyline and/or the patch in place (camera, sky and
   textures stay; an omitted key keeps its value; `horizon: null` = the patch's own skyline).
@@ -173,6 +183,19 @@ await createSkyView(container /* HTMLElement */, {
   on one line) whenever they change, so the app can show them in a narrow card's footer. The container takes keyboard
   focus: arrow keys turn the view (1/12 of the field per press), `+`/`−` zoom. With the constellation lines on, the names of
   18 well-known constellations sit at the centre of their lines (`constellationCentroid` in math.js).
+- **HUD level and view options** (for a page that shows the numbers elsewhere and offers the toggles in its own menu):
+  - `setHudLevel("minimal" | "full")` (also option `hudLevel` of `createSkyView`, default `"full"`). Full: the current
+    readout (time; Sun and Earth height and direction; what hides them; phase; eclipse). Minimal: the time and at most one
+    short status line, the eclipse ("Earth eclipses the Sun · 81 %") when there is one. The sky labels, body markers,
+    badge, notes and close-up captions stay in both levels.
+  - `setOption(name, value)` → the options after the change; `getOptions()` → `{ exposure: "eye" | "camera",
+    constellations: bool, closeUp: bool, hudLevel: "full" | "minimal", buttons: bool }`. `buttons` shows or hides the
+    HUD's own toggle buttons (exposure, close-up, constellations); a page with its own "View options" menu sets it to
+    false. Same names as options of `createSkyView` (`exposure`, `showConstellations`, `closeUp`, `hudLevel`, `buttons`).
+    An unknown name is ignored with a console warning. `setExposure`, `setCloseUp` and `setConstellations` remain as
+    shorthands. Option `onOptions(options)` is called whenever an option changes (HUD button or `setOption`), so a
+    menu can stay in step. `view.info.hasConstellations` says whether the constellations option is worth offering.
+  - The 2D fallback (`web/js/app/sky_fallback.js`, no WebGL) does not have these: call them with `?.`.
 - **Eclipses** (C6 `sun.eclipse_frac` > 0): render order Earth (opaque, renderOrder −1, distance 20 000) → stars →
   Sun quad (additive, distance 30 000, depth-tested, so the Earth hides the part of the disk and glow behind it) → an
   eclipse overlay at the Earth (additive, no depth test, renderOrder 6). The glare scales with the visible flux and is
@@ -180,7 +203,10 @@ await createSkyView(container /* HTMLElement */, {
   toward the Sun, redder and fainter round the limb, none where the needed deviation exceeds ~1.2°) and, near second and
   third contact, the "diamond" as a saturated point-spread function. Direct light on the terrain scales with the
   uncovered flux; near totality the ground gets a faint red fill from the ring, the stars come out, and the HUD shows
-  "Earth eclipses the Sun · N % covered". During the partial phases the close-up adds a Sun loupe.
+  "Earth eclipses the Sun · N % covered". During the partial phases the close-up adds a Sun loupe. The refraction ring
+  is an illustration, not a computation (Shay's decision: keep it, labelled): during an eclipse the Earth close-up's
+  caption carries a small "ring illustrative" note whose tooltip reads "Sunlight refracted by Earth's atmosphere; drawn
+  for illustration, not computed." (a tap opens the same sentence on touch screens).
 - Renders on demand (no continuous loop) so many views can coexist. Missing data degrades gracefully (no terrain patch →
   horizon silhouette only; no stars file → no stars).
 - **Import map** (owned by `web-app` in `web/index.html`): `"three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"`,
