@@ -581,11 +581,13 @@ sites = [
 
 # Home base (kind "home"): StarHab, the lunar base concept Shay Monat presented at IAC 2021. The app's "Home" entry
 # and button open it. Its terrain files are built like any catalog site (scripts/data/build_terrain.py starhab).
-_REF = next(s for s in sites if s["id"] == "shackleton_rim")
-# PLACEHOLDER[starhab-coords]: StarHab's exact site is not set yet, so the home uses the Shackleton rim reference
-# point. To set it: put (latitude, east longitude) in degrees here, check the blurb, then run this script and
-# `uv run python scripts/data/build_terrain.py starhab`.
-STARHAB_LAT_LON = (_REF["lat_deg"], _REF["lon_deg"])
+# The site is the recommendation of our own siting study (docs/research/starhab_site.md, data/starhab_site.json):
+# the Earth-facing summit crest of the Malapert massif, best combined sunlight and direct-to-Earth line of sight
+# over 2030-2040. To move it: change (latitude, east longitude) in degrees here, check the blurb, then run this
+# script and `uv run python scripts/data/build_terrain.py starhab`.
+_STUDY = json.loads((pathlib.Path(__file__).resolve().parents[2] / "data/starhab_site.json").read_text(encoding="utf-8"))
+_PICK = next(s for s in _STUDY["sites"] if s["id"] == _STUDY["recommended"])
+STARHAB_LAT_LON = (_PICK["lat_deg"], _PICK["lon_deg"])  # Malapert massif crest, about -85.968, -2.287
 sites.append(
     dict(
         id="starhab",
@@ -598,12 +600,13 @@ sites.append(
         lon_deg=STARHAB_LAT_LON[1],
         t_start_utc=None,
         t_end_utc=None,
-        blurb="Our home base: StarHab, a lunar base concept by Shay Monat (IAC 2021), "
-        "on the sunlit rim of Shackleton crater near the south pole.",
-        sources=_REF["sources"],
+        blurb="Our home base: StarHab, a lunar base concept by Shay Monat (IAC 2021). Moonat picked this spot on "
+        "the Earth-facing crest of the Malapert massif: with a 10 m mast it sees the Sun 82 % of the time and the "
+        "Earth 98 % of the time over 2030-2040, and its longest night is 7 days.",
+        sources=["https://github.com/ShMonat/Moonat-Navigator/blob/main/docs/research/starhab_site.md"],
         notes="StarHab lunar base concept (S. Monat, 72nd International Astronautical Congress, 2021). "
-        "PLACEHOLDER[starhab-coords]: the exact site is not set yet; these are the coordinates of the "
-        "Shackleton rim reference point (shackleton_rim).",
+        "Site chosen by Moonat's siting study (docs/research/starhab_site.md, data/starhab_site.json); "
+        "the numbers in the blurb are at a 10 m mast, while the app's views use the standard 2 m eye height.",
     )
 )
 

@@ -762,18 +762,15 @@
    "agency": null,
    "lander": null,
    "crew": null,
-   "lat_deg": -89.4395,
-   "lon_deg": -137.1934,
+   "lat_deg": -85.96775,
+   "lon_deg": -2.28748,
    "t_start_utc": null,
    "t_end_utc": null,
-   "blurb": "Our home base: StarHab, a lunar base concept by Shay Monat (IAC 2021), on the sunlit rim of Shackleton crater near the south pole.",
+   "blurb": "Our home base: StarHab, a lunar base concept by Shay Monat (IAC 2021). Moonat picked this spot on the Earth-facing crest of the Malapert massif: with a 10 m mast it sees the Sun 82 % of the time and the Earth 98 % of the time over 2030-2040, and its longest night is 7 days.",
    "sources": [
-    "https://doi.org/10.1016/j.icarus.2014.08.013",
-    "https://elib.dlr.de/94242/1/EPSC2014-136-1.pdf",
-    "https://doi.org/10.1016/j.icarus.2011.03.025",
-    "https://en.wikipedia.org/wiki/Shackleton_(lunar_crater)"
+    "https://github.com/ShMonat/Moonat-Navigator/blob/main/docs/research/starhab_site.md"
    ],
-   "notes": "StarHab lunar base concept (S. Monat, 72nd International Astronautical Congress, 2021). PLACEHOLDER[starhab-coords]: the exact site is not set yet; these are the coordinates of the Shackleton rim reference point (shackleton_rim)."
+   "notes": "StarHab lunar base concept (S. Monat, 72nd International Astronautical Congress, 2021). Site chosen by Moonat's siting study (docs/research/starhab_site.md, data/starhab_site.json); the numbers in the blurb are at a 10 m mast, while the app's views use the standard 2 m eye height."
   }
  ]
 }

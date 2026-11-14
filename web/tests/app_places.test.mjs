@@ -61,19 +61,19 @@ test("typing filters (searchSites); 'home' and 'starhab' find the home base; coo
   assert.deepEqual(c.coords, { lat: -89.5, lon: 130 });
   assert.equal(c.groups.length, 0);
   // The search is still searchSites for the catalog part.
+  // (The home base is listed separately from the groups; StarHab sits on the Malapert massif.)
   assert.deepEqual(placeResults("malapert", SITES).groups.flatMap((g) => g.sites).map((s) => s.id).sort(),
-    searchSites("malapert", SITES).map((s) => s.id).sort());
+    searchSites("malapert", SITES).filter((s) => s.kind !== "home").map((s) => s.id).sort());
 });
 
-test("the home base is StarHab, kind home, on the Shackleton rim reference point until its site is set", () => {
+test("the home base is StarHab, kind home, at the site chosen by the siting study (Malapert massif crest)", () => {
   const home = SITES.find((s) => s.id === HOME_SITE_ID);
-  const rim = SITES.find((s) => s.id === "shackleton_rim");
   assert.equal(home.kind, "home");
   assert.match(home.name, /StarHab/);
-  // PLACEHOLDER[starhab-coords]: same point as shackleton_rim (scripts/catalog/build_sites.py STARHAB_LAT_LON).
-  assert.equal(home.lat_deg, rim.lat_deg);
-  assert.equal(home.lon_deg, rim.lon_deg);
-  assert.match(home.notes, /PLACEHOLDER\[starhab-coords\]/);
+  // data/starhab_site.json "recommended" (docs/research/starhab_site.md).
+  assert.ok(Math.abs(home.lat_deg - -85.96775) < 1e-4);
+  assert.ok(Math.abs(home.lon_deg - -2.28748) < 1e-4);
+  assert.doesNotMatch(home.notes, /PLACEHOLDER/);
   // Its terrain files exist (built like any catalog site), so the home's sky has the real LOLA horizon.
   const h = JSON.parse(readFileSync(fileURLToPath(new URL(`../data/horizons/${HOME_SITE_ID}.json`, import.meta.url)), "utf8"));
   assert.equal(h.el_deg.length, 1440);

@@ -1,0 +1,274 @@
+{
+ "_generated_by": "AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.",
+ "description": "StarHab (horizontal, regolith-buried Starship HLS) site study: the best south-polar site for sunlight plus direct-to-Earth line of sight, 2030-01-01 to 2040-12-31. Method and caveats: docs/research/starhab_site.md.",
+ "frame": "MOON_ME (DE421): planetocentric lat/lon in deg, longitude east-positive",
+ "ground_elev_m": "LOLA LDEM_80S_20M height above the 1737.4 km sphere (bilinear)",
+ "period_utc": [
+  "2030-01-01T00:00:00Z",
+  "2040-12-31T23:00:00Z"
+ ],
+ "time_step_h": 1.0,
+ "eye_heights_m": [
+  2.0,
+  10.0
+ ],
+ "score": "(sun_pct + earth_pct) / 2 at the mast height",
+ "metric_definitions": {
+  "sun_pct": "mean visible share of the Sun's limb-darkened flux (terrain + Earth eclipses), %",
+  "sun_lit_pct": "% of time with any sunlight",
+  "sun_disk_pct": "mean visible fraction of the solar disk (Glaser's average illumination), %",
+  "dark_max_d": "longest stretch with no sunlight at all, days",
+  "earth_pct": "mean visible fraction of the Earth's disk, %",
+  "earth_any_pct": "% of time with any part of the Earth's disk visible",
+  "blackout_max_d": "longest stretch with the Earth fully hidden, days",
+  "both_pct": "% of time with some sunlight and some of the Earth's disk visible",
+  "both_min_pct": "mean of min(Sun flux share, Earth disk share), %"
+ },
+ "recommended": "starhab_recommended",
+ "sites": [
+  {
+   "id": "starhab_recommended",
+   "role": "recommended",
+   "why": "highest score at the 10 m mast",
+   "name": "Malapert massif",
+   "lat_deg": -85.96775,
+   "lon_deg": -2.28748,
+   "ground_elev_m": 4988.08,
+   "mast_height_m": 10.0,
+   "metrics_2m": {
+    "sun_pct": 76.723,
+    "sun_lit_pct": 82.341,
+    "sun_disk_pct": 76.781,
+    "dark_max_d": 13.042,
+    "dark_max_start": "2034-12-05T22Z",
+    "earth_pct": 67.408,
+    "earth_any_pct": 73.139,
+    "blackout_max_d": 8.375,
+    "blackout_max_start": "2031-11-30T22Z",
+    "both_pct": 57.079,
+    "both_min_pct": 46.907,
+    "score": 72.066
+   },
+   "metrics_mast": {
+    "sun_pct": 82.049,
+    "sun_lit_pct": 85.121,
+    "sun_disk_pct": 82.091,
+    "dark_max_d": 7.0,
+    "dark_max_start": "2030-03-01T18Z",
+    "earth_pct": 98.343,
+    "earth_any_pct": 100.0,
+    "blackout_max_d": 0.0,
+    "both_pct": 85.121,
+    "both_min_pct": 80.583,
+    "score": 90.196
+   },
+   "slope_100m": {
+    "tilt_deg": 2.05,
+    "mean_slope_deg": 2.63,
+    "max_slope_deg": 5.58,
+    "rms_m": 0.44,
+    "n_px": 25
+   },
+   "psr_distance_km": {
+    "nasa_pgda_60m": {
+     "search_km": 25.0,
+     "nearest_km": 0.19,
+     "nearest_1km2_km": 13.14
+    },
+    "moonat_screening": 10.41,
+    "note": "nasa_pgda_60m: nearest permanently shadowed pixel of NASA's 60 m average-solar-visibility map (Mazarico et al. 2011 method, 18.6 yr), and of a shadowed area of at least 1 km^2; moonat_screening: nearest screening point (250/500 m grid, 240 m DEM, eye 2 m) never sunlit in 2030-2040"
+   },
+   "near_field_20m_missing_frac": 0.0,
+   "summary": "At a 10 m mast: Sun 82.0 % (longest dark 7.0 d), Earth 98.3 % (longest blackout 0.0 d), both 85.1 % of the time."
+  },
+  {
+   "id": "starhab_alt1",
+   "role": "alternative",
+   "why": "most sunlight",
+   "name": "Connecting ridge",
+   "lat_deg": -89.45281,
+   "lon_deg": -137.19807,
+   "ground_elev_m": 1956.42,
+   "mast_height_m": 10.0,
+   "metrics_2m": {
+    "sun_pct": 85.472,
+    "sun_lit_pct": 90.309,
+    "sun_disk_pct": 85.502,
+    "dark_max_d": 4.833,
+    "dark_max_start": "2034-12-05T18Z",
+    "earth_pct": 53.379,
+    "earth_any_pct": 58.239,
+    "blackout_max_d": 12.292,
+    "blackout_max_start": "2038-05-22T11Z",
+    "both_pct": 52.826,
+    "both_min_pct": 46.108,
+    "score": 69.425
+   },
+   "metrics_mast": {
+    "sun_pct": 92.304,
+    "sun_lit_pct": 95.652,
+    "sun_disk_pct": 92.326,
+    "dark_max_d": 2.958,
+    "dark_max_start": "2037-10-18T23Z",
+    "earth_pct": 53.395,
+    "earth_any_pct": 58.253,
+    "blackout_max_d": 12.292,
+    "blackout_max_start": "2038-05-22T11Z",
+    "both_pct": 57.408,
+    "both_min_pct": 51.802,
+    "score": 72.849
+   },
+   "slope_100m": {
+    "tilt_deg": 1.86,
+    "mean_slope_deg": 2.79,
+    "max_slope_deg": 5.2,
+    "rms_m": 0.84,
+    "n_px": 25
+   },
+   "psr_distance_km": {
+    "nasa_pgda_60m": {
+     "search_km": 25.0,
+     "nearest_km": 0.1,
+     "nearest_1km2_km": 6.32
+    },
+    "moonat_screening": 5.04,
+    "note": "nasa_pgda_60m: nearest permanently shadowed pixel of NASA's 60 m average-solar-visibility map (Mazarico et al. 2011 method, 18.6 yr), and of a shadowed area of at least 1 km^2; moonat_screening: nearest screening point (250/500 m grid, 240 m DEM, eye 2 m) never sunlit in 2030-2040"
+   },
+   "near_field_20m_missing_frac": 0.0,
+   "summary": "At a 10 m mast: Sun 92.3 % (longest dark 3.0 d), Earth 53.4 % (longest blackout 12.3 d), both 57.4 % of the time."
+  },
+  {
+   "id": "starhab_alt2",
+   "role": "alternative",
+   "why": "best score in another area",
+   "name": "Mons Mouton",
+   "lat_deg": -85.08104,
+   "lon_deg": 36.32507,
+   "ground_elev_m": 6792.67,
+   "mast_height_m": 10.0,
+   "metrics_2m": {
+    "sun_pct": 57.463,
+    "sun_lit_pct": 59.032,
+    "sun_disk_pct": 57.513,
+    "dark_max_d": 14.75,
+    "dark_max_start": "2034-11-29T12Z",
+    "earth_pct": 93.94,
+    "earth_any_pct": 100.0,
+    "blackout_max_d": 0.0,
+    "both_pct": 59.032,
+    "both_min_pct": 54.031,
+    "score": 75.701
+   },
+   "metrics_mast": {
+    "sun_pct": 69.221,
+    "sun_lit_pct": 70.78,
+    "sun_disk_pct": 69.271,
+    "dark_max_d": 10.75,
+    "dark_max_start": "2030-02-24T06Z",
+    "earth_pct": 97.017,
+    "earth_any_pct": 100.0,
+    "blackout_max_d": 0.0,
+    "both_pct": 70.78,
+    "both_min_pct": 67.102,
+    "score": 83.119
+   },
+   "slope_100m": {
+    "tilt_deg": 3.52,
+    "mean_slope_deg": 3.82,
+    "max_slope_deg": 7.16,
+    "rms_m": 0.89,
+    "n_px": 25
+   },
+   "psr_distance_km": {
+    "nasa_pgda_60m": {
+     "search_km": 25.0,
+     "nearest_km": 0.88,
+     "nearest_1km2_km": 6.24
+    },
+    "moonat_screening": 3.4,
+    "note": "nasa_pgda_60m: nearest permanently shadowed pixel of NASA's 60 m average-solar-visibility map (Mazarico et al. 2011 method, 18.6 yr), and of a shadowed area of at least 1 km^2; moonat_screening: nearest screening point (250/500 m grid, 240 m DEM, eye 2 m) never sunlit in 2030-2040"
+   },
+   "near_field_20m_missing_frac": 0.0,
+   "summary": "At a 10 m mast: Sun 69.2 % (longest dark 10.8 d), Earth 97.0 % (longest blackout 0.0 d), both 70.8 % of the time."
+  },
+  {
+   "id": "starhab_alt3",
+   "role": "alternative",
+   "why": "next best for Sun and Earth at the same time",
+   "name": "Malapert massif",
+   "lat_deg": -86.01181,
+   "lon_deg": 2.94589,
+   "ground_elev_m": 5141.74,
+   "mast_height_m": 10.0,
+   "metrics_2m": {
+    "sun_pct": 71.966,
+    "sun_lit_pct": 75.887,
+    "sun_disk_pct": 72.016,
+    "dark_max_d": 17.875,
+    "dark_max_start": "2031-02-12T00Z",
+    "earth_pct": 78.376,
+    "earth_any_pct": 87.865,
+    "blackout_max_d": 5.542,
+    "blackout_max_start": "2037-02-18T12Z",
+    "both_pct": 64.234,
+    "both_min_pct": 52.381,
+    "score": 75.171
+   },
+   "metrics_mast": {
+    "sun_pct": 78.426,
+    "sun_lit_pct": 83.499,
+    "sun_disk_pct": 78.486,
+    "dark_max_d": 12.0,
+    "dark_max_start": "2034-12-06T15Z",
+    "earth_pct": 85.017,
+    "earth_any_pct": 96.473,
+    "blackout_max_d": 3.958,
+    "blackout_max_start": "2037-01-23T00Z",
+    "both_pct": 80.014,
+    "both_min_pct": 64.198,
+    "score": 81.722
+   },
+   "slope_100m": {
+    "tilt_deg": 2.37,
+    "mean_slope_deg": 6.21,
+    "max_slope_deg": 12.33,
+    "rms_m": 2.12,
+    "n_px": 25
+   },
+   "psr_distance_km": {
+    "nasa_pgda_60m": {
+     "search_km": 25.0,
+     "nearest_km": 0.53,
+     "nearest_1km2_km": 10.28
+    },
+    "moonat_screening": 10.36,
+    "note": "nasa_pgda_60m: nearest permanently shadowed pixel of NASA's 60 m average-solar-visibility map (Mazarico et al. 2011 method, 18.6 yr), and of a shadowed area of at least 1 km^2; moonat_screening: nearest screening point (250/500 m grid, 240 m DEM, eye 2 m) never sunlit in 2030-2040"
+   },
+   "near_field_20m_missing_frac": 0.0,
+   "summary": "At a 10 m mast: Sun 78.4 % (longest dark 12.0 d), Earth 85.0 % (longest blackout 4.0 d), both 80.0 % of the time."
+  }
+ ],
+ "weight_sweep_mast": [
+  {
+   "site": "Mons Mouton",
+   "lat_deg": -84.83284,
+   "lon_deg": 37.9446,
+   "w_sun_from": 0.0,
+   "w_sun_to": 0.04
+  },
+  {
+   "site": "Malapert massif",
+   "lat_deg": -85.96775,
+   "lon_deg": -2.28748,
+   "w_sun_from": 0.05,
+   "w_sun_to": 0.81
+  },
+  {
+   "site": "Connecting ridge",
+   "lat_deg": -89.45281,
+   "lon_deg": -137.19807,
+   "w_sun_from": 0.82,
+   "w_sun_to": 1.0
+  }
+ ]
+}

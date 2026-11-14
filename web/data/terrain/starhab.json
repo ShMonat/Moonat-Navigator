@@ -1,16 +1,16 @@
 {
  "id": "starhab",
- "lat_deg": -89.4395,
- "lon_deg": -137.1934,
+ "lat_deg": -85.96775,
+ "lon_deg": -2.28748,
  "grid_n": 385,
  "spacing_m": 62.5,
  "half_extent_m": 12000.0,
  "encoding": "float32 LE, row-major, row 0 = north edge, col 0 = west edge",
  "values": "z_up_m: ENU up-coordinate of the terrain surface relative to the GROUND point (includes curvature drop)",
  "albedo": null,
- "ground_elev_m": 1957.99,
- "z_min_m": -3525.0,
- "z_max_m": 0.0,
+ "ground_elev_m": 4988.08,
+ "z_min_m": -4859.18,
+ "z_max_m": 160.2,
  "dem_sources": [
   "LOLA LDEM_80S_20M (polar stereographic), LRO-L-LOLA-4-GDR-V1.0, NASA PDS Geosciences Node"
  ],
