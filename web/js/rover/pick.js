@@ -104,10 +104,10 @@ export function onPickChange(fn) {
   return () => listeners.delete(fn);
 }
 
-// On a wide screen the inputs column scrolls on its own and a trip's fields can sit below the fold of the globe: while
-// a point is being picked the globe is pinned at the top of the column ("map-pinned", rover.css), so the map is in
-// reach of the field. It stays pinned after the pick, while the route is drawn there, until the column is scrolled with
-// the wheel or a press lands outside the map and the trip fields.
+// On a wide screen a trip's fields can sit below the fold of the globe: while a point is being picked the globe is
+// pinned under the site header ("map-pinned", rover.css), so the map is in reach of the field. It stays pinned after
+// the pick, while the route is drawn there, until the page is scrolled with the wheel or a press lands outside the map
+// and the trip fields.
 function unpin() {
   if (!pending) document.getElementById("map-block")?.classList.remove("map-pinned");
 }

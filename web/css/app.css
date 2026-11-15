@@ -128,41 +128,19 @@ button { cursor: pointer; }
 :root[data-theme="light"] #btn-theme .i-sun { display: none; }
 .link-btn { border: 0; background: none; color: var(--accent); padding: 0; text-decoration: underline; text-underline-offset: 2px; }
 
-/* ---------- "Validated" badge (next to the title) and its panel ---------- */
+/* ---------- The "Checked against NASA and JPL" panel (opened from the footer and from About) ---------- */
 :root, :root[data-theme="dark"] { --ok: #6fd69a; }
 :root[data-theme="light"] { --ok: #1b7a42; }
 .brand-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.valid-badge {
-  display: inline-flex; align-items: center; gap: 4px; flex: none; padding: 2px 9px 2px 6px; border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--ok) 55%, transparent); background: color-mix(in srgb, var(--ok) 12%, transparent);
-  color: var(--text); font-size: 12px; font-weight: 600; line-height: 1.4;
-}
-.valid-badge svg { width: 13px; height: 13px; fill: none; stroke: var(--ok); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.valid-badge:hover { background: color-mix(in srgb, var(--ok) 22%, transparent); }
 .valid-panel { max-width: 640px; }
 .valid-list { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 12px; }
 .valid-list li { display: grid; grid-template-columns: 7.2em 1fr; gap: 12px; align-items: baseline; }
 .valid-list .v-num { font-size: 17px; font-weight: 700; color: var(--ok); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .valid-list .v-txt { color: var(--text-2); }
 .valid-list strong { color: var(--text); }
-@media (pointer: coarse) { .valid-badge { min-height: 28px; } }
 @media (max-width: 520px) {
-  .brand-row { flex-direction: column; align-items: flex-start; gap: 2px; }
-  .valid-badge { font-size: 11.5px; padding: 1px 8px 1px 5px; }
   .valid-list li { grid-template-columns: 1fr; gap: 2px; }
 }
-
-/* ---------- Introduction line (first visits; dismissed state in localStorage, applied in <head>) ---------- */
-.intro {
-  display: flex; align-items: center; gap: 10px; max-width: calc(1880px - 48px); margin: 12px 24px 0; padding: 6px 8px 6px 16px;
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border)); border-radius: 12px; background: var(--accent-soft);
-  font-size: 14px; color: var(--text-2);
-}
-@media (min-width: 1928px) { .intro { margin-inline: auto; } }
-.intro p { margin: 0; flex: 1; min-width: 0; }
-.intro strong { color: var(--text); font-weight: 650; }
-.intro .intro-close { width: 30px; height: 30px; flex: none; border-color: transparent; font-size: 13px; }
-:root[data-intro="off"] .intro { display: none; }
 
 /* ---------- Layout: one flow ---------- */
 .layout {
@@ -177,13 +155,9 @@ button { cursor: pointer; }
 .block-head .link-btn { font-size: 12.5px; color: var(--muted); }
 .jump-link { display: none; font-size: 12.5px; color: var(--accent); text-underline-offset: 2px; }
 
-/* Desktop: the inputs on the left (sticky, scrolling on their own when taller than the window), the results right. */
+/* Desktop: the inputs on the left, the results right. The page has one scrollbar: the left column scrolls with it. */
 @media (min-width: 1100px) {
   .layout { grid-template-columns: minmax(340px, 400px) minmax(0, 1fr); gap: 28px; padding-top: 18px; }
-  .layout > .inputs {
-    position: sticky; top: 72px; max-height: calc(100vh - 84px); overflow: auto; padding: 0 6px 12px 0; margin-right: -6px;
-    scrollbar-width: thin;
-  }
 }
 @media (min-width: 1100px) { .sky-controls:not(.instant) { position: sticky; bottom: 10px; } }
 @media (min-width: 1400px) { .layout { grid-template-columns: minmax(380px, 440px) minmax(0, 1fr); } }
@@ -344,15 +318,13 @@ button { cursor: pointer; }
 /* ---------- The stage: the sky fills the window, like an app ---------- */
 /* The "what to look for" line, the views (they take the rest of the height), the timelapse bar with the camera group,
    and the Sun | Earth switch, in one box as high as the window below the site header; the data starts right under it.
-   Desktop: the header is sticky, and the box also leaves room for the introduction line (first visits) and the
-   layout's top padding, so the whole stage is in sight at first paint. Phones and tablets (the header scrolls away):
+   Desktop: the header is sticky, and the box also leaves room for the layout's top padding, so the whole stage is in sight at first paint. Phones and tablets (the header scrolls away):
    the box is the window's height, and choosing a story scrolls it to the top (main.js revealSky). The grid rows
    (fr tracks with content minimums) split the height among the views, and the stage grows instead of squeezing views
    below their minimum (many sites in a narrow or short window). */
-:root { --topbar-h: 64px; --intro-h: 56px; --stage-gap: 10px; --stage-top: 8px; }
+:root { --topbar-h: 64px; --stage-gap: 10px; --stage-top: 8px; }
 @media (min-width: 1100px) {
   :root { --stage-top: calc(var(--topbar-h) + 18px + var(--stage-gap)); }
-  :root:not([data-intro="off"]) { --stage-top: calc(var(--topbar-h) + var(--intro-h) + 18px + var(--stage-gap)); }
 }
 .sky-stage {
   display: grid; grid-template-rows: auto 1fr; grid-template-columns: minmax(0, 1fr); gap: 10px;
@@ -412,7 +384,6 @@ button { cursor: pointer; }
 }
 .sky-card-head { display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 12px; min-height: 42px; }
 .sky-card-head .mcard-title { flex: 1; min-width: 0; }
-.sky-card-time { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .sky-card-acts { display: flex; gap: 4px; flex: none; align-items: center; }
 .sky-act {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
@@ -426,8 +397,6 @@ button { cursor: pointer; }
 .sky-exit-btn { display: none; }
 .sky-opts-btn { min-width: 32px; font-weight: 700; letter-spacing: 0.04em; }
 .sky-opts-btn[aria-expanded="true"] { background: var(--surface-3); color: var(--text); }
-/* In narrow cards the time gives way to the buttons. */
-@container skycard (max-width: 430px) { .sky-card-time { display: none; } }
 /* "⋯" view options (sky_panel.js) */
 .sky-opts { position: relative; display: inline-flex; }
 .sky-opts-menu {
@@ -462,18 +431,20 @@ button { cursor: pointer; }
   background: rgba(10, 14, 22, 0.82); color: #e8edf5; padding: 7px 14px; border-radius: 9px; font-size: 13px;
 }
 .sky-hint[hidden] { display: none; }
-/* The sky HUD (web/js/sky/hud.js; minimal level, without its own buttons: the card's "⋯" menu has them). In narrow
-   views (a grid of several sites, phones) its time line steps aside (the card head shows it), and so does the note
-   (the card footer shows it). */
+/* The sky HUD (web/js/sky/hud.js; full readout, without its own buttons: the card's "⋯" menu has them). Its numbers
+   (time, Sun and Earth heights and directions, visible and lit shares) always show: in narrow views (a grid of several
+   sites, phones) in smaller type, and the note steps aside there (the card footer shows it). */
 @container (max-width: 560px) {
-  .sky-view .moonat-sky-info { display: none; }
+  .sky-view .moonat-sky-info { font-size: 9.5px; line-height: 1.3; }
   .sky-view .moonat-sky-note { display: none; }
 }
 .sky-view .moonat-sky-cap { white-space: normal; width: max-content; max-width: 130px; }
-.sky-card-foot { display: flex; gap: 4px 14px; flex-wrap: wrap; padding: 8px 12px 10px; font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+/* The status line under a view: the rover's progress (trips), a live terrain status, the view's notes in narrow
+   cards, and the data source behind an "i" (sky_panel.js updateCard). */
+.sky-card-foot { display: flex; align-items: center; gap: 4px 14px; flex-wrap: wrap; padding: 6px 12px 8px; font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
 .sky-card-foot .note { color: var(--muted); }
 .sky-card-foot .ico-svg { margin-right: 5px; font-size: 13.5px; }
-.sky-card-foot .foot-eclipse { flex-basis: 100%; color: var(--text); font-weight: 600; }
+.sky-card-foot .info-tip { margin-left: auto; }
 .sky-foot-note { display: none; }
 @container skycard (max-width: 560px) { .sky-foot-note:not(:empty) { display: inline; } }
 
@@ -481,7 +452,7 @@ button { cursor: pointer; }
    scrolls by (on one column the sky starts below the fold, where a sticky bar would slide over the views). */
 .sky-controls {
   position: relative; z-index: 50;
-  display: flex; align-items: center; gap: 12px; padding: 7px 12px;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 7px 12px;
   background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: blur(8px);
   border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow);
 }
@@ -493,6 +464,16 @@ button { cursor: pointer; }
 #sky-clock { font-variant-numeric: tabular-nums; min-width: 92px; font-weight: 600; white-space: nowrap; }
 .speed { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
 .speed select { padding: 4px 6px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-2); }
+/* The view group at the end of the bar: the Sun | Earth | Both switch (compare.js initBodySwitch) and the camera
+   group, side by side; it wraps to a row of its own when the bar is narrow. */
+.view-group { display: inline-flex; align-items: center; gap: 6px; flex: none; margin-left: auto; flex-wrap: wrap; }
+.seg.body-switch { padding: 2px; gap: 2px; border-color: var(--border-strong); border-radius: 10px; background: var(--surface-2); flex: none; }
+.seg.body-switch button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 3px 10px; border-radius: 8px; font-size: 13px; line-height: 1.3; }
+.seg.body-switch button .ico { display: inline-flex; font-size: 15px; flex: none; }
+.seg.body-switch button:hover { color: var(--text); background: var(--surface-3); }
+.seg.body-switch button[aria-pressed="true"] { background: var(--surface); box-shadow: 0 0 0 1px var(--border-strong); color: var(--text); font-weight: 600; }
+.seg.body-switch button[data-body="sun"][aria-pressed="true"] { color: var(--sun-ink); }
+.seg.body-switch button[data-body="earth"][aria-pressed="true"] { color: var(--earth-ink); }
 /* The camera group (sky_panel.js): "Follow Sun" / "Follow Earth" and, with a rover trip, "Driver's view", side by
    side; at most one is on (filled), or on but paused by a drag (dashed, "· paused"); none on is free look. */
 .cam-group {
@@ -537,24 +518,12 @@ body.sky-full { overflow: hidden; }
 #sky-panel.full .sky-card.is-full .sky-view { min-height: 0; }
 #sky-panel.full .sky-fs-btn { display: none; }
 #sky-panel.full .sky-exit-btn { display: inline-flex; }
-#sky-panel.full .sky-card-time { display: inline; }
-/* A full-screen view on a phone: the title and "Exit full screen" keep their room. */
-@container skycard (max-width: 520px) { #sky-panel.full .sky-card-time { display: none; } }
 #sky-panel.full .sky-view.moonat-sky, #sky-panel.full .sky-view canvas { touch-action: none; }
 
-/* ---------- The Sun | Earth switch and the data under it ---------- */
-.body-bar { display: flex; align-items: center; gap: 6px 16px; flex-wrap: wrap; }
+/* ---------- Segmented controls and the data under the sky ---------- */
 .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 9px; padding: 3px; background: var(--surface); }
 .seg button { border: 0; background: transparent; padding: 5px 12px; border-radius: 6px; font-size: 13px; color: var(--text-2); }
 .seg button[aria-pressed="true"] { background: var(--surface-3); color: var(--text); font-weight: 600; }
-.seg.seg-lg.body-switch { display: flex; width: 100%; max-width: 360px; padding: 4px; border-radius: 12px; background: var(--surface-2); }
-.seg-lg button { flex: 1; padding: 8px 16px; font-size: 15px; border-radius: 9px; }
-.body-switch button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
-.body-switch button .ico { font-size: 17px; vertical-align: 0; }
-.seg-lg button[aria-pressed="true"] { background: var(--surface); box-shadow: 0 0 0 1px var(--border-strong), var(--shadow); }
-.seg-lg button[data-body="sun"][aria-pressed="true"] { color: var(--sun-ink); }
-.seg-lg button[data-body="earth"][aria-pressed="true"] { color: var(--earth-ink); }
-.body-sub { margin: 0; font-size: 13.5px; color: var(--muted); }
 
 #compare-body { display: flex; flex-direction: column; gap: 14px; }
 .chart-tools { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px 10px; margin: 4px 0 -6px; }
@@ -578,6 +547,10 @@ body.sky-full { overflow: hidden; }
 .mrow-val { display: flex; flex-direction: column; min-width: 0; }
 .mrow-val b { font-size: 17px; font-weight: 650; font-variant-numeric: tabular-nums; line-height: 1.15; }
 .mrow-val span { font-size: 11.5px; color: var(--muted); }
+/* The Both section's card: its Sun rows and its Earth rows, each under a small heading (compare.js bothCard). */
+.mcard-sub { display: flex; align-items: center; gap: 6px; margin: 10px 0 6px; font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.mcard-when + .mcard-sub { margin-top: 0; }
+.mcard-sub .ico-svg { font-size: 14px; }
 .mcard-foot { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--border); font-size: 13px; color: var(--text-2); }
 .mcard-foot strong { color: var(--text); }
 .insight {
@@ -595,9 +568,29 @@ body.sky-full { overflow: hidden; }
 .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 12px 12px 4px; box-shadow: var(--shadow); min-width: 0; }
 .chart-card.wide { grid-column: 1 / -1; }
-.chart-head { display: flex; align-items: baseline; gap: 4px 10px; flex-wrap: wrap; padding: 0 4px; }
-.chart-head h3 { font-size: 15px; }
+.chart-head { display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap; padding: 0 4px; }
+.chart-head h3 { font-size: 15px; display: inline-flex; align-items: center; gap: 4px; flex: 1; min-width: 0; }
 .chart-head p { margin: 0; font-size: 12.5px; color: var(--muted); flex: 1; min-width: 180px; }
+
+/* "i" info icons (info_tip.js): a small button whose popover holds a helper sentence; it opens on hover (mouse), on
+   click or tap, and with Enter or Space; Esc, a second press or a click elsewhere closes it. */
+.info-tip { position: relative; display: inline-flex; align-items: center; vertical-align: middle; font-weight: 400; }
+.info-btn {
+  display: inline-grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%;
+  background: transparent; color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer;
+}
+.info-btn:hover, .info-btn[aria-expanded="true"] { color: var(--accent); background: var(--accent-soft); }
+.info-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.info-pop {
+  display: none; position: absolute; z-index: 60; top: calc(100% + 6px); left: -6px; width: max-content; max-width: min(320px, 78vw);
+  padding: 8px 11px; border-radius: 9px; border: 1px solid var(--border-strong); background: var(--surface);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); color: var(--text-2); font-size: 12.5px; font-weight: 400; line-height: 1.45;
+  text-transform: none; letter-spacing: normal; white-space: normal; text-align: left;
+}
+.info-tip.end .info-pop { left: auto; right: -6px; }
+.info-tip.open .info-pop { display: block; }
+@media (hover: hover) { .info-tip:hover .info-pop { display: block; } }
+@media (pointer: coarse) { .info-btn { width: 32px; height: 32px; margin: -5px; } }
 .chart-head .seg button { font-size: 12px; padding: 3px 9px; }
 /* A chart drawn while its section was hidden is 700 px wide (Plotly's default) until it is fitted (compare.js
    resizeShownCharts): clipped here, so it never widens the page (a phone would zoom the whole page out meanwhile). */
@@ -703,7 +696,6 @@ body.sky-full { overflow: hidden; }
 }
 @media (max-width: 700px) {
   .layout { padding: 12px 16px 8px; gap: 20px; }
-  .intro { margin: 10px 16px 0; }
   .speed-word { display: none; }
 }
 @media (max-width: 520px) {
@@ -711,8 +703,6 @@ body.sky-full { overflow: hidden; }
   .tagline { display: none; }
   .brand h1 { font-size: 19px; }
   .top-actions .ghost { padding: 5px 8px; font-size: 13px; }
-  .intro { padding-left: 12px; font-size: 13.5px; }
-  .intro-more { display: none; }
   .fields { grid-template-columns: 1fr; }
   .glossary { grid-template-columns: 1fr; }
   .about { padding: 20px 18px; }
@@ -721,26 +711,26 @@ body.sky-full { overflow: hidden; }
   .chart-card { padding: 10px 6px 2px; }
   .chart, .chart-card.wide .chart { height: 300px; }
   .seg { max-width: 100%; }
-  .seg.seg-lg.body-switch { max-width: none; }
-  .body-sub { flex-basis: 100%; }
   .chart-tools { justify-content: flex-start; }
   .xaxis-note { text-align: left; }
-  /* Timelapse bar on a phone: play and the slider on the first row; the time, the speed and the camera group on the
-     second; with two camera buttons (a rover trip), the group takes a third row of its own. */
+  /* Timelapse bar on a phone: play and the slider on the first row; the time and the speed on the second; the
+     Sun | Earth | Both switch and the camera group share the third (with a rover trip the camera group gets a fourth). */
   .sky-controls {
-    display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 4px 8px; padding: 6px 8px;
-    grid-template-areas: "play slider slider slider" "clock clock speed cam";
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 8px; padding: 6px 8px;
+    grid-template-areas: "play slider slider" "clock clock speed" "view view view";
   }
-  .sky-controls:has(#btn-driver:not([hidden])) { grid-template-areas: "play slider slider slider" "clock clock clock speed" "cam cam cam cam"; }
-  .sky-controls.instant { display: flex; }
+  .sky-controls.instant { display: flex; flex-direction: column; align-items: stretch; }
   #btn-play { grid-area: play; }
   #sky-slider { grid-area: slider; min-width: 0; }
   #sky-clock { grid-area: clock; min-width: 0; font-size: 13px; overflow: hidden; text-overflow: ellipsis; }
   .sky-controls .speed { grid-area: speed; }
   .speed select { font-size: 13px; max-width: 118px; }
-  .cam-group { grid-area: cam; }
-  .cam-btn { padding: 3px 8px; justify-content: center; }
-  .sky-controls:has(#btn-driver:not([hidden])) .cam-btn { flex: 1; }
+  .view-group { grid-area: view; margin-left: 0; display: flex; }
+  .seg.body-switch { flex: 1 1 auto; max-width: none; }
+  .seg.body-switch button { flex: 1; padding: 3px 6px; }
+  .cam-group { flex: 1 1 auto; }
+  .cam-btn { padding: 3px 8px; justify-content: center; flex: 1; }
+  .view-group:has(#btn-driver:not([hidden])) .cam-group { flex-basis: 100%; }
   .clk-word { display: none; }
   .clk-num::before { content: "T+"; }
   .chips { gap: 8px; }

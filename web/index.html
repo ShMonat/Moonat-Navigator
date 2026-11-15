@@ -25,9 +25,8 @@
   <meta name="twitter:description" content="The real sky from anywhere on the Moon, at any moment, from NASA and JPL data.">
   <meta name="twitter:image" content="https://shmonat.github.io/Moonat-Navigator/assets/og.png">
   <script>
-    // Apply the saved theme (and a dismissed introduction line) before first paint, to avoid a flash or a jump.
+    // Apply the saved theme before first paint, to avoid a flash.
     try { const t = localStorage.getItem("moonat-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) { /* storage blocked */ }
-    try { if (localStorage.getItem("moonat-intro") === "off") document.documentElement.dataset.intro = "off"; } catch (e) { /* storage blocked */ }
   </script>
   <link rel="stylesheet" href="css/app.css">
   <link rel="stylesheet" href="css/globe.css">
@@ -92,6 +91,8 @@
   <link rel="modulepreload" href="js/sky/words.js">
   <link rel="modulepreload" href="js/app/derive.js">
   <link rel="modulepreload" href="js/app/icons.js">
+  <link rel="modulepreload" href="js/app/info_tip.js">
+  <link rel="modulepreload" href="js/app/chart_plan.js">
   <link rel="modulepreload" href="js/app/sky_panel.js">
   <link rel="modulepreload" href="js/app/view_cone_link.js">
   <link rel="modulepreload" href="js/app/playback.js">
@@ -163,8 +164,6 @@
       <div class="brand-text">
         <div class="brand-row">
           <h1>Moonat</h1>
-          <button type="button" class="valid-badge" id="btn-validated" aria-haspopup="dialog" title="How we checked the numbers against NASA and JPL references">
-            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 8.4l3 3 6.6-7"/></svg>Validated</button>
         </div>
         <p class="tagline">Lunar Landing Site Navigator: see the Sun and Earth from anywhere on the Moon</p>
       </div>
@@ -179,13 +178,9 @@
     </div>
   </header>
 
-  <div class="intro" id="intro" role="note" aria-label="Introduction">
-    <p><strong>Pick a place on the Moon and a time</strong> to see its real sky, from NASA and JPL data<span class="intro-more">, or start with a story</span>.</p>
-    <button type="button" class="icon-btn intro-close" id="intro-close" aria-label="Hide this introduction" title="Hide this introduction"><svg class="ico-svg" viewBox="0 0 24 24" width="1em" height="1em" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
-  </div>
-
   <!-- One flow, in the order a visitor needs it: the place (globe), the time (scenario cards), or a story; then the sky
-       from there, its timelapse, and one switch that turns every view to the Sun or the Earth and shows that body's data.
+       from there, its timelapse, and one Sun | Earth | Both switch (in the timelapse bar) that aims every view at the
+       Sun or the Earth and shows that body's data, or shows both bodies' data.
        Phones read it top to bottom; from about 1100 px the inputs and the results are two columns. -->
   <main class="layout">
     <div class="inputs" id="inputs">
@@ -231,7 +226,7 @@
       </div>
 
       <!-- The stage: the sky fills the window like an app (app.css .sky-stage): the "what to look for" line, the views,
-           the timelapse bar with the camera group, then the Sun | Earth switch. The data starts right under it. -->
+           the timelapse bar with the Sun | Earth | Both switch and the camera group. The data starts right under it. -->
       <div class="sky-stage" id="sky-stage">
       <div class="out-head" aria-live="polite">
         <!-- The "what to look for" line of the loaded story (main.js). The text below is the first visit's (Apollo 11,
@@ -264,23 +259,24 @@
               <option value="31557600000" title="365.25 days per second">1 year / s</option>
             </select>
           </label>
-          <!-- The camera: follow the body of the Sun | Earth switch, or (a rover trip on screen) the driver's view.
-               One at a time; pressing the one that is on gives free look (sky_panel.js syncCamGroup). -->
-          <div class="cam-group" id="cam-group" role="group" aria-label="Camera">
-            <button type="button" class="cam-btn" id="btn-follow" aria-pressed="false"><span class="ico" data-icon="follow"></span><span class="cam-txt">Follow <span class="cam-body">Sun</span></span><span class="cam-state"></span></button>
-            <button type="button" class="cam-btn" id="btn-driver" aria-pressed="false" hidden><span class="ico" data-icon="rover"></span><span class="cam-txt">Driver's view</span><span class="cam-state"></span></button>
+          <!-- One compact group: the Sun | Earth | Both switch (Sun and Earth aim every view and pick the data; Both shows
+               both bodies' data and the views keep their aim; compare.js initBodySwitch), then the camera: follow the
+               body last aimed, or (a rover trip on screen) the driver's view. One camera mode at a time; pressing the one
+               that is on gives free look (sky_panel.js syncCamGroup). -->
+          <div class="view-group" id="view-group">
+            <div class="body-switch seg" role="group" aria-label="Sun, Earth or both: aim the views and choose the data" id="body-toggle">
+              <button type="button" data-body="sun" aria-pressed="true" title="Sun: aim every view at the Sun and show sunlight data (power and heat)"><span class="ico" data-icon="sun"></span><span class="bs-txt">Sun</span></button>
+              <button type="button" data-body="earth" aria-pressed="false" title="Earth: aim every view at the Earth and show Earth-in-view data (direct radio contact)"><span class="ico" data-icon="earth"></span><span class="bs-txt">Earth</span></button>
+              <button type="button" data-body="both" aria-pressed="false" title="Both: show the Sun's and the Earth's data together (sunlight, and Earth in view for radio contact); the views keep their aim"><span class="bs-txt">Both</span></button>
+            </div>
+            <div class="cam-group" id="cam-group" role="group" aria-label="Camera">
+              <button type="button" class="cam-btn" id="btn-follow" aria-pressed="false"><span class="ico" data-icon="follow"></span><span class="cam-txt">Follow <span class="cam-body">Sun</span></span><span class="cam-state"></span></button>
+              <button type="button" class="cam-btn" id="btn-driver" aria-pressed="false" hidden><span class="ico" data-icon="rover"></span><span class="cam-txt">Driver's view</span><span class="cam-state"></span></button>
+            </div>
           </div>
         </div>
         <p class="event-hint" id="event-hint" hidden></p>
       </section>
-
-      <div class="body-bar" id="body-bar" hidden>
-        <div class="body-switch seg seg-lg" role="group" aria-label="Look at the Sun or the Earth, and show its data" id="body-toggle">
-          <button type="button" data-body="sun" aria-pressed="true"><span class="ico" data-icon="sun"></span>Sun</button>
-          <button type="button" data-body="earth" aria-pressed="false"><span class="ico" data-icon="earth"></span>Earth</button>
-        </div>
-        <p class="body-sub" id="body-sub">Sunlight: power and heat</p>
-      </div>
       </div>
 
       <div id="compare-body" hidden>
@@ -304,6 +300,12 @@
           <h2 class="sec-title sr-only" id="h-earth">Earth: direct radio contact</h2>
           <div class="metric-cards" id="cards-earth"></div>
           <div class="charts" id="charts-earth"></div>
+        </section>
+
+        <section class="body-section" id="sec-both" aria-labelledby="h-both" hidden>
+          <h2 class="sec-title sr-only" id="h-both">Sun and Earth together</h2>
+          <div class="metric-cards" id="cards-both"></div>
+          <div class="charts" id="charts-both"></div>
         </section>
       </div>
     </div>

@@ -371,7 +371,8 @@ export function physicsKey(s) {
 
 // ---------------------------------------------------------------------------------------------
 // URL hash: "#x=utc&b=earth&t=5250&v=258.9,12.5,40&s=<base64url(JSON)>"; every key is optional.
-//   b: "earth" (the Sun | Earth switch: the body every sky view is aimed at and whose data shows; default "sun");
+//   b: "earth" | "both" (the Sun | Earth | Both switch: the body every sky view is aimed at and whose data shows, or
+//   both bodies' data; default "sun");
 //   x: the charts' time axis ("utc" | "dist", default time since start); t = the sky's moment, time since the
 //   scenarios' start (whole seconds); v = camera of the first sky view: azimuth, elevation, horizontal field of view
 //   (deg, local horizon frame); ml = the globe's map layers that are on ("psr.sun", web/js/globe/layers.js);
@@ -418,7 +419,7 @@ export function encodeHash({ scenarios, tab = "compare", xaxis = "met", body = "
   const p = new URLSearchParams();
   if (tab !== "compare") p.set("tab", tab);
   if (xaxis !== "met") p.set("x", xaxis);
-  if (body === "earth") p.set("b", body);
+  if (body === "earth" || body === "both") p.set("b", body);
   if (sky) {
     const t = Math.round((Number(sky.offsetMs) || 0) / 1000);
     if (t > 0) p.set("t", String(t));
@@ -471,7 +472,7 @@ export function decodeHash(hash) {
     }
     const tab = p.get("tab") === "sky" ? "sky" : "compare";
     const xaxis = ["utc", "dist"].includes(p.get("x")) ? p.get("x") : "met";
-    const body = p.get("b") === "earth" ? "earth" : "sun";
+    const body = ["earth", "both"].includes(p.get("b")) ? p.get("b") : "sun";
     const t = Number(p.get("t"));
     const look = ["earth", "sun"].includes(p.get("look")) ? p.get("look") : null;
     const v = (p.get("v") || "").split(",").map(Number);
@@ -485,13 +486,14 @@ export function decodeHash(hash) {
 }
 
 /**
- * The Sun | Earth choice a decoded link (decodeHash) opens with: every sky view is aimed at it and its data is shown.
+ * The Sun | Earth | Both choice a decoded link (decodeHash) opens with: "sun" or "earth" aims every sky view at that
+ * body and shows its data; "both" shows both bodies' data (the views keep their own aim).
  * Links made when the page had Compare and Sky tabs: a "tab=sky" link showed the sky aimed at its "look" body (none:
  * the opening view, toward the Earth), so it opens on that body; any other link keeps its "b" (the Compare section).
  */
 export function hashBody(h) {
   if (h?.tabGiven && h.tab === "sky") return h.sky?.look === "sun" ? "sun" : "earth";
-  return h?.body === "earth" ? "earth" : "sun";
+  return h?.body === "earth" || h?.body === "both" ? h.body : "sun";
 }
 
 function round(x, d) {

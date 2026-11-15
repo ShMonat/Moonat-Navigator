@@ -62,3 +62,18 @@ camera = `#cam-group`, `#btn-follow` ("Follow Sun" / "Follow Earth"), `#btn-driv
 button[data-body]`, unchanged), the picker heading "Suggested for …", the trip option "Choose on the globe", the
 rover note "Rover 1.10 of 19.3 km …"; the event hint text starts "The Earth eclipses …" (`#event-hint .hint-text`). Full screen uses the browser's full screen when available, so a recorder that wants the old in-page
 "Focus" look can add the classes itself or accept the browser full screen.
+
+## Thinner page (2026-11-15 afternoon, Shay's red marks)
+
+- Gone: the introduction line, the "Validated" header badge (the checks panel opens from the footer and from About),
+  the time in each sky card's head, the "Numbers in the view" option (the view's readout is always full), the Sun and
+  Earth numbers and the eclipse line under each view, "Mission: 2 d" under the End field, the separate switch row.
+- The switch is **Sun | Earth | Both**, in the timelapse bar next to the camera group (`#view-group` > `#body-toggle`,
+  `#cam-group`). Sun and Earth aim the views and pick the data; Both shows both bodies' data and leaves the aim alone
+  ("Follow" follows the body last aimed). Links: `b=both`.
+- Both section (`#sec-both`): one Elevation and one Visible disk chart with both bodies, then Sunlight power and Earth
+  phase. Line colours (`web/js/app/chart_plan.js`): one scenario, the Sun red and the Earth blue; several, the
+  scenario's colour, and in Both the Earth dashed ("Solid: Sun / Dashed: Earth" in the legend).
+- Chart descriptions, the table how-to and the data sources under each view sit behind "i" icons
+  (`web/js/app/info_tip.js`: hover, click or tap, Enter or Space; Esc closes).
+- One scrollbar: the left column no longer scrolls on its own; a picked trip point pins the globe under the header.

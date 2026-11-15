@@ -20,6 +20,7 @@ import { suggestBody, suggestWindow } from "./suggest_adapter.js";
 import { routeCore, isTrip } from "../rover/app.js";
 import { tripTime } from "../rover/ui.js";
 import { fillIcons, icon } from "./icons.js";
+import { initInfoTips } from "./info_tip.js";
 
 const $ = (id) => document.getElementById(id);
 const LOOKAHEAD_MS = 30 * DAY_MS;
@@ -157,7 +158,6 @@ function render() {
   // Nothing to show (no complete scenario): one empty state with the stories instead of the sky and the data.
   $("out-empty").hidden = any || !computed;
   $("sky-panel").hidden = !any && computed;
-  $("body-bar").hidden = !any;
   renderCompare(items, { xaxis: store.xaxis });
   setSkyItems(ok);
   syncHint();
@@ -195,11 +195,19 @@ function initHint() {
   });
 }
 
-/** Turn the Sun | Earth switch (and with it every sky view) to a body. */
+/**
+ * Turn the Sun | Earth | Both switch to a value: "sun" or "earth" also aims every sky view at that body; "both" shows
+ * both bodies' data and leaves the views (and Follow's body, the one last aimed) as they are.
+ */
 function chooseBody(body) {
-  if (body !== "sun" && body !== "earth") return;
-  setSkyBody(body);
+  if (body !== "sun" && body !== "earth" && body !== "both") return;
+  aimSky(body);
   if (store.body !== body) setUi({ body });
+}
+
+/** Aim the sky views at the switch's body; "both" keeps their aim. */
+function aimSky(body, opts) {
+  if (body === "sun" || body === "earth") setSkyBody(body, opts);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -417,11 +425,11 @@ function revealSky() {
   stage.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
 }
 
-/** Set the charts' time axis and the Sun | Earth choice without a separate redraw (a recompute follows). */
+/** Set the charts' time axis and the Sun | Earth | Both choice without a separate redraw (a recompute follows). */
 function applyView({ xaxis, body }, { aim = true } = {}) {
   store.xaxis = xaxis;
   store.body = body;
-  setSkyBody(body, { aim });
+  aimSky(body, { aim });
   syncBody();
   syncXAxis();
 }
@@ -471,23 +479,12 @@ function syncQuickStartUi() {
   if (text && span.textContent !== text) span.textContent = text;
 }
 
-/** The introduction line: hidden for good with its ✕ (remembered in localStorage; <head> applies it before paint). */
-function initIntro() {
-  const close = $("intro-close");
-  if (!close) return;
-  close.addEventListener("click", () => {
-    document.documentElement.dataset.intro = "off";
-    try {
-      localStorage.setItem("moonat-intro", "off");
-    } catch {
-      /* storage blocked: hidden for this visit only */
-    }
-  });
-}
-
-/** The About panel and the "Validated" panel: modal dialogs, closed by ✕, Esc or a click on the backdrop. */
+/**
+ * The About panel and the "Checked against NASA and JPL" panel (opened from the footer's "validated" and from About):
+ * modal dialogs, closed by ✕, Esc or a click on the backdrop.
+ */
 function initAbout() {
-  for (const [id, btn, attr] of [["about", "btn-about", "data-open-about"], ["validated", "btn-validated", "data-open-validated"]]) {
+  for (const [id, btn, attr] of [["about", "btn-about", "data-open-about"], ["validated", null, "data-open-validated"]]) {
     const dlg = $(id);
     if (!dlg) continue;
     const open = () => {
@@ -495,7 +492,7 @@ function initAbout() {
       if (dlg.showModal) dlg.showModal();
       else dlg.setAttribute("open", "");
     };
-    $(btn)?.addEventListener("click", open);
+    if (btn) $(btn)?.addEventListener("click", open);
     for (const b of document.querySelectorAll(`[${attr}]`)) b.addEventListener("click", open);
     dlg.addEventListener("click", (e) => {
       if (e.target === dlg) dlg.close();
@@ -543,11 +540,11 @@ function showPhysicsError() {
 async function boot() {
   fillIcons();
   initTheme();
-  initIntro();
+  initInfoTips();
   initAbout();
   initShare();
   initXAxisToggle();
-  initBodySwitch((body) => setSkyBody(body));
+  initBodySwitch((body) => aimSky(body));
   initSky({
     onTime: (offsetMs) => {
       setChartCursor(offsetMs);

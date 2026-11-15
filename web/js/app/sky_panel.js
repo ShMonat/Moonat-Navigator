@@ -9,6 +9,7 @@
 
 import { formatDuration, formatUtc } from "./state.js";
 import { icon } from "./icons.js";
+import { infoTip } from "./info_tip.js";
 import { horizonElAt } from "./derive.js";
 import { bodyLine, compassPair, earthNeverRises } from "../sky/words.js";
 import { stateAt } from "./physics_adapter.js";
@@ -50,9 +51,9 @@ let pendingCamera = null; // { az_deg, el_deg, fov_deg } for the first view of t
 
 /**
  * View options shared by every view (the "⋯" menu of each card; C8 setOption names); views created later get them
- * too. The HUD is minimal by default: the card footer under each view carries the full readout.
+ * too. The HUD always shows the full readout (time, Sun and Earth heights and directions, visible and lit shares).
  */
-const viewOpts = { closeUp: true, constellations: true, exposure: "eye", hudLevel: "minimal" };
+const viewOpts = { closeUp: true, constellations: true, exposure: "eye", hudLevel: "full" };
 
 /**
  * Open the next completely new set of scenarios (the one main.js is about to load) at a given moment and view:
@@ -262,7 +263,7 @@ function syncCamGroup() {
   follow.querySelector(".cam-body").textContent = name;
   follow.querySelector(".cam-state").textContent = trackMode === "body" && paused ? "paused" : "";
   follow.title = trackMode !== "body"
-    ? `Follow the ${name}: keep it framed in every view while the timelapse plays (the Sun | Earth switch chooses the body)`
+    ? `Follow the ${name}: keep it framed in every view while the timelapse plays (the body last aimed with the Sun | Earth | Both switch)`
     : paused
       ? `Paused: you turned a view. Press to follow the ${name} again.`
       : `Following the ${name}: every view keeps it framed as the time runs. You can still zoom; a drag pauses it. Press for free look.`;
@@ -365,11 +366,9 @@ const OPTION_ITEMS = [
   { key: "closeUp", text: "Close-up (6× zoom)", tip: "The round inset that magnifies the Earth (and the Sun while hills or the Earth cover part of it)" },
   { key: "constellations", text: "Constellations", tip: "Constellation lines and the names of well-known ones" },
   { key: "exposure", text: "Camera exposure", tip: "Exposed for the sunlit ground, as in the Apollo photographs: the stars vanish while the Sun is up. Off: the eye, with the stars dimmed but visible." },
-  { key: "hudLevel", text: "Numbers in the view", tip: "The full readout in the corner of the view (heights, directions, phase). Off: the time only; the numbers are under the view." },
 ];
 function optionOn(key) {
   if (key === "exposure") return viewOpts.exposure === "camera";
-  if (key === "hudLevel") return viewOpts.hudLevel === "full";
   return !!viewOpts[key];
 }
 
@@ -379,7 +378,7 @@ function buildCard(it, key) {
   const menuItems = OPTION_ITEMS.map((o) => `<button type="button" class="sky-opt" role="menuitemcheckbox" data-opt="${o.key}"
       aria-checked="${optionOn(o.key)}" title="${esc(o.tip)}"><span class="sky-opt-box" aria-hidden="true"></span>${esc(o.text)}</button>`).join("");
   root.innerHTML = `
-    <div class="sky-card-head"><span class="swatch" aria-hidden="true"></span><span class="mcard-title"></span><span class="sky-card-time"></span>
+    <div class="sky-card-head"><span class="swatch" aria-hidden="true"></span><span class="mcard-title"></span>
       <span class="sky-card-acts">
         <span class="sky-opts">
           <button type="button" class="sky-act sky-opts-btn" aria-haspopup="menu" aria-expanded="false" title="View options" aria-label="View options"><span aria-hidden="true">⋯</span></button>
@@ -424,7 +423,6 @@ function closeMenus(except = null, focusButton = false) {
 
 function applyOption(key) {
   if (key === "exposure") viewOpts.exposure = viewOpts.exposure === "camera" ? "eye" : "camera";
-  else if (key === "hudLevel") viewOpts.hudLevel = viewOpts.hudLevel === "full" ? "minimal" : "full";
   else viewOpts[key] = !viewOpts[key];
   for (const b of document.querySelectorAll(`.sky-opt[data-opt="${key}"]`)) b.setAttribute("aria-checked", String(optionOn(key)));
   for (const rec of cards.values()) applyOptions(rec.view);
@@ -678,7 +676,6 @@ function eclipseText(sun) {
 async function updateCard(rec) {
   const it = rec.it;
   const t = timeFor(it);
-  rec.root.querySelector(".sky-card-time").textContent = formatUtc(t);
   if (rec.lastT === t && rec.state) return;
   // Rover trips: the sky at the rover's exact position on the path, the camera turned with it (or facing the way
   // ahead), the 3D ground rebuilt where it is (web/js/rover/sky_ride.js).
@@ -692,9 +689,9 @@ async function updateCard(rec) {
   if (ride) syncViewCone(rec); // the wedge rides with the rover even when the camera did not turn
   // Driver's view (rover traverses): a new direction of travel for every frame; the view eases toward it.
   if (trackMode === "ahead" && it.route && rec.view) applyTrack(rec, false, ride);
-  const foot = rec.root.querySelector(".sky-card-foot");
-  // Plain words with the numbers (web/js/sky/words.js): "hidden behind terrain" when the skyline hides a body that is
-  // above the horizontal plane, "below the horizon" only when the whole disk is below that plane.
+  // Plain words with the numbers (web/js/sky/words.js), for screen readers: the view's HUD shows the same numbers.
+  // "hidden behind terrain" when the skyline hides a body that is above the horizontal plane, "below the horizon" only
+  // when the whole disk is below that plane.
   const skyline = ride ? ride.horizon : it.horizon;
   const skyAt = (b) => (skyline ? horizonElAt(skyline, b.az_deg) : 0);
   const [cs, ce] = compassPair(st.sun.az_deg, st.earth.az_deg);
@@ -702,9 +699,7 @@ async function updateCard(rec) {
   const earthTxt = bodyLine("Earth", st.earth, ce, skyAt(st.earth), { neverRises: earthNeverRises(it.s.lat_deg, it.s.lon_deg) })
     + (st.earth.vis_frac > 0 ? ` · ${Math.round(st.earth.phase_frac * 100)}% lit` : "");
   const ecl = eclipseText(st.sun);
-  foot.innerHTML = `${ecl ? `<span class="foot-eclipse">${icon("eclipse")}${esc(ecl)}</span>` : ""}<span>${icon("sun", "i-sun")}${esc(sunTxt)}</span><span>${icon("earth", "i-earth")}${esc(earthTxt)}</span>${
-    ride ? `<span class="note">${icon("rover")}${esc(rideNote(it, ride))}</span>` : terrainNote(it)
-  }<span class="note sky-foot-note"></span>`;
+  syncFoot(rec, ride ? rideFoot(rideNote(it, ride)) : terrainFoot(it));
   footNote(rec);
   // Text alternative for screen readers, and the keys the view takes (C8 view: arrows turn, + and - zoom).
   rec.viewEl.setAttribute("aria-label", `Sky from ${it.label} at ${formatUtc(t)}. ${ecl ? `${ecl}. ` : ""}${sunTxt}. ${earthTxt}. Drag or use the arrow keys to look around; plus and minus zoom.`);
@@ -712,8 +707,7 @@ async function updateCard(rec) {
 
 /**
  * The sky view's notes, in the card footer for narrow cards (app.css shows this span only there; the view hides its own
- * note there). The Sun and Earth notes are left out: the footer already says where they are; so is the eclipse note
- * while the footer names the eclipse.
+ * note there). The Sun, Earth and eclipse notes are left out: the view's readout (full HUD) already says them.
  */
 function footNote(rec) {
   const span = rec.root.querySelector(".sky-foot-note");
@@ -721,17 +715,50 @@ function footNote(rec) {
   span.textContent = (rec.notes || []).filter((n) => n.id !== "sun" && n.id !== "earth" && n.id !== "eclipse").map((n) => n.text).join(" · ");
 }
 
-function terrainNote(it) {
+const EPHEM_SOURCE = "Sun and Earth positions: JPL DE421 ephemeris.";
+
+/**
+ * The status line under a view (built once per card, then only its texts change, so an open "i" stays open while the
+ * time runs): progress (a rover trip's "Rover 5.51 of 5.8 km · driving"), status (a live terrain status shown while
+ * it matters, e.g. "Loading NASA terrain…"), the view's notes in narrow cards, and the data source behind an "i" icon.
+ */
+function syncFoot(rec, { progress = "", status = "", source = "" }) {
+  const foot = rec.root.querySelector(".sky-card-foot");
+  if (!foot.querySelector(".info-tip")) {
+    foot.innerHTML = `<span class="foot-ride" hidden>${icon("rover")}<span class="foot-ride-txt"></span></span><span class="note foot-status" hidden></span><span class="note sky-foot-note"></span>${infoTip("", { label: "Data sources of this view", end: true })}`;
+  }
+  const set = (sel, text) => {
+    const el = foot.querySelector(sel);
+    el.hidden = !text;
+    const t = el.querySelector(".foot-ride-txt") || el;
+    if (t.textContent !== text) t.textContent = text;
+  };
+  set(".foot-ride", progress);
+  set(".foot-status", status);
+  const pop = foot.querySelector(".info-pop");
+  const text = `${source} ${EPHEM_SOURCE}`.trim();
+  if (pop.textContent !== text) pop.textContent = text;
+}
+
+/** A rover trip's status line: its progress shown, the route grid's terrain behind the "i" (rover/sky_ride.js rideNote). */
+function rideFoot(note) {
+  const i = note.lastIndexOf(" · terrain: ");
+  if (i < 0) return { progress: note };
+  return { progress: note.slice(0, i), source: `Terrain: ${note.slice(i + 12)} (NASA LRO LOLA).` };
+}
+
+/** A place's status line: the terrain behind the "i"; a live terrain status that matters (loading, missing) shown. */
+function terrainFoot(it) {
   if (!it.s.site_id) {
     // Custom points: live terrain status ("Loading NASA terrain…", real Moon Trek terrain, or the coarse fallback).
     const text = terrainStatusText(it.s.lat_deg, it.s.lon_deg);
     const tip = it.horizon?.approximate
       ? "Until the NASA Moon Trek terrain arrives (or if it cannot be reached), custom points use a coarse LOLA grid (about 3.8 km per cell, 480 m near the south pole), so hills within a few km are missing."
       : "Horizon and 3D ground from NASA LRO LOLA elevation, fetched for this point from NASA Moon Trek.";
-    return `<span class="note" title="${esc(tip)}">${esc(text)}</span>`;
+    return { status: /^Loading/.test(text) ? text : "", source: `${text}. ${tip}` };
   }
-  if (it.horizon) return '<span class="note">real terrain horizon (LOLA)</span>';
-  return '<span class="note">flat horizon: terrain profile not loaded yet</span>';
+  if (it.horizon) return { source: "Real terrain horizon from NASA LRO LOLA elevation." };
+  return { status: "Flat horizon: terrain profile not loaded yet", source: "Flat horizon: the terrain profile is not loaded yet." };
 }
 
 /** Recompute the states of all views for the current slider time (coalesced). */

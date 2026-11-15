@@ -1,13 +1,16 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
-// The data under the sky: Sun and Earth sections (one shown at a time, by the page's "☀ Sun | 🌍 Earth" switch), and the
-// "Side by side" table of several scenarios. Single instants get metric cards; missions get summary cards plus Plotly
-// charts against mission elapsed time (or calendar time, or distance for rover traverses), one line per scenario,
-// with a time cursor at the moment the sky shows.
+// The data under the sky: Sun, Earth and Both sections (one shown at a time, by the page's Sun | Earth | Both switch in
+// the timelapse bar), and the "Side by side" table of several scenarios. Single instants get metric cards; missions
+// get summary cards plus Plotly charts against mission elapsed time (or calendar time, or distance for rover
+// traverses), one line per scenario and body, with a time cursor at the moment the sky shows. Which charts each
+// section holds, and the colour rule of their lines, are in chart_plan.js; chart descriptions sit behind "i" icons.
 
 import { store, subscribe, setUi } from "./store.js";
 import { formatDuration, formatUtc, DAY_MS } from "./state.js";
 import { horizonElAt, findEvents, stats, pctAbove, compassPoint } from "./derive.js";
-import { elevationIcon, azimuthIcon, visibleIcon, phaseIcon, fluxIcon, ringIcon, clockIcon } from "./icons.js";
+import { icon, elevationIcon, azimuthIcon, visibleIcon, phaseIcon, fluxIcon, ringIcon, clockIcon } from "./icons.js";
+import { infoTip, setInfoText } from "./info_tip.js";
+import { CHARTS, FLUX_HELP, FLUX_HELP_TILT, normBody, lineStyle, styleKey } from "./chart_plan.js";
 import { eclipseText, earthElCaption, rankRows, sortRows, bestIds, rankSentence, RANK_KEYS } from "./compare_text.js";
 import { withDetail, envelopeIndices, longestRun, JULIAN_YEAR_MS } from "./playback.js";
 import { tiltPanelFlux, meanVisibleElevation } from "../physics/metrics.js";
@@ -115,30 +118,31 @@ export function renderCompare(items, opts) {
 
   document.getElementById("cards-sun").innerHTML = ok.map((it) => (it.series ? sunMissionCard(it) : sunInstantCard(it))).join("");
   document.getElementById("cards-earth").innerHTML = ok.map((it) => (it.series ? earthMissionCard(it) : earthInstantCard(it))).join("");
+  document.getElementById("cards-both").innerHTML = ok.map(bothCard).join("");
   // Card grid by count (app.css): 6 in a row or 3 + 3, never 5 + 1.
-  for (const id of ["cards-sun", "cards-earth"]) document.getElementById(id).dataset.n = String(Math.min(ok.length, 7));
+  for (const id of ["cards-sun", "cards-earth", "cards-both"]) document.getElementById(id).dataset.n = String(Math.min(ok.length, 7));
   renderRank(ok);
 
-  const sunCharts = document.getElementById("charts-sun");
-  const earthCharts = document.getElementById("charts-earth");
+  const boxes = SECTIONS.map((b) => document.getElementById(`charts-${b}`));
   if (!anyMission) {
     cursorCtx = null;
-    sunCharts.replaceChildren();
-    earthCharts.replaceChildren();
-    // The shells are gone, so the next mission render must rebuild them.
-    delete sunCharts.dataset.ready;
-    delete earthCharts.dataset.ready;
-    sunCharts.hidden = earthCharts.hidden = true;
+    for (const box of boxes) {
+      box.replaceChildren();
+      // The shells are gone, so the next mission render must rebuild them.
+      delete box.dataset.ready;
+      box.hidden = true;
+    }
     return;
   }
-  sunCharts.hidden = earthCharts.hidden = false;
-  ensureChartShells(sunCharts, "sun");
-  ensureChartShells(earthCharts, "earth");
-  const tiltBtn = sunCharts.querySelector('.flux-seg [data-flux="tilt"]');
-  if (tiltBtn) tiltBtn.title = tiltTip(ok.filter((it) => it.series));
-  document.getElementById("help-sun-flux").textContent = fluxMode === "tilt" ? FLUX_HELP_TILT : FLUX_HELP;
+  SECTIONS.forEach((b, i) => {
+    boxes[i].hidden = false;
+    ensureChartShells(boxes[i], b);
+  });
+  const tip = tiltTip(ok.filter((it) => it.series));
+  for (const tiltBtn of document.querySelectorAll('.flux-seg [data-flux="tilt"]')) tiltBtn.title = tip;
+  for (const id of ["help-sun-flux", "help-both-flux"]) setInfoText(id, fluxMode === "tilt" ? FLUX_HELP_TILT : FLUX_HELP);
   // The Earth elevation caption fits the sites shown (near side, poles and limb, far side).
-  document.getElementById("help-earth-el").textContent = earthElCaption(ok);
+  setInfoText("help-earth-el", earthElCaption(ok));
   const args = lastArgs;
   chartsGate
     .then(() => (lastArgs === args ? loadPlotly() : null))
@@ -153,12 +157,17 @@ export function renderCompare(items, opts) {
     });
 }
 
-const BODY_SUB = { sun: "Sunlight: power and heat", earth: "Earth in view: direct radio contact" };
+/** The data sections, one per value of the Sun | Earth | Both switch. */
+const SECTIONS = ["sun", "earth", "both"];
+
+/** The Both section's charts are drawn only while it shows; this is set when they are up to date. */
+let bothDrawnFor = null;
 
 /**
- * The "☀ Sun | 🌍 Earth" switch under the sky: shows one section at a time (the choice lives in store.body and the URL
- * hash) and calls onPick(body) on every press, also of the pressed half, so main.js can aim the sky views at it.
- * Plotly cannot measure a hidden chart, so the charts of a section are resized when it is shown.
+ * The Sun | Earth | Both switch in the timelapse bar: shows one section at a time (the choice lives in store.body and
+ * the URL hash) and calls onPick(body) on every press, also of the pressed button, so main.js can aim the sky views
+ * (Sun, Earth) or leave them as they are (Both). Plotly cannot measure a hidden chart, so the charts of a section are
+ * resized when it is shown; the Both charts are drawn when that section first shows for the current data.
  */
 export function initBodySwitch(onPick = () => {}) {
   const seg = document.getElementById("body-toggle");
@@ -179,12 +188,11 @@ export function initBodySwitch(onPick = () => {}) {
  * section's charts) and fit the charts that just appeared.
  */
 export function syncBody() {
-  const body = store.body === "earth" ? "earth" : "sun";
+  const body = normBody(store.body);
   for (const b of document.querySelectorAll("#body-toggle button")) b.setAttribute("aria-pressed", String(b.dataset.body === body));
-  document.getElementById("body-sub").textContent = BODY_SUB[body];
-  document.getElementById("sec-sun").hidden = body !== "sun";
-  document.getElementById("sec-earth").hidden = body !== "earth";
+  for (const b of SECTIONS) document.getElementById(`sec-${b}`).hidden = body !== b;
   document.getElementById(`charts-${body}`).before(document.getElementById("chart-tools"));
+  if (body === "both" && lastArgs && bothDrawnFor !== lastArgs) rerenderCompare();
   resizeShownCharts();
   drawCursor(true);
 }
@@ -199,7 +207,7 @@ export function resizeShownCharts() {
   plotlyPromise.then((Plotly) => {
     requestAnimationFrame(() => {
       if (document.getElementById("compare-body").hidden) return;
-      const body = store.body === "earth" ? "earth" : "sun";
+      const body = normBody(store.body);
       for (const c of document.querySelectorAll(`#sec-${body} .chart`)) if (c.classList.contains("js-plotly-plot")) Plotly.Plots.resize(c);
     });
   }).catch(() => {});
@@ -259,9 +267,9 @@ function renderRank(items) {
     .join("");
   const head = RANK_COLS.map((c) => `<th scope="col" title="${c.tip}"${c.key === rankKey ? ' aria-sort="descending"' : ""}>
       <button type="button" data-key="${c.key}" aria-pressed="${c.key === rankKey}">${c.title}<span class="sort-mark" aria-hidden="true">${c.key === rankKey ? " ▼" : ""}</span></button></th>`).join("");
-  box.innerHTML = `<div class="rank-head"><h2 class="rank-title" id="rank-title">Side by side</h2><p class="rank-sentence">${esc(rankSentence(rows))}</p></div>
-    <div class="rank-scroll"><table class="rank-table"><thead><tr><th scope="col">Scenario</th>${head}</tr></thead><tbody>${body}</tbody></table></div>
-    <p class="rank-foot">The best value in each column is highlighted. Select a column heading to sort by it.</p>`;
+  const how = infoTip("The best value in each column is highlighted. Select a column heading to sort by it.", { label: "How to read this table" });
+  box.innerHTML = `<div class="rank-head"><h2 class="rank-title" id="rank-title">Side by side${how}</h2><p class="rank-sentence">${esc(rankSentence(rows))}</p></div>
+    <div class="rank-scroll"><table class="rank-table"><thead><tr><th scope="col">Scenario</th>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -357,7 +365,23 @@ function sizeRatio(earth, sun) {
   return Number.isFinite(r) && r > 0 ? ` (${r.toFixed(1)}× the Sun's width)` : "";
 }
 
-function sunInstantCard(it) {
+/**
+ * The Both section's card of a scenario: its Sun rows and its Earth rows (the same as the Sun and Earth cards), each
+ * under a small heading, in one card.
+ */
+function bothCard(it) {
+  const sun = it.series ? sunMissionCard(it, true) : sunInstantCard(it, true);
+  const earth = it.series ? earthMissionCard(it, true) : earthInstantCard(it, true);
+  const sub = (name, label) => `<div class="mcard-sub">${icon(name)}${label}</div>`;
+  return wrapCard(it, `${cardHead(it, it.series ? whenMission(it) : whenInstant(it))}${sub("sun", "Sun")}${sun}${sub("earth", "Earth")}${earth}`);
+}
+
+/** A card's body (bare: only its rows and footer, for the Both card) or the whole card with its head. */
+function cardOrBody(it, bare, when, inner) {
+  return bare ? inner : wrapCard(it, `${cardHead(it, when)}${inner}`);
+}
+
+function sunInstantCard(it, bare = false) {
   const sun = it.state0.sun;
   const { normal: fluxN, horiz: fluxH } = sunFlux(sun);
   const rows = [
@@ -367,10 +391,10 @@ function sunInstantCard(it) {
     row(fluxIcon(sun.flux_frac), wm2(fluxN), `on a Sun-facing panel · ${wm2(fluxH)} on flat ground`),
   ].join("");
   const foot = it.look ? `<div class="mcard-foot">${nextEventText(it, it.look.sun_vis, "sun")}</div>` : "";
-  return wrapCard(it, `${cardHead(it, whenInstant(it))}<div class="mrows">${rows}</div>${foot}`);
+  return cardOrBody(it, bare, whenInstant(it), `<div class="mrows">${rows}</div>${foot}`);
 }
 
-function earthInstantCard(it) {
+function earthInstantCard(it, bare = false) {
   const e = it.state0.earth;
   const rows = [
     row(elevationIcon(e.el_deg), deg(e.el_deg), "height above the flat horizon (elevation)"),
@@ -380,7 +404,7 @@ function earthInstantCard(it) {
   ].join("");
   const insight = it.look ? farSideInsight(it, it.look.earth_el, it.look.earth_vis) : "";
   const foot = it.look && !insight ? `<div class="mcard-foot">${nextEventText(it, it.look.earth_vis, "earth")}</div>` : "";
-  return wrapCard(it, `${cardHead(it, whenInstant(it))}<div class="mrows">${rows}</div>${foot}${insight}`);
+  return cardOrBody(it, bare, whenInstant(it), `<div class="mrows">${rows}</div>${foot}${insight}`);
 }
 
 function missionEvent(it, vis, body) {
@@ -398,7 +422,7 @@ function missionEvent(it, vis, body) {
   return body === "sun" ? "<strong>Dark</strong> the whole stay" : "<strong>Earth hidden</strong> the whole stay";
 }
 
-function sunMissionCard(it) {
+function sunMissionCard(it, bare = false) {
   const se = it.series;
   const lit = pctAbove(se.sun_flux_frac ?? se.sun_vis); // a total eclipse by the Earth is not sunlight
   const el = stats(se.sun_el);
@@ -420,10 +444,10 @@ function sunMissionCard(it) {
   const ev = findEvents(se.t_ms, se.sun_vis);
   const terrainEvent = !ecl || ev.nextSet || ev.nextRise || !ev.upAtStart ? missionEvent(it, se.sun_vis, "sun") : "";
   const foot = [ecl, terrainEvent].filter(Boolean).join("<br>");
-  return wrapCard(it, `${cardHead(it, whenMission(it))}<div class="mrows">${rows}</div><div class="mcard-foot">${foot}</div>`);
+  return cardOrBody(it, bare, whenMission(it), `<div class="mrows">${rows}</div><div class="mcard-foot">${foot}</div>`);
 }
 
-function earthMissionCard(it) {
+function earthMissionCard(it, bare = false) {
   const se = it.series;
   const vis = pctAbove(se.earth_vis);
   const el = stats(se.earth_el);
@@ -437,35 +461,23 @@ function earthMissionCard(it) {
   ].join("");
   const insight = farSideInsight(it, se.earth_el, se.earth_vis);
   const foot = insight ? "" : `<div class="mcard-foot">${missionEvent(it, se.earth_vis, "earth")}</div>`;
-  return wrapCard(it, `${cardHead(it, whenMission(it))}<div class="mrows">${rows}</div>${foot}${insight}`);
+  return cardOrBody(it, bare, whenMission(it), `<div class="mrows">${rows}</div>${foot}${insight}`);
 }
 
 // ---------------------------------------------------------------------------------------------
 // Charts
 
-const FLUX_HELP = "Solar power reaching a panel, in W/m².";
-const FLUX_HELP_TILT = `${FLUX_HELP} Fixed tilt: the panel turns on a vertical mast to face the Sun, tilted at the stay's average Sun elevation while lit.`;
-
-const CHARTS = {
-  sun: [
-    { id: "sun-el", wide: true, title: "Sun elevation", help: "Height above the flat, ideal horizon. Dotted: the real terrain horizon in that direction. Above 0° does not guarantee sunlight." },
-    { id: "sun-vis", title: "Visible Sun", help: "Share of the Sun's light that reaches the site (100% = the full Sun). Terrain and, during an eclipse, the Earth block part of it." },
-    { id: "sun-flux", title: "Sunlight power", help: FLUX_HELP, toggle: true },
-  ],
-  earth: [
-    { id: "earth-el", wide: true, title: "Earth elevation", help: "Height above the flat, ideal horizon. Dotted: the real terrain horizon in that direction." },
-    { id: "earth-vis", title: "Visible Earth", help: "How much of Earth's disk clears the terrain: a proxy for direct radio contact." },
-    { id: "earth-phase", title: "Earth phase", help: "How much of Earth's disk is sunlit, as seen from the Moon." },
-  ],
-};
-
+/**
+ * Build a section's chart cards once (chart_plan.js CHARTS): the title with its "i" icon (the description), the
+ * panel orientation buttons on Sunlight power, and the chart box.
+ */
 function ensureChartShells(container, body) {
   if (container.dataset.ready) return;
   container.dataset.ready = "1";
   container.innerHTML = CHARTS[body]
     .map(
       (c) => `<figure class="chart-card${c.wide ? " wide" : ""}" style="margin:0">
-        <div class="chart-head"><h3>${c.title}</h3><p id="help-${c.id}">${c.help}</p>${c.toggle ? fluxToggle() : ""}</div>
+        <div class="chart-head"><h3>${c.title}${infoTip(c.help, { id: `help-${c.id}`, label: `About the ${c.title} chart` })}</h3>${c.toggle ? fluxToggle() : ""}</div>
         <div class="chart" id="chart-${c.id}" role="img" aria-label="${c.title} chart"></div>
       </figure>`,
     )
@@ -476,7 +488,8 @@ function ensureChartShells(container, body) {
       const b = e.target.closest("button");
       if (!b) return;
       fluxMode = b.dataset.flux;
-      for (const x of seg.querySelectorAll("button")) x.setAttribute("aria-pressed", String(x === b));
+      // The Sun and Both sections each have these buttons: both show the same choice.
+      for (const x of document.querySelectorAll(".flux-seg button")) x.setAttribute("aria-pressed", String(x.dataset.flux === fluxMode));
       rerenderCompare();
     });
   }
@@ -547,7 +560,9 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
   const dense = (it) => it.series.t_ms.length > 4 * bins;
   // y: values per sample of it.series, or { t, y } (a field with the eclipse detail spliced in, playback.js withDetail).
   // Rover traverses on the distance axis use the distance driven at each sample (web/js/rover routeSeries).
-  const line = (it, y, extra = {}) => {
+  // st: the line's { color, dash } (chart_plan.js lineStyle: one scenario, the Sun red and the Earth blue; several, the
+  // scenario's colour, and in the Both section the Earth dashed); width: the line width when not an envelope.
+  const line = (it, y, st, extra = {}, width = 2) => {
     const s = Array.isArray(y) ? { t: it.series.t_ms, y } : y;
     const idx = s.t.length > 4 * bins ? envelopeIndices(s.t, s.y, bins) : null;
     const pick = (arr) => (idx ? idx.map((i) => arr[i]) : arr);
@@ -559,20 +574,23 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
       y: pick(s.y),
       name: it.label,
       legendgroup: it.s.id,
-      line: { color: it.color, width: idx ? 1.5 : 2, dash: it.dash ? "dash" : "solid", shape: "linear" },
+      line: { color: st.color, width: idx ? Math.min(1.5, width) : width, dash: st.dash, shape: "linear" },
       ...extra,
     };
   };
-  const instantMarker = (it, y, fmt) => ({
+  const instantMarker = (it, y, fmt, st, extra = {}) => ({
     type: "scatter",
     mode: "markers",
     x: xaxis === "utc" ? [new Date(it.t0).toISOString().slice(0, 19).replace("T", " ")] : [0],
     y: [y],
     name: `${it.label} (instant)`,
     legendgroup: it.s.id,
-    marker: { color: it.color, size: 11, symbol: "diamond", line: { color: th.paper, width: 2 } },
+    marker: { color: st.color, size: 11, symbol: "diamond", line: { color: th.paper, width: 2 } },
     hovertemplate: `${esc(it.label)}: ${fmt}<extra></extra>`,
+    ...extra,
   });
+  const theme = store.theme === "light" ? "light" : "dark";
+  const styleOf = (it, body, mode) => lineStyle({ body, mode, multi, color: it.color, wrapped: !!it.dash, theme });
 
   // On the distance axis only rover traverses are drawn (a static site has no distance).
   const missions = items.filter((it) => it.series && (xaxis !== "dist" || it.series.distance_km));
@@ -618,59 +636,108 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
 
   const traces = (fnLine, fnInstant) => [...missions.flatMap(fnLine), ...instants.map(fnInstant).filter(Boolean)];
 
-  const sunEl = traces(
-    (it) => {
-      const tr = [line(it, it.series.sun_el, { hovertemplate: "%{y:.1f}°" })];
-      if (it.horizon) {
-        tr.push(line(it, hzLine(it, "sun"), {
-          name: `${it.label}: ${it.horizon.approximate ? "approximate terrain (coarse)" : "terrain horizon"}`, showlegend: false, opacity: dense(it) ? 0.5 : 0.85,
-          line: { color: it.color, width: 1.5, dash: "dot" }, hovertemplate: "terrain %{y:.1f}°",
-        }));
-      }
-      return tr;
-    },
-    (it) => instantMarker(it, it.state0.sun.el_deg, deg(it.state0.sun.el_deg)),
-  );
-  react("sun-el", sunEl, layoutBase("Elevation (°)", { ticksuffix: "°" }), config);
+  // The Both section: a chart that shares a quantity draws each scenario's Sun and Earth lines. One scenario: legend
+  // "Sun" and "Earth" (the colours tell them apart). Several: the legend lists the scenarios once (their Sun line) and
+  // a key says the Earth lines are dashed (chart_plan.js styleKey); the hover names the body.
+  const NAME = { sun: "Sun", earth: "Earth" };
+  const bodyNames = (it, body, mode, two) => {
+    if (mode !== "both" || !two) return {};
+    if (!multi) return { name: NAME[body], legendgroup: body };
+    return { name: body === "sun" ? it.label : `${it.label} (Earth)`, showlegend: body === "sun" };
+  };
+  const hoverName = (body, mode, two) => (mode === "both" && two ? `${NAME[body]} ` : "");
+  const keyTraces = (bodies, mode) => styleKey({ bodies, mode, multi }).map((k) => ({
+    type: "scatter", mode: "lines", x: [null], y: [null], name: k.name, line: { color: th.muted, width: 2, dash: k.dash }, hoverinfo: "skip",
+  }));
+  const instantSymbol = (body, mode) => (mode === "both" && multi && body === "earth" ? "circle" : "diamond");
+
+  /** Elevation lines of the given bodies, each with its terrain horizon (dotted) in that body's direction. */
+  const elTraces = (bodies, mode) => {
+    const two = bodies.length > 1;
+    return [
+      ...traces(
+        (it) => bodies.flatMap((body) => {
+          const st = styleOf(it, body, mode);
+          const tr = [line(it, it.series[`${body}_el`], st, { hovertemplate: `${hoverName(body, mode, two)}%{y:.1f}°`, ...bodyNames(it, body, mode, two) })];
+          if (it.horizon) {
+            const where = it.horizon.approximate ? "approximate terrain (coarse)" : "terrain horizon";
+            tr.push(line(it, hzLine(it, body), { ...st, dash: "dot" }, {
+              name: `${it.label}: ${two ? `${where} toward the ${NAME[body]}` : where}`, showlegend: false, opacity: dense(it) ? 0.5 : 0.85,
+              legendgroup: two && !multi ? body : it.s.id, hovertemplate: `${two ? `${NAME[body]} ` : ""}terrain %{y:.1f}°`,
+            }, 1.5));
+          }
+          return tr;
+        }),
+        (it) => bodies.map((body) => instantMarker(it, it.state0[body].el_deg, `${hoverName(body, mode, two)}${deg(it.state0[body].el_deg)}`, styleOf(it, body, mode), {
+          ...(two ? { marker: { color: styleOf(it, body, mode).color, size: 11, symbol: instantSymbol(body, mode), line: { color: th.paper, width: 2 } } } : {}),
+          ...(two && !multi ? { name: `${NAME[body]} (instant)`, legendgroup: body } : {}),
+        })),
+      ).flat(),
+      ...keyTraces(bodies, mode),
+    ];
+  };
+  const twoLayout = (layout, two) => (two ? { ...layout, showlegend: true, margin: { ...layout.margin, t: Math.max(layout.margin.t, 30) } } : layout);
+  react("sun-el", elTraces(["sun"], "single"), layoutBase("Elevation (°)", { ticksuffix: "°" }), config);
 
   // Visible Sun. Solid: the share of the Sun's light that reaches the site (C6 flux_frac: limb-darkened, after the
   // terrain and the Earth). Dashed, for windows with an eclipse: the terrain alone (C6 vis_frac, share of the disk).
+  // In the Sun section, for windows with an eclipse, a dashed line adds the terrain alone (C6 vis_frac, share of the
+  // disk); the Both section leaves it out (dashed lines are the Earth's there).
   const anyEclipse = missions.some((it) => it.series.eclipses?.length);
-  const sunVisTraces = traces(
-    (it) => {
-      // Long missions: the eclipses come from their own 2-min detail (playback.js missionSeries), not the coarse samples.
-      const total = withDetail(it.series, it.series.sun_flux_frac ? "sun_flux_frac" : "sun_vis", (v) => v * 100);
-      const tr = [line(it, total, { hovertemplate: "%{y:.0f}% of the Sun's light" })];
-      if (it.series.eclipses?.length) {
-        tr.push(line(it, withDetail(it.series, "sun_vis", (v) => v * 100), {
-          name: `${it.label}: terrain only`, showlegend: false, line: { color: it.color, width: 1.5, dash: "dash" },
-          hovertemplate: "terrain only %{y:.0f}%",
-        }));
-      }
-      return tr;
-    },
-    (it) => {
-      const f = it.state0.sun.flux_frac ?? it.state0.sun.vis_frac;
-      return instantMarker(it, f * 100, `${Math.round(f * 100)}%`);
-    },
-  );
-  if (anyEclipse) {
-    // Legend key for the line styles (an empty trace): the scenario lines are solid, the terrain-only lines dashed.
-    sunVisTraces.push({
-      type: "scatter", mode: "lines", x: [null], y: [null], name: "Dashed: terrain only (Earth ignored)",
-      line: { color: th.muted, width: 1.5, dash: "dash" }, hoverinfo: "skip",
-    });
-  }
-  const sunVisLayout = withEclipses(layoutBase("Sunlight reaching the site (%)", { range: [-5, 105], ticksuffix: "%" }));
-  if (anyEclipse) {
-    // The legend takes the top row, so the eclipse labels move into the middle of their bands (the lines are at 0%
-    // and 100% there).
-    Object.assign(sunVisLayout, {
-      showlegend: true,
-      annotations: (sunVisLayout.annotations || []).map((a) => ({ ...a, y: 0.5, yanchor: "middle" })),
-    });
-  }
-  react("sun-vis", sunVisTraces, sunVisLayout, config);
+  /** Visible lines of the given bodies: the Sun's share of light (after terrain and eclipses), the Earth's disk share. */
+  const visTraces = (bodies, mode) => {
+    const two = bodies.length > 1;
+    const out = traces(
+      (it) => bodies.flatMap((body) => {
+        const st = styleOf(it, body, mode);
+        const names = bodyNames(it, body, mode, two);
+        if (body === "earth") return [line(it, it.series.earth_vis.map((v) => v * 100), st, { hovertemplate: `${hoverName(body, mode, two)}%{y:.0f}%`, ...names })];
+        // Long missions: the eclipses come from their own 2-min detail (playback.js missionSeries), not the coarse samples.
+        const total = withDetail(it.series, it.series.sun_flux_frac ? "sun_flux_frac" : "sun_vis", (v) => v * 100);
+        // With both bodies, the Sun's line is drawn wider, so it still shows where the Earth's line lies on it (both 100%).
+        const tr = [line(it, total, st, { hovertemplate: `${hoverName(body, mode, two)}%{y:.0f}% of the Sun's light`, ...names }, two ? 3.5 : 2)];
+        if (mode !== "both" && it.series.eclipses?.length) {
+          tr.push(line(it, withDetail(it.series, "sun_vis", (v) => v * 100), { ...st, dash: "dash" }, {
+            name: `${it.label}: terrain only`, showlegend: false, hovertemplate: "terrain only %{y:.0f}%",
+          }, 1.5));
+        }
+        return tr;
+      }),
+      (it) => bodies.map((body) => {
+        const b = it.state0[body];
+        const f = body === "sun" ? b.flux_frac ?? b.vis_frac : b.vis_frac;
+        const st = styleOf(it, body, mode);
+        return instantMarker(it, f * 100, `${hoverName(body, mode, two)}${Math.round(f * 100)}%`, st, {
+          ...(two ? { marker: { color: st.color, size: 11, symbol: instantSymbol(body, mode), line: { color: th.paper, width: 2 } } } : {}),
+          ...(two && !multi ? { name: `${NAME[body]} (instant)`, legendgroup: body } : {}),
+        });
+      }),
+    ).flat();
+    out.push(...keyTraces(bodies, mode));
+    if (anyEclipse && mode !== "both" && bodies.includes("sun")) {
+      // Legend key for the line styles (an empty trace): the scenario lines are solid, the terrain-only lines dashed.
+      out.push({
+        type: "scatter", mode: "lines", x: [null], y: [null], name: "Dashed: terrain only (Earth ignored)",
+        line: { color: th.muted, width: 1.5, dash: "dash" }, hoverinfo: "skip",
+      });
+    }
+    return out;
+  };
+  /** The visible-share layout: eclipse bands when the chart has the Sun; a legend on top moves their labels down. */
+  const visLayout = (yTitle, bodies, mode) => {
+    const two = bodies.length > 1;
+    let lay = layoutBase(yTitle, { range: [-5, 105], ticksuffix: "%" });
+    if (bodies.includes("sun")) lay = withEclipses(lay);
+    const legend = two || (anyEclipse && mode !== "both");
+    if (legend) {
+      // The legend takes the top row, so the eclipse labels move into the middle of their bands (the lines are at 0%
+      // and 100% there).
+      lay = twoLayout(lay, true);
+      if (lay.annotations) lay.annotations = lay.annotations.map((a) => ({ ...a, y: 0.5, yanchor: "middle" }));
+    }
+    return lay;
+  };
+  react("sun-vis", visTraces(["sun"], "single"), visLayout("Sunlight reaching the site (%)", ["sun"], "single"), config);
 
   // Fixed tilt: the flux comes from tiltOf(series).view (flux_tilt_wm2), one tilt per scenario.
   const fluxKey = { horiz: "flux_horiz_wm2", tilt: "flux_tilt_wm2" }[fluxMode] || "flux_normal_wm2";
@@ -691,58 +758,44 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
     fluxTitle = eps === null ? (tiltInLegend ? "Turning panel, tilt per scenario (W/m²)" : "Turning panel (W/m²)")
       : Number.isFinite(eps) ? `Turning panel, tilt ${deg(eps)} (W/m²)` : "Turning panel, tilt undefined (W/m²)";
   }
-  react(
-    "sun-flux",
-    traces(
-      (it) => {
-        if (fluxMode !== "tilt") return [line(it, withDetail(it.series, fluxKey), { hovertemplate: "%{y:.0f} W/m²" })];
-        const t = tiltLabel(tiltOf(it.series).eps0);
-        const name = multi && tiltInLegend ? `${it.label} · ${t}` : it.label;
-        return [line(it, withDetail(fluxSrc(it), fluxKey), { name, hovertemplate: `%{y:.0f} W/m² (${t})` })];
-      },
-      (it) => {
-        const v = sunFlux(it.state0.sun)[fluxMode];
-        return instantMarker(it, v, `${Math.round(v)} W/m²`);
-      },
-    ),
-    withEclipses(layoutBase(fluxTitle, { range: [0, Math.max(fluxMode === "horiz" ? 100 : 1400, fluxMax * 1.04)] })),
-    config,
-  );
-
-  const earthEl = traces(
+  const fluxTraces = (mode) => traces(
     (it) => {
-      const tr = [line(it, it.series.earth_el, { hovertemplate: "%{y:.1f}°" })];
-      if (it.horizon) {
-        tr.push(line(it, hzLine(it, "earth"), {
-          name: `${it.label}: ${it.horizon.approximate ? "approximate terrain (coarse)" : "terrain horizon"}`, showlegend: false, opacity: dense(it) ? 0.5 : 0.85,
-          line: { color: it.color, width: 1.5, dash: "dot" }, hovertemplate: "terrain %{y:.1f}°",
-        }));
-      }
-      return tr;
+      const st = styleOf(it, "sun", mode);
+      if (fluxMode !== "tilt") return [line(it, withDetail(it.series, fluxKey), st, { hovertemplate: "%{y:.0f} W/m²" })];
+      const t = tiltLabel(tiltOf(it.series).eps0);
+      const name = multi && tiltInLegend ? `${it.label} · ${t}` : it.label;
+      return [line(it, withDetail(fluxSrc(it), fluxKey), st, { name, hovertemplate: `%{y:.0f} W/m² (${t})` })];
     },
-    (it) => instantMarker(it, it.state0.earth.el_deg, deg(it.state0.earth.el_deg)),
+    (it) => {
+      const v = sunFlux(it.state0.sun)[fluxMode];
+      return instantMarker(it, v, `${Math.round(v)} W/m²`, styleOf(it, "sun", mode));
+    },
   );
-  react("earth-el", earthEl, layoutBase("Elevation (°)", { ticksuffix: "°" }), config);
+  const fluxLayout = () => withEclipses(layoutBase(fluxTitle, { range: [0, Math.max(fluxMode === "horiz" ? 100 : 1400, fluxMax * 1.04)] }));
+  react("sun-flux", fluxTraces("single"), fluxLayout(), config);
 
-  react(
-    "earth-vis",
-    traces(
-      (it) => [line(it, it.series.earth_vis.map((v) => v * 100), { hovertemplate: "%{y:.0f}%" })],
-      (it) => instantMarker(it, it.state0.earth.vis_frac * 100, `${Math.round(it.state0.earth.vis_frac * 100)}%`),
-    ),
-    layoutBase("Visible disk (%)", { range: [-5, 105], ticksuffix: "%" }),
-    config,
-  );
+  react("earth-el", elTraces(["earth"], "single"), layoutBase("Elevation (°)", { ticksuffix: "°" }), config);
+  react("earth-vis", visTraces(["earth"], "single"), visLayout("Visible disk (%)", ["earth"], "single"), config);
 
-  react(
-    "earth-phase",
-    traces(
-      (it) => [line(it, it.series.earth_phase.map((v) => v * 100), { hovertemplate: "%{y:.0f}% lit" })],
-      (it) => instantMarker(it, it.state0.earth.phase_frac * 100, `${Math.round(it.state0.earth.phase_frac * 100)}% lit`),
+  const phaseTraces = (mode) => [
+    ...traces(
+      (it) => [line(it, it.series.earth_phase.map((v) => v * 100), styleOf(it, "earth", mode), { hovertemplate: "%{y:.0f}% lit" })],
+      (it) => instantMarker(it, it.state0.earth.phase_frac * 100, `${Math.round(it.state0.earth.phase_frac * 100)}% lit`, styleOf(it, "earth", mode)),
     ),
-    layoutBase("Lit fraction (%)", { range: [-5, 105], ticksuffix: "%" }),
-    config,
-  );
+    ...keyTraces(["earth"], mode),
+  ];
+  const phaseLayout = () => layoutBase("Lit fraction (%)", { range: [-5, 105], ticksuffix: "%" });
+  react("earth-phase", phaseTraces("single"), phaseLayout(), config);
+
+  // The Both section (drawn only while it shows): one Elevation and one Visible disk chart with both bodies, then the
+  // body-specific Sunlight power and Earth phase.
+  if (normBody(store.body) === "both") {
+    react("both-el", elTraces(["sun", "earth"], "both"), twoLayout(layoutBase("Elevation (°)", { ticksuffix: "°" }), true), config);
+    react("both-vis", visTraces(["sun", "earth"], "both"), visLayout("Visible disk (%)", ["sun", "earth"], "both"), config);
+    react("both-flux", fluxTraces("both"), fluxLayout(), config);
+    react("both-phase", phaseTraces("both"), twoLayout(phaseLayout(), multi), config);
+    bothDrawnFor = lastArgs;
+  }
   // A chart first drawn in a hidden section gets Plotly's default 700 px width, and Plotly.react keeps it: fit the
   // shown section to its box (e.g. the Far side story opens the Earth section; 700 px overflows a phone).
   resizeShownCharts();
@@ -799,7 +852,7 @@ function drawCursor(now = false) {
   cursorTimer = setTimeout(() => {
     cursorLast = performance.now();
     plotlyPromise.then((Plotly) => {
-      const body = store.body === "earth" ? "earth" : "sun";
+      const body = normBody(store.body);
       const cur = cursorShapes();
       for (const c of document.querySelectorAll(`#sec-${body} .chart.js-plotly-plot`)) {
         const id = c.id.replace(/^chart-/, "");

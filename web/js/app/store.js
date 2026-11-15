@@ -16,7 +16,7 @@ export const store = {
   scenarios: [],
   activeId: null,
   xaxis: "met",
-  body: "sun", // the Sun | Earth switch: the body the sky views aim at and whose data shows, "sun" | "earth"
+  body: "sun", // the Sun | Earth | Both switch: "sun" | "earth" (the views aim at it, its data shows) | "both" (both bodies' data)
   theme: "dark",
   mapLayers: [], // the globe's map layers that are on ("psr", "sun"; web/js/globe/layers.js)
   daylight: true, // the globe shows day and night at the sky's moment (web/js/globe/daylight.js; link "ml=noday" when off)

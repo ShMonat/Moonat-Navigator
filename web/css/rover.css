@@ -187,11 +187,11 @@
 .rover-picking .map { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 12px; }
 /* While armed, a click anywhere on the globe (a marker or a pin included) sets the point: a crosshair everywhere. */
 .rover-picking .globe-stage, .rover-picking .globe-site, .rover-picking .globe-pin:not(.dragging) { cursor: crosshair; }
-/* Wide screens, where the inputs column scrolls on its own: the globe stays pinned at the top of the column while a trip
-   point is picked, and after it while the route is drawn (pick.js "map-pinned"); the cards scroll under it. */
+/* Wide screens (the page scrolls as one, under the sticky site header): the globe stays pinned under the header while a
+   trip point is picked, and after it while the route is drawn (pick.js "map-pinned"); the cards scroll under it. */
 @media (min-width: 1100px) {
   .layout > .inputs > .map-block.map-pinned {
-    position: sticky; top: 0; z-index: 6; padding-bottom: 8px; background: var(--bg);
+    position: sticky; top: calc(var(--topbar-h, 64px) + 4px); z-index: 6; padding-bottom: 8px; background: var(--bg);
     box-shadow: 0 12px 14px -14px rgba(0, 0, 0, 0.7);
   }
 }

@@ -15,14 +15,39 @@ const CSS = read("../css/app.css");
 const PANEL = read("../js/app/sky_panel.js");
 const RIDE = read("../js/rover/sky_ride.js");
 
-test("the stage holds, in order: the caption line, the sky panel (views, timelapse bar), the Sun | Earth switch", () => {
+test("the stage holds, in order: the caption line, the sky panel (views, timelapse bar with the switch and the camera)", () => {
   const stage = HTML.indexOf('id="sky-stage"');
-  const order = ['id="qs-caption"', 'id="sky-panel"', 'id="sky-grid"', 'id="sky-controls"', 'id="cam-group"', 'id="body-bar"', 'id="compare-body"']
+  const order = ['id="qs-caption"', 'id="sky-panel"', 'id="sky-grid"', 'id="sky-controls"', 'id="view-group"', 'id="body-toggle"', 'id="cam-group"', 'id="compare-body"']
     .map((s) => HTML.indexOf(s));
   assert.ok(stage > 0, "#sky-stage exists");
   assert.ok(order.every((i) => i > stage), "everything after the stage opens");
-  assert.deepEqual([...order].sort((a, b) => a - b), order, "caption, views, controls, camera group, switch, then the data");
+  assert.deepEqual([...order].sort((a, b) => a - b), order, "caption, views, controls, switch, camera group, then the data");
   assert.match(CSS, /\.sky-stage\s*\{[^}]*min-height:\s*max\(420px, calc\(100dvh - var\(--stage-top\)\)\)/);
+});
+
+test("the switch is Sun | Earth | Both in the timelapse bar; no separate switch row, no subtitle", () => {
+  const bar = HTML.slice(HTML.indexOf('id="sky-controls"'), HTML.indexOf('id="event-hint"'));
+  for (const b of ["sun", "earth", "both"]) assert.match(bar, new RegExp(`data-body="${b}"`), b);
+  for (const gone of ['id="body-bar"', 'id="body-sub"', "Sunlight: power and heat"]) assert.ok(!HTML.includes(gone), gone);
+  assert.match(HTML, /data-body="earth"[^>]*title="[^"]*radio contact/, "the Earth's meaning is in its tooltip");
+  // A single instant hides the camera group, not the switch.
+  assert.match(CSS, /\.sky-controls\.instant [^{]*\.cam-group \{ display: none; \}/);
+  assert.ok(!/\.sky-controls\.instant [^{]*(\.view-group|\.body-switch)/.test(CSS), "the switch stays for single instants");
+});
+
+test("the page is thinner: no introduction line, no header badge, no time in the card head, no numbers option", () => {
+  for (const gone of ['id="intro"', "moonat-intro", 'id="btn-validated"', "valid-badge"]) assert.ok(!HTML.includes(gone), gone);
+  assert.match(HTML, /data-open-validated/, "the checks panel opens from the footer and About");
+  assert.ok(!/\.intro\b|data-intro|valid-badge|sky-card-time/.test(CSS), "no leftover styles");
+  assert.ok(!PANEL.includes("sky-card-time"), "no time in the card head");
+  assert.ok(!PANEL.includes("Numbers in the view"), "no numbers option");
+  assert.match(PANEL, /hudLevel: "full"/, "the numbers always show in the view");
+});
+
+test("one scrollbar: the left column does not scroll on its own", () => {
+  const desk = CSS.slice(CSS.indexOf("/* Desktop: the inputs on the left"), CSS.indexOf("@media (min-width: 1100px) { .sky-controls"));
+  assert.ok(desk.length > 0);
+  assert.ok(!/overflow:\s*auto|max-height|position:\s*sticky/.test(desk), desk);
 });
 
 test("one camera group: Follow (the switch's body) and Driver's view; no Track button, no Look ahead, no Focus", () => {
