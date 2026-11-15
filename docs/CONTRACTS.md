@@ -206,7 +206,8 @@ await createSkyView(container /* HTMLElement */, {
   close-ups and the other body's disk, and they stay above the compass strip.
 - Terrain extras: `createSkyView(..., { terrainPatch: { meta, data: Float32Array } })` takes an in-memory C4 patch instead of
   `terrainPatchUrl`, and `view.setTerrain({ horizon, patch })` swaps the skyline and/or the patch in place (camera, sky and
-  textures stay; an omitted key keeps its value; `horizon: null` = the patch's own skyline). A patch with the same grid
+  textures stay; an omitted key keeps its value; `horizon: null` = the patch's own skyline; a drive also passes
+  `terrainDetail` / `detail` and `eye`, see Ride in C10). A patch with the same grid
   (size, spacing, extent) and a skyline with the same number of azimuths only update the heights of the meshes already
   built (about 12 ms; a full rebuild takes 30–190 ms).
 - Extras beyond C8 used by the app's full screen: `setPixelBudget(px | null)` (drawing-buffer size; pixel ratio ≤ 2) and
@@ -463,6 +464,10 @@ tripKey(points, rover), tripProblems(points) -> [message]      // a 2-point trip
   heading and slope of travel; the view's 3D ground and drawn skyline are rebuilt at the position rounded to
   max(20 m, a fine cell), at most every 160 ms while the time runs. The ±8 km ground patch is computed in a Web Worker
   (`ground.js`, the same `routePatch` on a copy of the route grids), one at a time per view, the latest position first.
+  The decorative detail of a drive (bumps, small craters, rocks; `web/js/sky/detail.js`) is anchored to the ground in
+  the trip's map frame (the route plane of `route.path` x, y) and computed with each ground in the worker; every frame
+  the view moves and turns its near field so the eye is at the rover's exact position (`view.setEye`). Static views
+  keep the eye-centred detail unchanged.
   "Driver's view" (the timelapse bar's camera group,
   shown while a trip is on screen) is the sky panel's "ahead" track mode (`setTrackMode`); `ui.js` gives the direction
   with `setLookAheadSource(sky_ride.js lookAheadDirection)`: the path's heading, the slope × 0.7 + 1.5° up; the view

@@ -617,6 +617,7 @@ async function createView(rec) {
     const { view, mode } = await makeSkyView(rec.viewEl, {
       site: ride ? { ...ride.site, horizon: ground.horizon } : it.site, terrainPatchUrl: patchUrl,
       terrainPatch: ride ? ground.patch : it.s.site_id ? null : skyPatch(it.patch),
+      terrainDetail: ride ? ground.detail : null, // a drive: decorative detail anchored to the ground (sky/detail.js)
       fovDeg: 70, earthNightTextureUrl: "assets/earth_night.jpg",
       closeUp: viewOpts.closeUp, showConstellations: viewOpts.constellations, exposure: viewOpts.exposure,
       hudLevel: viewOpts.hudLevel, buttons: false, // the card's "⋯" menu holds the toggles

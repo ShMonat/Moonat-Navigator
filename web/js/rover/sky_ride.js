@@ -8,16 +8,21 @@
 //   REBUILD_MS while the time runs, and once more where it stops. The ground is a ±8 km patch of the route grids
 //   (route.js routePatch), computed in a Web Worker (ground.js) while the frames go on; the view then gives its
 //   meshes the new heights in place (sky/terrain.js setGround).
+// - Decorative detail (bumps, small craters, rocks; sky/detail.js): anchored to the ground in the trip's map frame
+//   (the stereographic plane of the route, as route.path x, y), computed with each ground in the worker. Between
+//   rebuilds the view moves and turns its near field every frame (setEye) so the eye is at the rover's exact position:
+//   the detail and the ground stream past instead of travelling with the rover.
 // - Camera: keeps looking at the same physical direction as the local frame turns, or with "Driver's view" (the
 //   timelapse bar's camera group: the "ahead" track mode of sky_panel.js, fed by lookAheadDirection) faces the way
 //   the rover drives: the path's heading, slightly up or down with the slope.
 
 import { routePatch, bracket } from "./route.js";
 import { legAtDistance } from "./trip.js";
-import { enuBasis } from "../terrain/geom.js";
-import { unitVec } from "./terrain.js";
+import { enuBasis, R_M } from "../terrain/geom.js";
+import { unitVec, makePlane } from "./terrain.js";
 import { makeSite } from "../physics/index.js";
-import { groundPatch } from "./ground.js";
+import { groundAt } from "./ground.js";
+import { groundDetail, laneSegments, toLocal } from "../sky/detail.js";
 
 const PATCHES = new Map(); // `${key}|${groundIndex}` -> patch
 const MAX_PATCHES = 80;
@@ -27,9 +32,13 @@ const GROUND = { half_extent_m: 8000, n: 257 };
 export const REBUILD_MS = 160;
 const D2R = Math.PI / 180;
 
-/** Ground step (m): the 3D ground and drawn skyline are rebuilt each time the rover moves this far. */
-function groundStep(route) {
-  return Math.max(20, Math.min(120, route.meta?.fine_cell_m || 30));
+/**
+ * Ground step (m): the 3D ground and drawn skyline are rebuilt each time the rover moves this far (at most every
+ * REBUILD_MS). Between rebuilds setEye moves the near field with the rover; a short step keeps the eye near the
+ * mesh's finest rings, so the ground at the rover's feet stays as detailed as in a static view.
+ */
+function groundStep() {
+  return 10;
 }
 
 /** Azimuth change (deg) of any fixed horizontal direction from site a's ENU frame to site b's: az_b = az_a + δ. */
@@ -133,30 +142,84 @@ export function rideAt(it, tMs) {
 const groundKey = (it, ride) => `${it.key}|${ride.ground.index}`;
 const groundOpts = (route, g) => ({ ...GROUND, leg: legAtDistance(route, g.distance_m) });
 
+const FRAMES = new WeakMap(); // route result -> its map frame
+
+/**
+ * The trip's map frame: the stereographic plane of the route (tangent at route.centre; metres, x toward east and y
+ * toward north there), the frame of route.path x, y. One frame for the whole trip.
+ */
+function mapFrame(route) {
+  let f = FRAMES.get(route);
+  if (!f) {
+    f = { plane: makePlane(route.centre.lat_deg, route.centre.lon_deg), path: route.path };
+    FRAMES.set(route, f);
+  }
+  return f;
+}
+
+/** Map position (m) of the point at local (east, north) m from p = {lat_deg, lon_deg} (along the sphere). */
+function mapOffset(frame, p, east = 0, north = 0) {
+  if (!east && !north) return frame.plane.toXY(p.lat_deg, p.lon_deg);
+  const B = enuBasis(p.lat_deg, p.lon_deg), u = [0, 1, 2].map((i) => B.up[i] + (east * B.east[i] + north * B.north[i]) / R_M);
+  const k = Math.hypot(u[0], u[1], u[2]);
+  return frame.plane.toXY(Math.asin(u[2] / k) / D2R, Math.atan2(u[1], u[0]) / D2R);
+}
+
+/**
+ * The anchor of the detail around ground point g (sky/detail.js): its map position and the map metres per metre east
+ * and per metre north there (central differences over ±50 m).
+ */
+export function anchorAt(route, g) {
+  const f = mapFrame(route), L = 50;
+  const [x0, y0] = mapOffset(f, g), e1 = mapOffset(f, g, L, 0), e0 = mapOffset(f, g, -L, 0);
+  const n1 = mapOffset(f, g, 0, L), n0 = mapOffset(f, g, 0, -L);
+  return { x0, y0, ax: [(e1[0] - e0[0]) / (2 * L), (e1[1] - e0[1]) / (2 * L)], an: [(n1[0] - n0[0]) / (2 * L), (n1[1] - n0[1]) / (2 * L)] };
+}
+
+/** What the worker needs for the detail of ground point g: the anchor and the path near it (no rocks on the path). */
+function detailRequest(route, g) {
+  const anchor = anchorAt(route, g);
+  return { anchor, lane: laneSegments(mapFrame(route).path, anchor.x0, anchor.y0, 600) };
+}
+
+/**
+ * Where the eye is relative to a ground on show (sky/index.js setEye): the rover's local (east, north) m from the
+ * ground point, and the turn of the azimuth frame from the ground point to the rover.
+ */
+export function eyeOffset(it, shown, ride) {
+  const [x, y] = mapOffset(mapFrame(it.route.result), ride.position);
+  const [east, north] = toLocal(shown.anchor, x, y);
+  return { east, north, turn_deg: frameTurnDeg(shown.at, ride.position) };
+}
+
 /** Keep the ground of a ride point; the skyline drawn with it is the blended one at the ground point. */
-function remember(key, it, ride, patch) {
+function remember(key, it, ride, patch, detail) {
   const g = ride.ground, route = it.route.result;
   const horizon = g.distance_m === ride.distance_m ? ride.horizon : horizonAlong(route, g.distance_m, g);
   if (PATCHES.size >= MAX_PATCHES) PATCHES.delete(PATCHES.keys().next().value);
-  PATCHES.set(key, { patch, horizon });
+  PATCHES.set(key, { patch, horizon, detail, anchor: detail?.anchor ?? null, at: { lat_deg: g.lat_deg, lon_deg: g.lon_deg } });
   return PATCHES.get(key);
 }
 
-/** In-memory C4 patch ({meta, data}) and skyline of the ground point of a ride (cached), computed here. */
+/**
+ * In-memory C4 patch ({meta, data}), skyline and world-anchored detail of the ground point of a ride (cached),
+ * computed here: {patch, horizon, detail, anchor, at (the ground point)}.
+ */
 export function rideGround(it, ride) {
   const key = groundKey(it, ride);
   if (PATCHES.has(key)) return PATCHES.get(key);
   const g = ride.ground, route = it.route.result;
-  return remember(key, it, ride, routePatch(route, g.lat_deg, g.lon_deg, groundOpts(route, g)));
+  const patch = routePatch(route, g.lat_deg, g.lon_deg, groundOpts(route, g));
+  return remember(key, it, ride, patch, groundDetail(patch.meta, detailRequest(route, g)));
 }
 
-/** The same as rideGround, with the patch computed in the Web Worker (ground.js): resolves with {patch, horizon}. */
+/** The same as rideGround, computed in the Web Worker (ground.js). */
 export async function rideGroundAsync(it, ride) {
   const key = groundKey(it, ride);
   if (PATCHES.has(key)) return PATCHES.get(key);
   const g = ride.ground, route = it.route.result;
-  const patch = await groundPatch(route, g.lat_deg, g.lon_deg, groundOpts(route, g));
-  return PATCHES.get(key) ?? remember(key, it, ride, patch);
+  const { patch, detail } = await groundAt(route, g.lat_deg, g.lon_deg, groundOpts(route, g), detailRequest(route, g));
+  return PATCHES.get(key) ?? remember(key, it, ride, patch, detail);
 }
 
 /**
@@ -172,6 +235,8 @@ export function lookAheadDirection(it, tMs, ride) {
 /**
  * Before a view shows a new moment of the ride: keep the camera on the same physical direction while the local frame
  * turns (near the pole it turns quickly with position). In the driver's view (ahead) the track mode aims it instead.
+ * The view's near field is moved so the eye is at the rover's exact position (setEye; the ground on show was built
+ * around a ground point up to one rebuild behind).
  */
 export function rideCamera(rec, ride, { ahead = false } = {}) {
   const view = rec.view;
@@ -183,6 +248,9 @@ export function rideCamera(rec, ride, { ahead = false } = {}) {
     }
   }
   rec.rideSite = ride.site;
+  rec.rideLast = ride;
+  const shown = PATCHES.get(rec.rideGroundKey) ?? rec.rideShown;
+  if (view?.setEye && shown?.anchor && rec.it?.route) view.setEye(eyeOffset(rec.it, shown, ride));
 }
 
 /**
@@ -230,7 +298,10 @@ async function buildGround(rec) {
   }
   if (g && rec.view?.setTerrain && rec.it === p.it && rec.rideGroundKey !== p.key) {
     rec.rideGroundKey = p.key;
-    rec.view.setTerrain({ horizon: g.horizon, patch: g.patch });
+    rec.rideShown = g;
+    // The eye where the rover is now, relative to the new ground point, in the same render.
+    const eye = g.anchor && p.it.route ? eyeOffset(p.it, g, rec.rideLast ?? p.ride) : null;
+    rec.view.setTerrain({ horizon: g.horizon, patch: g.patch, detail: g.detail, eye });
   }
   if (rec.ridePending) scheduleGround(rec);
 }

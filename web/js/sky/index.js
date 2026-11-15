@@ -113,6 +113,7 @@ export async function createSkyView(container, {
   showConstellations = true,
   closeUp: initialCloseUp = true,   // magnified inset of the Earth (and of the Sun while terrain partly hides it)
   terrainPatch = null,           // an in-memory C4 patch { meta, data: Float32Array } instead of terrainPatchUrl
+  terrainDetail = null,          // a moving view (drive): world-anchored detail (detail.js driveDetail + anchor); see setEye
   stars = null,                  // in-memory star JSON instead of starsUrl
   exposure: initialExposure = 'eye',   // "eye": stars stay visible in daylight; "camera": exposed for the sunlit ground
   onNotes = null,                // (notes: [{ id, text }]) => void, called when the HUD notes change (e.g. to show them elsewhere)
@@ -127,6 +128,7 @@ export async function createSkyView(container, {
     fetchTexture(earthNightTextureUrl), terrainPatch ?? fetchPatch(terrainPatchUrl),
   ]);
   let patch = patch0;   // replaced by setTerrain()
+  let detail = terrainDetail;   // replaced by setTerrain()
   // Skyline: the site's C3 profile; without one, the patch's own skyline; without both, a smooth horizon.
   let horizon = site?.horizon ?? (patch ? horizonFromPatch(patch, eyeH) : flatHorizon(eyeH));
 
@@ -158,7 +160,7 @@ export async function createSkyView(container, {
   sky.setConstellations(showConstellations);
   let constellationsOn = !!showConstellations && sky.hasConstellations, lastNotesKey = null;
   const floatLinear = renderer.capabilities.isWebGL2 && renderer.extensions.has('OES_texture_float_linear');
-  let terrain = buildTerrain({ patch, horizon, eyeH, floatLinear });
+  let terrain = buildTerrain({ patch, horizon, eyeH, floatLinear, detail });
   const skyScene = new THREE.Scene(), farScene = new THREE.Scene(), nearScene = new THREE.Scene();
   skyScene.add(sky.group, sky.fixed);
   farScene.add(terrain.skirt);
@@ -875,20 +877,24 @@ export async function createSkyView(container, {
    * custom point arrives after the view opened on the coarse tiles horizon. The camera, sky and textures stay; only
    * the terrain meshes are rebuilt (tens of ms), or only their heights when the new patch has the same grid (a rover
    * moving along its route: a few ms). `horizon`: C3 object, or null for the patch's own skyline (or a smooth one);
-   * `patch`: { meta, data: Float32Array } (C4) or null. An omitted key keeps its current value.
+   * `patch`: { meta, data: Float32Array } (C4) or null. An omitted key keeps its current value. A moving view also
+   * passes `detail` (world-anchored detail of the new ground point) and `eye` (setEye for that ground point), so the
+   * first frame on the new ground already has the eye where the rover is.
    */
-  function setTerrain({ horizon: newHorizon, patch: newPatch } = {}) {
+  function setTerrain({ horizon: newHorizon, patch: newPatch, detail: newDetail, eye = null } = {}) {
     if (disposed) return;
     if (newPatch !== undefined) patch = newPatch;
     if (newHorizon !== undefined) horizon = newHorizon ?? (patch ? horizonFromPatch(patch, eyeH) : flatHorizon(eyeH));
-    if (!terrain.setGround({ patch, horizon })) {
+    if (newDetail !== undefined) detail = newDetail;
+    if (!terrain.setGround({ patch, horizon, detail })) {
       farScene.remove(terrain.skirt);
       nearScene.remove(terrain.near);
       terrain.dispose();
-      terrain = buildTerrain({ patch, horizon, eyeH, floatLinear });
+      terrain = buildTerrain({ patch, horizon, eyeH, floatLinear, detail });
       farScene.add(terrain.skirt);
       nearScene.add(terrain.near);
     }
+    if (eye) terrain.setEye(eye);
     horizonMaxEl = Math.max(...horizon.el_deg);
     info.hasPatch = !!patch;
     info.horizonSource = newHorizon ? 'site' : patch ? 'patch' : horizon.smooth ? 'smooth' : info.horizonSource;
@@ -901,6 +907,12 @@ export async function createSkyView(container, {
 
   return {
     update, lookAt, lookAtBody, setFov, resize, dispose, setTerrain,
+    /**
+     * Moving view (built with terrainDetail): the eye at { east, north } m from the ground point of the terrain on
+     * show, turn_deg = the change of azimuth from that point's frame to the eye's (sky_ride.js eyeOffset). Takes effect
+     * at the next render (update). No effect on other views.
+     */
+    setEye: (eye) => { if (!disposed) terrain.setEye(eye); },
     /** Follow "sun" | "earth" | { az_deg, el_deg } as the time changes, or null (see setTrack above; C8 extras). */
     setTrack,
     getTrack: trackInfo,

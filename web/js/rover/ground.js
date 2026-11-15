@@ -3,9 +3,11 @@
 // routePatch, about 20–30 ms each), computed in a module Web Worker (worker.js "ground" messages), so the frame loop
 // never waits for one. The worker keeps a copy of the grids of the few routes in use (sent once per route); without
 // workers (Node tests), after a worker failure, or when a reply is late, the patch is computed inline. Same code, same
-// grids: same patch.
+// grids: same patch. With a detail request the worker also computes the sky view's world-anchored detail there
+// (sky/detail.js groundDetail).
 
 import { routePatch } from "./route.js";
+import { groundDetail } from "../sky/detail.js";
 
 /** Routes whose grids the worker holds at most (the oldest is dropped first). */
 export const KEEP_ROUTES = 3;
@@ -68,7 +70,18 @@ export function patchSource(route) {
  * lon_deg, opts), computed in the worker. Resolves with the same patch routePatch returns inline.
  */
 export function groundPatch(route, lat_deg, lon_deg, opts = {}) {
-  const inline = () => routePatch(route, lat_deg, lon_deg, opts);
+  return groundAt(route, lat_deg, lon_deg, opts).then((r) => r.patch);
+}
+
+/**
+ * The patch (as groundPatch) and, with `detailReq` ({anchor, lane}: sky/detail.js groundDetail), the sky view's
+ * world-anchored detail for it, both from the worker: resolves with {patch, detail} (detail null without a request).
+ */
+export function groundAt(route, lat_deg, lon_deg, opts = {}, detailReq = null) {
+  const inline = () => {
+    const patch = routePatch(route, lat_deg, lon_deg, opts);
+    return { patch, detail: detailReq ? groundDetail(patch.meta, detailReq) : null };
+  };
   const w = getWorker();
   if (!w) return new Promise((resolve) => resolve(inline()));
   let rid = routeIds.get(route);
@@ -88,6 +101,6 @@ export function groundPatch(route, lat_deg, lon_deg, opts = {}) {
       if (pending.delete(id)) settleInline(p);
     }, GROUND_TIMEOUT_MS);
     pending.set(id, p);
-    w.postMessage({ id, type: "ground", rid, lat_deg, lon_deg, opts });
+    w.postMessage({ id, type: "ground", rid, lat_deg, lon_deg, opts, detail: detailReq });
   });
 }

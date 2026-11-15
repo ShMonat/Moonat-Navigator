@@ -5,11 +5,13 @@
 //   share the points of one route.
 // - ground patches for the sky view while a rover drives (ground.js): {type: "ground-route", rid, route} keeps the
 //   grids of a route (ground.js patchSource), {type: "ground-drop", rid} forgets them, {id, type: "ground", rid,
-//   lat_deg, lon_deg, opts} computes route.js routePatch there.
+//   lat_deg, lon_deg, opts, detail} computes route.js routePatch there, and with `detail` ({anchor, lane}) the
+//   world-anchored detail of the sky view (sky/detail.js groundDetail); result {patch, detail}.
 // Out: {id, progress: {stage, frac}} while working, then {id, result} or {id, error, code}. Grid and image buffers
 // of a plan, and the heights of a ground patch, are transferred, not copied.
 
 import { computeRoute, horizonsAt, routePatch } from "./route.js";
+import { groundDetail } from "../sky/detail.js";
 
 const routes = new Map(); // ground patches: route id -> the parts of the route that routePatch reads
 
@@ -21,8 +23,11 @@ self.onmessage = async (ev) => {
     try {
       const route = routes.get(ev.data.rid);
       if (!route) throw new Error(`ground: route ${ev.data.rid} is not loaded`);
-      const result = routePatch(route, ev.data.lat_deg, ev.data.lon_deg, opts);
-      self.postMessage({ id, result }, [result.data.buffer]);
+      const patch = routePatch(route, ev.data.lat_deg, ev.data.lon_deg, opts);
+      const detail = ev.data.detail ? groundDetail(patch.meta, ev.data.detail) : null;
+      const transfer = [patch.data.buffer];
+      if (detail) transfer.push(detail.lift.buffer, detail.rocks.buffer);
+      self.postMessage({ id, result: { patch, detail } }, transfer);
     } catch (e) {
       self.postMessage({ id, error: String((e && e.message) || e) });
     }

@@ -68,6 +68,50 @@ float terrainShadow(vec3 P){
 vec3 toneMap(vec3 c){ return vec3(1.0) - exp(-c * uExposure); }
 `;
 
+// World-anchored detail for a moving view (terrain.js with a drive's detail, define WORLD_DETAIL): the near field is
+// built around a ground point and moved and turned every frame so the eye is at the rover; the fine ground texture and
+// the rock texture are taken in the trip's map frame, and the heightfield shadows in the near field's own frame.
+// The map origin enters per octave reduced modulo the hash period, so the inputs stay small (float precision).
+export const WORLD_GLSL = /* glsl */ `
+uniform vec3 uNearPos;            // position of the near field in the world (eye at the origin)
+uniform vec2 uNearRot;            // (cos, sin) of its turn about the vertical
+uniform vec2 uMapAx, uMapAz;      // map metres per metre along the near field's x and z axes
+uniform vec2 uOct[9];             // per detail octave: map origin / wavelength + offset, modulo the hash period
+uniform vec2 uMot[3];             // the same for the three octaves of the large albedo mottling
+uniform vec2 uRockOff, uRockOff2; // the same for the two rock texture octaves
+float hashW(vec2 p){ return hash12(mod(p, 4096.0)); }
+vec3 noisedW(vec2 p){
+  vec2 i = floor(p), f = fract(p);
+  vec2 u = f*f*f*(f*(f*6.-15.)+10.), du = 30.*f*f*(f*(f-2.)+1.);
+  float a = hashW(i), b = hashW(i+vec2(1,0)), c = hashW(i+vec2(0,1)), d = hashW(i+vec2(1,1));
+  float k1 = b-a, k2 = c-a, k4 = a-b-c+d;
+  return vec3(a + k1*u.x + k2*u.y + k4*u.x*u.y, du*(vec2(k1,k2) + k4*u.yx));
+}
+vec3 nearLocal(vec3 w){ vec3 d = w - uNearPos; return vec3(uNearRot.x*d.x - uNearRot.y*d.z, d.y, uNearRot.y*d.x + uNearRot.x*d.z); }
+vec2 nearToWorld(vec2 l){ return vec2(uNearRot.x*l.x + uNearRot.y*l.y, -uNearRot.y*l.x + uNearRot.x*l.y); }
+// A gradient taken in map coordinates, as a world (x, z) gradient.
+vec2 mapGradToWorld(vec2 g){ return nearToWorld(vec2(dot(g, uMapAx), dot(g, uMapAz))); }
+// terrainShadow in the near field's frame: P and the Sun's direction sd both in that frame.
+float terrainShadowNear(vec3 P, vec3 sd){
+  if (sd.y <= -uSunRad) return 0.0;
+  if (uHasPatch < 0.5) return 1.0;
+  vec2 dh = sd.xz; float hl = length(dh);
+  if (hl < 1e-4) return 1.0;
+  dh /= hl; float slope = sd.y / hl;
+  float y0 = max(P.y, patchY(P.xz));
+  float s = 1.0, t = uStep0;
+  for (int i = 0; i < 44; i++) {
+    vec2 q = P.xz + dh * t;
+    if (abs(q.x) > uPatchHalf || abs(q.y) > uPatchHalf) break;
+    float clearance = slope + (y0 - patchY(q)) / t;
+    s = min(s, smoothstep(-uSunRad, uSunRad, clearance + 0.004));
+    if (s <= 0.0) break;
+    t *= 1.14;
+  }
+  return s;
+}
+`;
+
 export const TERRAIN_VERT = /* glsl */ `
 #include <common>
 #include <logdepthbuf_pars_vertex>
@@ -75,6 +119,9 @@ export const TERRAIN_VERT = /* glsl */ `
 #ifdef ROCK
 attribute float aTint;
 varying float vTint;
+#endif
+#if defined(ROCK) && defined(WORLD_DETAIL)
+varying float vRockY;
 #endif
 varying vec3 vWorld;
 varying vec3 vNormalW;
@@ -96,6 +143,9 @@ void main(){
   #ifdef ROCK
   vTint = aTint;
   #endif
+  #if defined(ROCK) && defined(WORLD_DETAIL)
+  vRockY = (instanceMatrix * vec4(transformed, 0.0)).y;   // height above the rock's centre (m)
+  #endif
 }
 `;
 
@@ -109,8 +159,14 @@ export const TERRAIN_FRAG = /* glsl */ `
 #include <shadowmask_pars_fragment>
 ${NOISE_GLSL}
 ${LUNAR_GLSL}
+#ifdef WORLD_DETAIL
+${WORLD_GLSL}
+#endif
 #ifdef ROCK
 varying float vTint;
+#endif
+#if defined(ROCK) && defined(WORLD_DETAIL)
+varying float vRockY;
 #endif
 varying vec3 vWorld;
 varying vec3 vNormalW;
@@ -120,12 +176,42 @@ void main(){
   vec3 v = normalize(-vWorld);
   vec2 p = vWorld.xz;
   float alb = 0.0;
-  #ifdef ROCK
+  #ifdef WORLD_DETAIL
+  vec3 L = nearLocal(vWorld);
+  vec2 m = uMapAx * L.x + uMapAz * L.z;   // map metres from the near field's ground point
+  #endif
+  #if defined(ROCK) && defined(WORLD_DETAIL)
+    vec2 pr = m * 9.0 + vRockY * 5.0;
+    vec3 nz = noisedW(pr + uRockOff);
+    alb = (nz.x - 0.5) * 0.35 + (noisedW(pr * 4.3 + uRockOff2).x - 0.5) * 0.2;
+    vec2 gw = mapGradToWorld(nz.yz);
+    n = normalize(n + 0.18 * vec3(gw.x, 0.0, gw.y));
+    vec3 base = vec3(0.40, 0.39, 0.375) * vTint;
+  #elif defined(ROCK)
     vec2 pr = p * 9.0 + vWorld.y * 5.0;
     vec3 nz = noised(pr);
     alb = (nz.x - 0.5) * 0.35 + (noised(pr * 4.3).x - 0.5) * 0.2;
     n = normalize(n + 0.18 * vec3(nz.y, 0.0, nz.z));
     vec3 base = vec3(0.40, 0.39, 0.375) * vTint;
+  #elif defined(WORLD_DETAIL)
+    float fp = max(length(dFdx(m)), length(dFdy(m)));
+    vec2 grad = vec2(0.0);
+    float lam = 0.035;
+    for (int i = 0; i < 9; i++) {
+      float w = 1.0 - smoothstep(0.3 * lam, 0.8 * lam, fp);
+      if (w > 0.0) {
+        vec3 nz = noisedW(m / lam + uOct[i]);
+        float rough = i < 5 ? 0.075 : 0.04;
+        grad += w * rough * nz.yz;
+        alb += w * (nz.x - 0.5) * (i < 3 ? 0.10 : 0.07);
+      }
+      lam *= 3.1;
+    }
+    vec2 gw = mapGradToWorld(grad);
+    n = normalize(vec3(n.x - gw.x, n.y, n.z - gw.y));
+    vec2 mm = m / 900.0;
+    alb += ((noisedW(mm + uMot[0]).x + 0.5 * noisedW(mm * 2.03 + uMot[1]).x + 0.25 * noisedW(mm * 4.01 + uMot[2]).x) / 1.75 - 0.5) * 0.22;
+    vec3 base = vec3(0.40, 0.385, 0.36);
   #else
     // Band-limited fractal detail: each octave fades out as the pixel footprint approaches its wavelength.
     float fp = max(length(dFdx(p)), length(dFdy(p)));
@@ -147,7 +233,12 @@ void main(){
     vec3 base = vec3(0.40, 0.385, 0.36);
   #endif
   vec3 albedo = base * (1.0 + alb);
+  #ifdef WORLD_DETAIL
+  vec3 sunL = vec3(uNearRot.x * uSunDir.x - uNearRot.y * uSunDir.z, uSunDir.y, uNearRot.y * uSunDir.x + uNearRot.x * uSunDir.z);
+  float shadow = getShadowMask() * terrainShadowNear(L, sunL) * uSunVis;
+  #else
   float shadow = getShadowMask() * terrainShadow(vWorld) * uSunVis;
+  #endif
   vec3 col = albedo * vec3(1.0, 0.985, 0.96) * 1.3 * regolith(n, v, uSunDir) * shadow;
   col += albedo * uEarthShine * max(dot(n, uEarthDir), 0.0);
   gl_FragColor = vec4(toneMap(col), 1.0);

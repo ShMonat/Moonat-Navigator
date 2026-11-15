@@ -7,15 +7,16 @@
 // Near-field vertices are clamped to stay below the C3 profile, so the rendered skyline is the profile itself:
 // a body is hidden exactly when it is below the horizon profile.
 // A new ground of the same patch grid (a rover moving along its route) updates the heights in place (setGround).
+// A moving view (a drive) passes world-anchored detail (detail.js driveDetail): its bumps, craters and rocks stay at
+// fixed places on the Moon, and setEye moves and turns the near field every frame so the eye is where the rover is.
 
 import * as THREE from 'three';
 import { DEG, R_MOON_M, rng, valueNoise, samplePatch, horizonElAt, vertexNormals } from './math.js';
 import { TERRAIN_VERT, TERRAIN_FRAG, SKIRT_VERT, SKIRT_FRAG } from './shaders.js';
+import { AZ_NEAR, RING_RATIO, R_FIRST, ROCK_STRIDE, NOISE_PERIOD } from './detail.js';
 
-const AZ_NEAR = 720;          // azimuth divisions of the polar near mesh
-const RING_RATIO = 1.035;     // radial growth per ring
-const R_FIRST = 0.35;         // m, first ring radius
 const HORIZON_MARGIN = 2e-4;  // rad: near terrain stays this far below the profile
+const ROCK_CAP = 3000;        // rocks per shape in a moving view
 
 /** Small-scale relief that the DEM cannot resolve: gentle undulation plus small craters. Deterministic. */
 function makeMicroRelief(seed, rFade) {
@@ -198,13 +199,15 @@ function gridLayout(N, h, d, rSwitch, P) {
  * @param patch    { meta, data: Float32Array } (C4) or null
  * @param horizon  C3-shaped profile (never null here; the caller supplies a flat or patch-derived one)
  * @param eyeH     observer eye height above the ground, m
- * The result's setGround({ patch, horizon }) gives the same objects a new ground in place (new heights, normals and
- * skyline, no new meshes or materials) when the new patch has the same grid (size, spacing, extent) and the skyline
- * the same number of azimuths; it returns false otherwise (then build a new terrain).
+ * @param detail   moving views only: detail.js driveDetail(...) plus its `anchor`; null = the eye-centred detail
+ * The result's setGround({ patch, horizon, detail }) gives the same objects a new ground in place (new heights, normals
+ * and skyline, no new meshes or materials) when the new patch has the same grid (size, spacing, extent), the skyline
+ * the same number of azimuths and the detail the same kind; it returns false otherwise (then build a new terrain).
  */
-export function buildTerrain({ patch, horizon, eyeH, seed = 1969, floatLinear = true }) {
+export function buildTerrain({ patch, horizon, eyeH, seed = 1969, floatLinear = true, detail = null }) {
+  const world = !!detail;
   const h = patch ? patch.meta.half_extent_m : 0, d = patch ? patch.meta.spacing_m : 0;
-  // The polar mesh hands over to the patch grid where its cells reach about the grid spacing.
+  // The polar mesh hands over to the patch grid where its cells reach about the grid spacing (detail.js nearSwitch).
   const rSwitch = patch ? Math.max(300, Math.min(0.5 * h, 60 * d)) : 2500;
   const P = polarLayout(seed, rSwitch);
   const G = patch ? gridLayout(patch.meta.grid_n, h, d, rSwitch, P) : null;
@@ -222,9 +225,17 @@ export function buildTerrain({ patch, horizon, eyeH, seed = 1969, floatLinear = 
     uPatchN: { value: patch ? patch.meta.grid_n : 1 }, uHasPatch: { value: patch ? 1 : 0 }, uEyeH: { value: eyeH },
     uStep0: { value: Math.max(1, 0.75 * d) }, uSunUp: { value: 1 },
   };
+  if (world) {
+    const v2 = (n) => Array.from({ length: n }, () => new THREE.Vector2());
+    Object.assign(shared, {
+      uNearPos: { value: new THREE.Vector3() }, uNearRot: { value: new THREE.Vector2(1, 0) },
+      uMapAx: { value: new THREE.Vector2(1, 0) }, uMapAz: { value: new THREE.Vector2(0, -1) },
+      uOct: { value: v2(9) }, uMot: { value: v2(3) }, uRockOff: { value: new THREE.Vector2() }, uRockOff2: { value: new THREE.Vector2() },
+    });
+  }
   const litMaterial = (defines = {}) => new THREE.ShaderMaterial({
     uniforms: { ...THREE.UniformsUtils.clone(THREE.UniformsLib.lights), ...shared },
-    vertexShader: TERRAIN_VERT, fragmentShader: TERRAIN_FRAG, lights: true, defines,
+    vertexShader: TERRAIN_VERT, fragmentShader: TERRAIN_FRAG, lights: true, defines: world ? { ...defines, WORLD_DETAIL: '' } : defines,
   });
 
   const near = new THREE.Group();
@@ -257,7 +268,19 @@ export function buildTerrain({ patch, horizon, eyeH, seed = 1969, floatLinear = 
   // --- Rocks (layout in polarLayout) ---------------------------------------------------------------------------------
   const smallRocks = [];   // the coarse-shape groups, sorted largest first, so drawing a prefix drops the smallest
   const rockMeshes = [];   // [{ mesh, list }]
-  {
+  const worldRocks = [];   // moving view: [{ mesh, tint, keys, n, small }], one per rock shape
+  if (world) {
+    const rockMat = litMaterial({ ROCK: '' });
+    disposables.push(rockMat);
+    P.groups.forEach((grp, vI) => {
+      const g = makeRockGeometry(seed + vI * 13, grp.detail), tint = new Float32Array(ROCK_CAP);
+      const mesh = new THREE.InstancedMesh(g, rockMat, ROCK_CAP);
+      g.setAttribute('aTint', new THREE.InstancedBufferAttribute(tint, 1));
+      mesh.castShadow = true; mesh.receiveShadow = true; mesh.frustumCulled = false; mesh.count = 0;
+      near.add(mesh); disposables.push(g, mesh);
+      worldRocks.push({ mesh, tint, keys: new Float32Array(ROCK_CAP), n: 0, small: grp.detail === 1 });
+    });
+  } else {
     const rockMat = litMaterial({ ROCK: '' });
     disposables.push(rockMat);
     P.groups.forEach((grp, vI) => {
@@ -299,10 +322,10 @@ export function buildTerrain({ patch, horizon, eyeH, seed = 1969, floatLinear = 
    * normals of the two meshes. Near-field vertices stay below the C3 profile (HORIZON_MARGIN), so the rendered
    * skyline is the profile itself.
    */
-  function place(pt, hz) {
+  function place(pt, hz, det = null) {
     const baseZ = pt ? (e, n) => samplePatch(pt, e, n) : (e, n) => -(e * e + n * n) / (2 * R_MOON_M);
     // Polar mesh: ground (patch + micro relief) at each vertex, clamped below the profile beyond 1 m from the eye.
-    const pos = polarGeom.attributes.position.array, { radii, east, north, lift } = P;
+    const pos = polarGeom.attributes.position.array, { radii, east, north } = P, lift = det ? det.lift : P.lift;
     const tanEl = new Float64Array(2 * AZ_NEAR);
     for (let k = 0; k < tanEl.length; k++) tanEl[k] = Math.tan(horizonElAt(hz, P.az[k]) * DEG - HORIZON_MARGIN);
     // With a patch, samplePatch with the cell and weights kept in the grid layout (same arithmetic).
@@ -333,6 +356,7 @@ export function buildTerrain({ patch, horizon, eyeH, seed = 1969, floatLinear = 
       vertexNormals(gp, G.idx, gridGeom.attributes.normal.array);
     }
     // Rocks: on the ground, a little sunk in.
+    if (det) placeWorldRocks(baseZ, det);
     for (const { mesh, list } of rockMeshes) {
       const m = mesh.instanceMatrix.array;
       for (let i = 0; i < list.length; i++) {
@@ -353,13 +377,69 @@ export function buildTerrain({ patch, horizon, eyeH, seed = 1969, floatLinear = 
     }
     skirtPos.set([0, -5000, 0], nadir * 3);
   }
-  place(patch, horizon);
+
+  // --- Moving view: world-anchored rocks, the map frame of the shader detail, the eye --------------------------------
+  const dummy = new THREE.Object3D();
+  let rockShare = 1;   // setRockDetail: share of the small rocks drawn (by their stable key, so none flickers)
+  function placeWorldRocks(baseZ, det) {
+    const R = det.rocks, lists = worldRocks.map(() => []);
+    for (let k = 0; k < det.nRocks; k++) lists[R[k * ROCK_STRIDE + 10]].push(k * ROCK_STRIDE);
+    lists.forEach((list, vI) => {
+      const wr = worldRocks[vI];
+      list.sort((a, b) => R[a + 11] - R[b + 11]);
+      wr.n = Math.min(list.length, ROCK_CAP);
+      for (let i = 0; i < wr.n; i++) {
+        const o = list[i], e = R[o], nn = R[o + 1];
+        dummy.position.set(e, baseZ(e, nn) + R[o + 2] - eyeH + 0.12 * R[o + 7], -nn);
+        dummy.rotation.set(R[o + 3], R[o + 4], R[o + 5]);
+        dummy.scale.set(R[o + 6], R[o + 7], R[o + 8]);
+        dummy.updateMatrix();
+        wr.mesh.setMatrixAt(i, dummy.matrix);
+        wr.tint[i] = R[o + 9];
+        wr.keys[i] = R[o + 11];
+      }
+      wr.mesh.instanceMatrix.needsUpdate = true;
+      wr.mesh.geometry.attributes.aTint.needsUpdate = true;
+    });
+    applyRockShare();
+  }
+  function applyRockShare() {
+    for (const wr of worldRocks) {
+      let c = wr.n;
+      if (wr.small && rockShare < 1) {
+        let lo = 0, hi = wr.n;   // keys ascending: count those below the share
+        while (lo < hi) { const mid = (lo + hi) >> 1; if (wr.keys[mid] < rockShare) lo = mid + 1; else hi = mid; }
+        c = lo;
+      }
+      wr.mesh.count = c;
+      wr.mesh.visible = c > 0;
+    }
+  }
+  /** The shader's map frame (shaders.js WORLD_GLSL) at the ground point of a drive's detail. */
+  function setMapFrame(anchor) {
+    const md = (x) => ((x % NOISE_PERIOD) + NOISE_PERIOD) % NOISE_PERIOD;
+    shared.uMapAx.value.set(anchor.ax[0], anchor.ax[1]);
+    shared.uMapAz.value.set(-anchor.an[0], -anchor.an[1]);   // the near field's z axis points south
+    let lam = Math.fround(0.035);   // the shader's octave wavelengths, in its float precision
+    for (let i = 0; i < 9; i++) {
+      shared.uOct.value[i].set(md(anchor.x0 / lam + 19.7 * i), md(anchor.y0 / lam + 19.7 * i));
+      lam = Math.fround(lam * Math.fround(3.1));
+    }
+    [[1, 0], [2.03, 17.1], [4.01, 41.7]].forEach(([k, o], i) => shared.uMot.value[i].set(md((anchor.x0 / 900) * k + o), md((anchor.y0 / 900) * k + o)));
+    shared.uRockOff.value.set(md(anchor.x0 * 9), md(anchor.y0 * 9));
+    shared.uRockOff2.value.set(md(anchor.x0 * 9 * 4.3), md(anchor.y0 * 9 * 4.3));
+  }
+
+  place(patch, horizon, detail);
+  if (world) setMapFrame(detail.anchor);
 
   /** New ground of the same grid, in place (see above); false when it needs a new terrain. */
-  function setGround({ patch: pt, horizon: hz }) {
+  function setGround({ patch: pt, horizon: hz, detail: det = null }) {
     const m = pt?.meta;
     if (!patch || !m || m.grid_n !== patch.meta.grid_n || m.spacing_m !== d || m.half_extent_m !== h || hz?.el_deg?.length !== n) return false;
-    place(pt, hz);
+    if (world !== !!det) return false;
+    place(pt, hz, det);
+    if (det) setMapFrame(det.anchor);
     heightTex.image.data = pt.data;
     heightTex.needsUpdate = true;
     for (const g of [polarGeom, gridGeom]) {
@@ -372,8 +452,28 @@ export function buildTerrain({ patch, horizon, eyeH, seed = 1969, floatLinear = 
     return true;
   }
 
+  /**
+   * Moving view: put the eye at local (east, north) m from the ground point the near field was built at, on the
+   * ground there (patch height + eye height), and turn the near field and the skyline by turn_deg (the change of
+   * azimuth of a fixed direction from the ground point's frame to the eye's: az_eye = az_ground + turn_deg).
+   */
+  function setEye({ east = 0, north = 0, turn_deg = 0 } = {}) {
+    if (!world) return;
+    const ez = patch ? samplePatch(patch, east, north) : -(east * east + north * north) / (2 * R_MOON_M);
+    const phi = -turn_deg * DEG, c = Math.cos(phi), s = Math.sin(phi);
+    near.rotation.set(0, phi, 0);
+    near.position.set(-(c * east - s * north), -ez, -(-s * east - c * north));   // −R(φ)·(east, ez, −north)
+    skirt.rotation.set(0, phi, 0);
+    shared.uNearPos.value.copy(near.position);
+    shared.uNearRot.value.set(c, s);
+  }
+
   /** Draw only this fraction (0..1) of the small rocks (the apparently smallest ones are left out first). */
   const setRockDetail = (f) => {
+    if (world) {
+      rockShare = Math.min(1, Math.max(0, f));
+      return applyRockShare();
+    }
     let keep = Math.round(smallRocks.reduce((s, r) => s + r.n, 0) * Math.min(1, Math.max(0, f)));
     for (const r of smallRocks) {
       r.mesh.count = Math.min(r.n, keep);
@@ -381,5 +481,5 @@ export function buildTerrain({ patch, horizon, eyeH, seed = 1969, floatLinear = 
       keep -= r.mesh.count;
     }
   };
-  return { near, skirt, uniforms: shared, rSwitch, setRockDetail, setGround, dispose: () => disposables.forEach((x) => x.dispose()) };
+  return { near, skirt, uniforms: shared, rSwitch, setRockDetail, setGround, setEye, world, dispose: () => disposables.forEach((x) => x.dispose()) };
 }
