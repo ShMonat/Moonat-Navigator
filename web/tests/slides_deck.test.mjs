@@ -42,3 +42,16 @@ test("AI mode is presented as live, not planned", () => {
   assert.match(html, /AI mode/);
   assert.doesNotMatch(html, /AI mode \(planned\)/);
 });
+
+test("the deck has Shay's slogan and the phone line, and no StarHab, tardigrade or married-couple lines", () => {
+  assert.match(html, /Moonat: making that next big leap easier\./);
+  assert.match(html, /Works on your phone: scan to open/);
+  assert.doesNotMatch(html, /StarHab/i);
+  assert.doesNotMatch(html, /tardigrade/i);
+  assert.doesNotMatch(html, /married couple/i);
+});
+
+test("the Apollo 15 photo is credited to NASA", () => {
+  assert.match(html, /img\/as15-88-11863\.jpg/);
+  assert.match(html, /Photo: NASA AS15-88-11863 \(public domain\)/);
+});

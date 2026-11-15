@@ -5,7 +5,9 @@
 
 1. QR code to the live app -> web/slides/img/qr.svg (qrcode package).
 2. Screenshots of the site given (real renders, the installed Microsoft Edge via Playwright) -> web/slides/img/*.jpg.
-   Each state is reached by a share-link hash (web/js/app/state.js), so no story button or panel layout is needed.
+   States come from share-link hashes (web/js/app/state.js), story rows of the globe's search list and clicks; the
+   Apollo 15 render is framed like NASA photo AS15-88-11863, whose top band is cut from the raw-data copy.
+   Retake some only: --only rover,driver (names of the saved images).
 3. Layout check of the local deck at 1920x1080 and 390x844: nothing outside its slide, nothing under the footer.
 4. PDF of the local deck, one slide per page -> web/slides/moonat_slides.pdf (7 pages).
 
@@ -18,11 +20,12 @@ import argparse
 import base64
 import io
 import json
+import math
+import os
 import re
 import sys
 import threading
 import time
-from datetime import UTC, datetime, timedelta
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -51,10 +54,34 @@ CanvasRenderingContext2D.prototype.drawImage = function (...a) { window.__draws+
 try { localStorage.setItem("moonat-theme", "dark"); localStorage.setItem("moonat-intro", "off"); } catch (e) { /* blocked */ }
 """
 
-# Sites (web/data/sites.json): StarHab home base and the Beresheet crash point.
-STARHAB = (-85.96775, -2.28748)
-BERESHEET = (32.5956, 19.3496)
-SYNODIC = timedelta(days=29.530589)
+# Places: the Malapert massif crest near the south pole, and the Apollo 15 landing site (web/data/sites.json).
+MALAPERT = (-85.96775, -2.28748)
+APOLLO15 = (26.1322, 3.6339)
+
+# NASA photo AS15-88-11863 (Apollo 15, Scott salutes, Hadley Delta behind; public domain), and the camera fitted to its
+# skyline in docs/validation/real_photos.md: heading 164.4 deg, pitch -4.9 deg, horizontal field of view 46.4 deg.
+PHOTO_ID = "AS15-88-11863"
+PHOTO_HEADING_DEG = 164.4
+PHOTO_PITCH_DEG = -4.9
+PHOTO_HFOV_DEG = 46.4
+# The part of the photo the slide shows: the top 60 % (sky, Hadley Delta, Scott, the flag and the LM). Its vertical
+# centre is about 9.5 deg above the camera axis, so Moonat's camera looks at pitch + 9.5 deg.
+PHOTO_BAND = 0.60
+PHOTO_BAND_CENTRE_DEG = 9.5
+PHOTO_SIZE = (960, 604)  # px; the photo band's aspect (3904 x 0.6 * 4095)
+
+
+def raw_photo() -> Path | None:
+    """The NASA photo in the shared raw-data folder (MOONAT_DATA_DIR, this checkout, or the main checkout)."""
+    roots = [
+        os.environ.get("MOONAT_DATA_DIR", ""),
+        ROOT / "data" / "raw",
+        ROOT.parents[2] / "data" / "raw",
+    ]
+    for r in roots:
+        if r and (Path(r) / "photos" / f"{PHOTO_ID}.jpg").is_file():
+            return Path(r) / "photos" / f"{PHOTO_ID}.jpg"
+    return None
 
 
 # ------------------------------------------------------------------------------------------------
@@ -81,67 +108,92 @@ def link_hash(rows: list, body: str = "sun", layers: str = "", t_s: int = 0, vie
     return "#" + "&".join(parts)
 
 
-def iso(t: datetime) -> str:
-    return t.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-
 def shot_plan() -> list[dict]:
-    """The screenshots: name, hash, what to crop ('view' | 'sky' | 'globe' | 'left') and the saved size."""
-    now = datetime.now(UTC).replace(second=0, microsecond=0)
+    """The screenshots. Each item: a page state (`hash`, or a `story` key clicked in the globe's search list, then
+    `clicks`), the window (`viewport` in CSS px, `dsf` device scale factor, `mobile`) and one or more `crops`:
+    (file name, region, saved size). Regions: 'view' (the whole window), 'sky' (the first sky view), 'globe', 'grid'
+    (every sky view), 'photo' (the first sky view's picture, framed like the NASA photo) or 'el:<css selector>'."""
     # 18 Aug 2030, 09:00 UTC: Sun 3.9 deg up in the north-west, Earth 8.6 deg up in the north (moonat.ephem.direct).
-    starhab = [
-        [
-            "StarHab (home base)",
-            *STARHAB,
-            "2030-08-18T09:00:00Z",
-            "2030-09-01T09:00:00Z",
-            "starhab",
-            0,
-        ]
+    malapert = [
+        ["Malapert massif", *MALAPERT, "2030-08-18T09:00:00Z", "2030-09-01T09:00:00Z", 0, 0]
     ]
-    rover = [
-        [
-            "VIPER-class: pole to ridge",
-            -90,
-            0,
-            "2027-10-15T00:00:00Z",
-            0,
-            0,
-            0,
-            [-89.4395, -137.1934, "viper", 0.2, 15, 15, 0, 0],
-        ]
-    ]
-    beresheet = [["Beresheet crash site", *BERESHEET, iso(now), iso(now + SYNODIC), "beresheet", 0]]
+    rover_route = [-89.4395, -137.1934, "viper", 0.2, 15, 15, 0, 0]
+    rover = [["VIPER-class: pole to ridge", -90, 0, "2027-10-15T00:00:00Z", 0, 0, 0, rover_route]]
+    apollo15 = [["Apollo 15, Hadley Delta", *APOLLO15, "1971-08-01T18:30:00Z", 0, "apollo15", 0]]
     return [
-        {"name": "app", "hash": "", "crop": "view", "size": (1600, 900)},
+        # Slide 3: the opening view, in a smaller window so the app's text reads larger.
         {
-            "name": "starhab",
-            "hash": link_hash(starhab, view="337,7,95"),
-            "crop": "sky",
-            "size": (1280, 720),
+            "hash": "",
+            "viewport": (1280, 720),
+            "dsf": 2,
+            "crops": [("app", "view", (1600, 900))],
         },
+        # Slide 2 (pins on the globe) and slide 6 (the six-view compare grid): "Compare all Apollo landings".
         {
-            "name": "layers",
-            "hash": link_hash(starhab, layers="psr.sun"),
-            "crop": "globe",
-            "size": (760, 480),
-            "zoom": 3,
-            "pole_y": 0.615,
+            "story": "apollo-all",
+            "viewport": (1600, 900),
+            "dsf": 1.5,
+            "wait": 4,
+            "crops": [("pins", "globe", (900, 760)), ("compare", "grid", (760, 480))],
         },
+        # Slide 4: a polar sky at low Sun, with the Sun, the Earth and the LOLA skyline in one frame.
         {
-            "name": "rover",
+            "hash": link_hash(malapert, view="337,7,95"),
+            "viewport": (1920, 1080),
+            "crops": [("sky", "sky", (1280, 720))],
+        },
+        # Slide 5: the "South pole ridge" story in Both mode (Sun and Earth data together).
+        {
+            "story": "pole",
+            "clicks": ['#body-toggle button[data-body="both"]'],
+            "viewport": (1600, 900),
+            "dsf": 1.5,
+            "crops": [("both", "el:#sec-both", (900, 0))],
+        },
+        # Slide 5: Moonat's sky at the Apollo 15 site, framed like the NASA photo AS15-88-11863.
+        {
+            "hash": link_hash(
+                apollo15,
+                view=f"{PHOTO_HEADING_DEG},{PHOTO_PITCH_DEG + PHOTO_BAND_CENTRE_DEG:.1f},60",
+            ),
+            "viewport": (1600, 1000),
+            "dsf": 1.5,
+            "photo_view": True,
+            "crops": [("apollo15", "photo", PHOTO_SIZE)],
+        },
+        # Slide 6: the rover trip, with the trip panel and the route on the globe.
+        {
             "hash": link_hash(rover),
-            "crop": "globe",
-            "size": (760, 480),
+            "viewport": (1600, 1300),
+            "dsf": 1.25,
             "wait": 4,
             "ready_text": "Fastest route",
+            "crops": [("rover", "view", (1600, 1300))],
         },
+        # Slide 6: the driver's view, two hours into the drive.
         {
-            "name": "beresheet",
-            "hash": link_hash(beresheet),
-            "crop": "sky",
-            "size": (760, 480),
-            "viewport": (1280, 800),
+            "hash": link_hash(rover, t_s=7200),
+            "viewport": (1600, 900),
+            "ready_text": "Fastest route",
+            "clicks": ["text=Driver's view"],
+            "wait": 3,
+            "crops": [("driver", "sky", (760, 480))],
+        },
+        # Slide 6: map layers at the south pole: shadowed regions, sunlit ground and contour lines.
+        {
+            "hash": link_hash(malapert, layers="psr.sun.ct"),
+            "viewport": (1600, 1200),
+            "zoom": 3,
+            "pole_y": 0.615,
+            "crops": [("layers", "globe", (760, 480))],
+        },
+        # Slide 7: the app on a phone.
+        {
+            "hash": "",
+            "viewport": (390, 844),
+            "dsf": 2,
+            "mobile": True,
+            "crops": [("phone", "view", (585, 1266))],
         },
     ]
 
@@ -224,21 +276,75 @@ def box(page: Page, selectors: list[str]) -> dict | None:
     return None
 
 
-def crop_rect(page: Page, crop: str, vw: int, vh: int) -> tuple[int, int, int, int]:
-    """Crop (left, top, right, bottom) for 'view' | 'sky' | 'globe' | 'left'; the whole view when nothing matches."""
-    full = (0, 0, vw, vh)
+HIDE_FIXED_JS = """(sel) => { const target = document.querySelector(sel);
+  for (const e of document.querySelectorAll("body *")) { const p = getComputedStyle(e).position;
+    if ((p === "fixed" || p === "sticky") && !e.contains(target)) e.style.visibility = "hidden"; } }"""
+
+SKY_CANVAS_JS = """() => { const card = document.querySelector('#sky-grid .sky-card'); if (!card) return null;
+  let best = null;
+  for (const c of card.querySelectorAll('canvas')) { const r = c.getBoundingClientRect();
+    if (!best || r.width * r.height > best.w * best.h) best = {x: r.x, y: r.y, w: r.width, h: r.height}; }
+  return best; }"""
+
+
+def crop_rect(page: Page, crop: str, vw: int, vh: int, dsf: float) -> tuple[int, int, int, int]:
+    """Crop (left, top, right, bottom) in screenshot px for 'view' | 'sky' | 'globe' | 'grid' | 'photo'; the whole
+    view when nothing matches."""
+    full = (0, 0, int(vw * dsf), int(vh * dsf))
     if crop == "sky":
         b = box(page, ["#sky-grid .sky-card", "#sky-panel", "#sky-stage"])
     elif crop == "globe":
         b = box(page, ["#map", "#map-block"])
-    elif crop == "left":
-        b = box(page, ["#inputs"])
+    elif crop == "grid":
+        b = box(page, ["#sky-grid", "#sky-panel"])
+    elif crop == "photo":
+        b = page.evaluate(SKY_CANVAS_JS)
     else:
         return full
     if not b:
         return full
-    left, top = max(0, int(b["x"])), max(0, int(b["y"]))
-    return (left, top, min(vw, int(b["x"] + b["w"])), min(vh, int(b["y"] + b["h"])))
+    left, top = max(0, int(b["x"] * dsf)), max(0, int(b["y"] * dsf))
+    return (
+        left,
+        top,
+        min(full[2], int((b["x"] + b["w"]) * dsf)),
+        min(full[3], int((b["y"] + b["h"]) * dsf)),
+    )
+
+
+def photo_hfov(page: Page) -> float | None:
+    """Horizontal field of view (deg) that makes the sky view's picture, centre-cropped to the photo band's aspect,
+    span the photo's 46.4 deg (rectilinear camera: tan(half-angle) scales with the width)."""
+    b = page.evaluate(SKY_CANVAS_JS)
+    if not b or b["h"] < 50:
+        return None
+    band_aspect = PHOTO_SIZE[0] / PHOTO_SIZE[1]
+    canvas_aspect = b["w"] / b["h"]
+    t = math.tan(math.radians(PHOTO_HFOV_DEG / 2)) * max(1.0, canvas_aspect / band_aspect)
+    return 2 * math.degrees(math.atan(t))
+
+
+def photo_band() -> Path | None:
+    """The NASA photo's top band (PHOTO_BAND of its height, full width) -> web/slides/img/as15-88-11863.jpg."""
+    src = raw_photo()
+    if not src:
+        print(
+            f"  note: {PHOTO_ID}.jpg not found in the raw-data folder; keeping the slide's copy",
+            file=sys.stderr,
+        )
+        return None
+    img = Image.open(src).convert("RGB")
+    band = img.crop((0, 0, img.width, round(img.height * PHOTO_BAND)))
+    out = IMG / f"{PHOTO_ID.lower()}.jpg"
+    band.resize(PHOTO_SIZE, Image.LANCZOS).save(
+        out,
+        "JPEG",
+        quality=84,
+        optimize=True,
+        progressive=True,
+        comment=f"NASA photo {PHOTO_ID} (public domain), top {PHOTO_BAND:.0%} of the frame. {AI_NOTE}".encode(),
+    )
+    return out
 
 
 def fit_crop(
@@ -265,7 +371,7 @@ def save_jpeg(img: Image.Image, path: Path, quality: int = 80) -> None:
     )
 
 
-def capture(site: str, headed: bool) -> None:
+def capture(site: str, headed: bool, only: set[str] | None = None) -> None:
     site = site if site.endswith("/") else site + "/"
     with sync_playwright() as p:
         browser = p.chromium.launch(
@@ -279,11 +385,16 @@ def capture(site: str, headed: bool) -> None:
             ],
         )
         for item in shot_plan():
-            vw, vh = item.get(
-                "viewport", (1920, 1080) if item["crop"] in ("view", "sky") else (1600, 1200)
-            )
+            if only and not only & {c[0] for c in item["crops"]}:
+                continue
+            vw, vh = item["viewport"]
+            dsf = item.get("dsf", 1)
             ctx = browser.new_context(
-                viewport={"width": vw, "height": vh}, color_scheme="dark", device_scale_factor=1
+                viewport={"width": vw, "height": vh},
+                color_scheme="dark",
+                device_scale_factor=dsf,
+                is_mobile=item.get("mobile", False),
+                has_touch=item.get("mobile", False),
             )
             page = ctx.new_page()
             page.add_init_script(INIT_SCRIPT)
@@ -291,9 +402,19 @@ def capture(site: str, headed: bool) -> None:
             page.on("pageerror", lambda e, errors=errors: errors.append(str(e)))
             watch = Watch(page)
             t0 = time.time()
+            names = ", ".join(c[0] for c in item["crops"])
             for attempt in range(3):
-                page.goto(site + item["hash"], wait_until="load")
+                page.goto(site + item.get("hash", ""), wait_until="load", timeout=90000)
                 time.sleep(3.0)
+                if item.get("story"):
+                    # A story: the globe's search box lists them; click the row by its key.
+                    settle(page, watch, timeout=30)
+                    page.click("#globe-search")
+                    page.focus("#globe-search")
+                    page.locator(f'.gs-story[data-story="{item["story"]}"]').first.click(
+                        timeout=10000
+                    )
+                    time.sleep(2.0)
                 if not item.get("ready_text"):
                     settle(page, watch)
                     break
@@ -307,9 +428,26 @@ def capture(site: str, headed: bool) -> None:
                     break
                 except Exception:  # noqa: BLE001 - not ready: try again
                     print(
-                        f"  {item['name']}: '{item['ready_text']}' not shown (attempt {attempt + 1})",
+                        f"  {names}: '{item['ready_text']}' not shown (attempt {attempt + 1})",
                         file=sys.stderr,
                     )
+            if item.get("photo_view"):
+                # Frame the sky view like the photo: set the field of view from the picture's measured aspect.
+                hfov = photo_hfov(page)
+                if hfov:
+                    page.goto(
+                        site + item["hash"].replace(",60&", f",{hfov:.1f}&"), wait_until="load"
+                    )
+                    page.reload(wait_until="load")
+                    time.sleep(3.0)
+                    settle(page, watch)
+            for sel in item.get("clicks", []):
+                try:
+                    page.locator(sel).first.click(timeout=10000)
+                    time.sleep(1.0)
+                    settle(page, watch, quiet_s=1.5, timeout=30)
+                except Exception:  # noqa: BLE001 - the control is missing: shoot the page as it is
+                    print(f"  note: could not click {sel}", file=sys.stderr)
             # The globe's turn and zoom to the place (WebGL, not counted by settle).
             time.sleep(item.get("wait", 0))
             rect = None
@@ -335,24 +473,37 @@ def capture(site: str, headed: bool) -> None:
                         time.sleep(0.4)
                     page.mouse.move(5, vh - 5)
                     settle(page, watch, quiet_s=1.5, timeout=30)
-                    half_h = g["w"] * item["size"][1] / item["size"][0] / 2
-                    rect = (
-                        int(g["x"]),
-                        int(max(g["y"], cy - half_h)),
-                        int(g["x"] + g["w"]),
-                        int(min(g["y"] + g["h"], cy + half_h)),
+                    size = item["crops"][0][2]
+                    half_h = g["w"] * size[1] / size[0] / 2
+                    rect = tuple(
+                        int(v * dsf)
+                        for v in (
+                            g["x"],
+                            max(g["y"], cy - half_h),
+                            g["x"] + g["w"],
+                            min(g["y"] + g["h"], cy + half_h),
+                        )
                     )
             page.evaluate("window.scrollTo(0, 0)")
             time.sleep(0.5)
-            png = page.screenshot()
-            img = Image.open(io.BytesIO(png))
-            rect = rect or crop_rect(page, item["crop"], vw, vh)
-            out = IMG / f"{item['name']}.jpg"
-            save_jpeg(fit_crop(img, rect, item["size"]), out)
-            print(
-                f"  {item['name']:10s} {out.stat().st_size / 1024:6.0f} kB  {time.time() - t0:5.1f} s"
-                + (f"  page errors: {errors[:2]}" if errors else "")
-            )
+            img = Image.open(io.BytesIO(page.screenshot()))
+            for name, crop, size in item["crops"]:
+                if crop.startswith("el:"):
+                    # Hide the sticky page header (and other fixed bars) so they do not cover the element.
+                    page.evaluate(HIDE_FIXED_JS, crop[3:])
+                    shot = Image.open(io.BytesIO(page.locator(crop[3:]).first.screenshot()))
+                    r = (0, 0, shot.width, shot.height)
+                else:
+                    shot = img
+                    r = rect or crop_rect(page, crop, vw, vh, dsf)
+                if not size[1]:  # height from the crop's own aspect
+                    size = (size[0], round(size[0] * (r[3] - r[1]) / (r[2] - r[0])))
+                out = IMG / f"{name}.jpg"
+                save_jpeg(fit_crop(shot, r, size), out)
+                print(
+                    f"  {name:10s} {size[0]}x{size[1]} {out.stat().st_size / 1024:6.0f} kB  {time.time() - t0:5.1f} s"
+                    + (f"  page errors: {errors[:2]}" if errors else "")
+                )
             ctx.close()
         browser.close()
 
@@ -456,6 +607,7 @@ def main() -> int:
         "--skip-shots", action="store_true", help="keep the screenshots in web/slides/img/"
     )
     ap.add_argument("--headed", action="store_true", help="show the browser window")
+    ap.add_argument("--only", help="comma-separated screenshot names to retake (e.g. rover,driver)")
     ap.add_argument(
         "--slide-shots", type=Path, help="also save each slide as PNG here (for review)"
     )
@@ -465,7 +617,10 @@ def main() -> int:
     print(f"QR code: {make_qr().relative_to(ROOT)}")
     if not args.skip_shots:
         print(f"Screenshots of {args.site_url}:")
-        capture(args.site_url, args.headed)
+        band = photo_band()
+        if band:
+            print(f"  {band.name} (NASA photo, top band)")
+        capture(args.site_url, args.headed, set(args.only.split(",")) if args.only else None)
     print("Deck check and PDF:")
     ok = check_and_pdf(args.headed, args.slide_shots)
     total = sum(f.stat().st_size for f in SLIDES.rglob("*") if f.is_file())
