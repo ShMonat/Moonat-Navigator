@@ -73,7 +73,8 @@ In the app, the optional AI mode calls Claude (Anthropic) at run time with the u
 and dates, and every number it shows comes from Moonat's physics. Details: docs/AI_USE.md and docs/ai_mode.md in
 the repository.
 
-Team: Shay Monat (https://www.linkedin.com/in/shay-monat/) and Shahar Caspi (https://www.linkedin.com/in/shahar-caspi/).
+Team: we are a married couple, Shay Monat (https://www.linkedin.com/in/shay-monat/) and Shahar Caspi Monat
+(https://www.linkedin.com/in/shahar-caspi/), and we built Moonat together over the hackathon weekend, for fun.
 
 ## Space Agency Data
 - **JPL Horizons** (challenge resource): reference positions of the Sun and Earth from lunar sites; our validation benchmark (cached responses are test fixtures).

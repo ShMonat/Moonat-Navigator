@@ -31,7 +31,7 @@ test("the team names and LinkedIn links come from one constant", () => {
   assert.ok((html.match(/data-team/g) || []).length >= 1);
   for (const [name, url] of [
     ["Shay Monat", "https://www.linkedin.com/in/shay-monat/"],
-    ["Shahar Caspi", "https://www.linkedin.com/in/shahar-caspi/"],
+    ["Shahar Caspi Monat", "https://www.linkedin.com/in/shahar-caspi/"],
   ]) {
     assert.equal(html.split(`["${name}", "${url}"]`).length - 1, 1, name);
   }

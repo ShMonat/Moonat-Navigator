@@ -15,7 +15,7 @@ holds too.
   reviews results. Give him things he can check (plots, numbers, comparisons against references) in small steps.
   Don't hand him code walls. Physical correctness matters to him even in a hackathon.
 
-## Shahar Caspi (`shahar`, GitHub: _to fill in_)
+## Shahar Caspi Monat (`shahar`, GitHub: _to fill in_)
 - LinkedIn: https://www.linkedin.com/in/shahar-caspi/
 - Data engineer at a high-tech company. Very tech-savvy and a fluent AI user. She has no professional space background.
 - _Shahar's agent: on first setup, ask Shahar to complete this section (stack, strengths, preferences, how she
