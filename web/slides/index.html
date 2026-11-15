@@ -295,11 +295,10 @@
   </style>
 </head>
 <body>
-  <!-- The crescent of the app's header logo (web/index.html), as a mask so it sits on any background. -->
+  <!-- The app's header logo (web/index.html): a map pin in the accent colour with the crescent Moon cut out of its head, so it sits on any background. -->
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
     <defs>
-      <mask id="crescent-mask" maskContentUnits="userSpaceOnUse"><rect width="32" height="32" fill="#fff"/><circle cx="21.5" cy="11.5" r="11" fill="#000"/></mask>
-      <symbol id="crescent" viewBox="0 0 32 32"><circle class="crescent" cx="16" cy="16" r="13" mask="url(#crescent-mask)"/></symbol>
+      <symbol id="crescent" viewBox="0 0 32 32"><path style="fill: var(--accent)" fill-rule="evenodd" d="M16 31L7.03 18.37A11 11 0 1 1 24.97 18.37ZM14.54 5.55A7 7 0 1 0 22.04 14.72A5.92 5.92 0 0 1 14.54 5.55Z"/></symbol>
       <!-- Our own line glyph for "LinkedIn profile" (an outlined "in"), drawn in the text colour. -->
       <symbol id="in-glyph" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8.5 11v6M12.5 17v-6M12.5 13.8c0-1.7 1.1-2.8 2.5-2.8s2.3.9 2.3 2.6V17"/></g><circle cx="8.5" cy="7.8" r="1.25" fill="currentColor"/></symbol>
     </defs>

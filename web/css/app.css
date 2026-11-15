@@ -103,9 +103,8 @@ button { cursor: pointer; }
 .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .brand-text { min-width: 0; }
 .logo { width: 34px; height: 34px; flex: none; }
-.logo-moon { fill: #d9d6cc; }
-.logo-shadow { fill: var(--bg); }
-:root[data-theme="light"] .logo-moon { fill: #8e8b82; }
+/* The logo: a map pin in the accent colour; the crescent Moon is a hole in its head, so the header shows through. */
+.logo-pin { fill: var(--accent); }
 .brand h1 { font-size: 20px; line-height: 1.1; }
 .tagline { margin: 2px 0 0; color: var(--text-2); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .top-actions { display: flex; justify-content: flex-end; align-items: center; gap: 6px; flex: none; }
