@@ -81,6 +81,23 @@ export function skyTime() {
   return { offsetMs: maxSpan > 0 ? offsetMs : 0, maxSpan };
 }
 
+const timeListeners = new Set();
+
+/**
+ * Call cb() whenever the time shown changes (slider, playback: every frame, a new set, jumpTo), like opts.onTime of
+ * initSky but for any number of listeners (the globe's day and night, web/js/app/daylight_link.js). Returns a
+ * function that removes it.
+ */
+export function onSkyTime(cb) {
+  timeListeners.add(cb);
+  return () => timeListeners.delete(cb);
+}
+
+/** The moment each view shows now, in card order: [{ id (scenario id), label, t_ms (UTC epoch ms) }]. */
+export function skyMoments() {
+  return items.map((it) => ({ id: it.s.id, label: it.label, t_ms: timeFor(it) }));
+}
+
 /** opts.onTime(offsetMs): called whenever the time shown changes (slider, playback, a new set, jumpTo). */
 export function initSky({ onTime } = {}) {
   if (onTime) onTimeChange = onTime;
@@ -720,6 +737,7 @@ function terrainNote(it) {
 async function refresh() {
   syncSlider();
   onTimeChange(maxSpan > 0 ? offsetMs : 0);
+  for (const cb of timeListeners) cb();
   if (busy) {
     pending = true;
     return;

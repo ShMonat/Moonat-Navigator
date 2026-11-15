@@ -132,6 +132,42 @@ export async function skyState(site, tMs) {
   return stateAt(site, tMs);
 }
 
+const SUB_BUF = new Float64Array(REC);
+
+/**
+ * Sub-solar point on the Moon at one UTC instant (epoch ms, POSIX time like JS Date): the point of the Moon's mean
+ * sphere (1737.4 km) where the centre of the Sun is at the zenith. Day and night on a smooth Moon follow from it: a
+ * point at angular distance θ from it has the Sun's centre at elevation 90° − θ.
+ * Frame: MOON_ME (mean Earth / polar axis, the frame of the C1 tables and of every skyState() azimuth); latitude north
+ * and longitude east, in degrees, longitude in −180..180.
+ * Direction: the same apparent Sun as skyState(): the C1 `sun_me` direction from the Moon's centre (light time and
+ * aberration applied), so the globe's terminator and the sky view agree. On a sphere, planetocentric and
+ * planetodetic latitudes are equal.
+ * Assumptions: smooth sphere, no terrain (local shadows are the sky view's and the PSR layer's job); seen from the
+ * Moon's centre, so a surface site's Sun elevation differs from 90° − θ by the parallax, at most
+ * R_moon / d_sun ≈ 0.0007°.
+ * Returns { lat_deg, lon_deg, dir_me: [x, y, z] (unit vector toward the Sun, MOON_ME), sun_me_km, earth_me_km }, the
+ * last two the C1 apparent positions (km, MOON_ME, from the Moon's centre) of the Sun and the Earth, for the Earth's
+ * shadow on the Moon during an eclipse (web/js/globe/daylight.js).
+ * Checked against JPL Horizons (SunSub-LON / SunSub-LAT, MOON_ME) in web/tests/physics_subsolar.test.mjs.
+ */
+export async function subsolarPoint(tMs) {
+  const eph = requireEph();
+  await ensureRange(eph, tMs);
+  const s = stateAtMs(eph, tMs, SUB_BUF);
+  const S = OFFSETS.sun;
+  const r = Math.hypot(s[S], s[S + 1], s[S + 2]);
+  const dir = [s[S] / r, s[S + 1] / r, s[S + 2] / r];
+  const E = OFFSETS.earth;
+  return {
+    lat_deg: Math.asin(Math.max(-1, Math.min(1, dir[2]))) * RAD,
+    lon_deg: Math.atan2(dir[1], dir[0]) * RAD,
+    dir_me: dir,
+    sun_me_km: [s[S], s[S + 1], s[S + 2]],
+    earth_me_km: [s[E], s[E + 1], s[E + 2]],
+  };
+}
+
 /**
  * Time series from t0Ms to t1Ms (inclusive when it falls on the grid) every stepMs (C6).
  * The site frame is computed once; each sample interpolates the table and evaluates both disks.

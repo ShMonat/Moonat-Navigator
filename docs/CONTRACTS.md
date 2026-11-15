@@ -127,7 +127,18 @@ await series(site, t0Ms, t1Ms, stepMs) -> {     // arrays, same length
   eclipses: [{start_ms|null, max_ms, end_ms|null, max_frac, total_start_ms|null, total_end_ms|null, sun_vis_at_max}],
   summary: {sun_vis_pct, earth_vis_pct, next_sunset_ms|null, next_earthset_ms|null, mean_flux_horiz_wm2}
 }
+await subsolarPoint(tMs) -> {                   // added 2026-11-15 (the globe's day and night)
+  lat_deg, lon_deg,          // the point of the 1737.4 km sphere with the Sun's centre at the zenith, MOON_ME, lon −180..180
+  dir_me: [3],               // unit vector toward the Sun from the Moon's centre (the C1 apparent `sun_me` direction)
+  sun_me_km: [3], earth_me_km: [3],  // C1 apparent positions from the Moon's centre (km, MOON_ME)
+}
 ```
+- `subsolarPoint` uses the same apparent Sun as `skyState` (C1: light time and aberration). On the smooth sphere a site
+  at angular distance θ from it has the Sun's centre at 90° − θ, up to the parallax (R_moon / d_sun ≤ 0.0007°).
+  Checked against JPL Horizons (target Moon, observer the Earth's centre, `SunSub-LON/LAT`, MOON_ME): 0.7″ at four
+  epochs (the 1.3 s Moon–Earth light time of Horizons' print time), and against `skyState` sun.el_deg at five sites and
+  five epochs: 0.0007° (web/tests/physics_subsolar.test.mjs; fixture tests/fixtures/horizons_cache/subsolar_moon.json,
+  scripts/fetch_subsolar_horizons.py).
 - `vis_frac` = solid-angle fraction of the body's disk above the horizon profile (0..1), terrain only. `flux_frac` = the
   visible share of the Sun's flux, weighted by solar limb darkening (linear, u = 0.6), with both the terrain and the Earth
   in the way. `eclipse_frac` = the share of the Sun's limb-darkened flux behind the Earth's disk, terrain ignored
@@ -318,7 +329,8 @@ await globeReady()                                            // the globe objec
   page's own controls), `getView`, `setView`. Its view is centred in the map frame below the top bar, so an overlay
   that projects points itself with geo.js `projectPx(view, v, width, height)` on the whole canvas is off by that inset:
   use `setMarker` and `showRoute` instead. The app wires it in web/js/app/map.js (pins = scenarios) and
-  web/js/app/places.js (search box, place card, Home).
+  web/js/app/places.js (search box, place card, Home). `slots.caption` (added 2026-11-15) is a one-line slot under the
+  preset chips (the day/night caption); the map frame makes room for it.
 - The view is centred in the **map frame**: the canvas minus the top bar (search box, preset chips) and the credit line;
   zoom 1 fits the whole disc in it.
 - **Map layers** (added 2026-11-15, Shay's request; data pipeline pending Shahar's review). The globe object also has
@@ -332,6 +344,21 @@ await globeReady()                                            // the globe objec
   the sunlit spots also get a small sun symbol in screen pixels (grouped when closer than 18 px). The page keeps the
   choice in `store.mapLayers` (a "ui" change) and in the share link as `ml=psr.sun`; the Layers button and panel are
   `web/js/app/map_layers.js`, which flies to the nearer pole when a layer is turned on and no pole is in view.
+- **Day and night** (added 2026-11-15, Shay: "the map doesnt show an accurate depiction of the lit areas on the moon at
+  the mission selected time"; definitions pending Shay's review). The globe object has `setSunDir(dir | null, shadow)`:
+  `dir` = unit vector toward the Sun from the Moon's centre (MOON_ME, C6 `subsolarPoint().dir_me`), null = the whole
+  Moon lit; `shadow` = `{ sunKm, earthKm }` (C6 `sun_me_km`, `earth_me_km`) while the Earth's shadow can touch the Moon,
+  else null. The sphere's shader (web/js/globe/daylight.js) keeps full imagery where the Sun's centre is up on the smooth
+  sphere (h = asin(u · dir) > 0) and dims the night side to about 31 % with a slight blue tint (`NIGHT_RGB`
+  0.27, 0.30, 0.37); the edge is a smoothstep over h = −0.5°..+0.5° (the Sun's disk is 0.53°), widened to one screen
+  pixel. During an eclipse each point also loses the share of the Sun's disk (uniform brightness) that the Earth's disk
+  hides as seen from that point (the solid Earth, as in C6). The map layers dim half as much, so they stay readable.
+  Terrain shadows are not in this shading: the sky view and the PSR layer show them. A call redraws the sphere only
+  (not the HTML overlay), and only once the terminator has moved a screen pixel. The app (web/js/app/daylight_link.js)
+  feeds it the moment of the selected scenario's sky view (sky_panel.js `onSkyTime`, `skyMoments`; else that
+  scenario's start; with no scenario, now), at most once per animation frame and only when the moment changes, and
+  writes the caption "Daylight at 20 Jul 1969, 20:17 UTC (Apollo 11)". The switch is the Layers panel's first row,
+  `store.daylight` (on by default; a "ui" change), and the share link writes only "off": `ml=noday` (`ml=psr.noday`).
 
 ## C9 `terrain-at` (producer: `terrain-everywhere`; consumers: `web-app`, `sky-viewer`, `rover`) — **implemented**
 Real LOLA terrain for any point, computed in the browser. Research and validation: docs/research/terrain-everywhere.md,
@@ -389,7 +416,8 @@ No end time = a single instant. Scenarios may share or differ in times.
   every key optional. `b` = the Sun | Earth switch (the body every sky view is aimed at and whose data shows; default
   Sun), `x` = the charts' time axis (`utc` | `dist`; default time since start), `t` = the sky's moment (s after the
   scenarios' start), `v` = the first view's camera (az, el, horizontal FOV, deg), `ml` = the globe's map layers that
-  are on (`psr.sun`, added 2026-11-15; absent = none), `s` = base64url JSON rows
+  are on (`psr.sun`, added 2026-11-15; absent = none), plus `noday` when the globe's day/night shading is off (absent =
+  on; added 2026-11-15), `s` = base64url JSON rows
   `[label, lat, lon, start, end|0, site_id|0, color(, route)]`. **Changed 2026-11-14 (one-flow layout):** the page no
   longer writes `tab` and `look`. Links from the tab era still open: `tab=sky` opens on its `look` body (none: the
   Earth, the opening view it showed), any other link on its `b` (`hashBody`); `#tab=sky` without scenarios opens the

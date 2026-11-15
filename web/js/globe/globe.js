@@ -1,7 +1,8 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
 // Moon globe location picker: a three.js sphere with the LRO WAC mosaic (NASA Moon Trek) and LOLA hillshade polar caps,
 // an orthographic camera, preset views, drag / wheel / pinch navigation, a lat/lon graticule, catalog-site markers,
-// scenario pins (click, and drag for the draggable ones), route lines, fly-to and fit-to-points animations.
+// scenario pins (click, and drag for the draggable ones), route lines, fly-to and fit-to-points animations, and day and
+// night at a given moment (a smooth-sphere terminator from the Sun's direction, daylight.js).
 // Tapping or clicking the surface reports selenographic latitude and east longitude (MOON_ME).
 // Geometry lives in geo.js (tested in web/tests/globe_geo.test.mjs and globe_routes.test.mjs). The scene uses MOON_ME
 // coordinates directly.
@@ -15,6 +16,7 @@ import {
 } from "./geo.js";
 import { LAYERS, LIT_THRESHOLDS, normalizeLayers, capSamples } from "./layers.js";
 import { createConeLayer } from "./view_cone.js";
+import { DAYLIGHT_UNIFORMS_GLSL, DAYLIGHT_FUNCS_GLSL, NIGHT_RGB, LAYER_NIGHT_SHARE } from "./daylight.js";
 
 const MIN_ZOOM = 0.9;
 const MAX_ZOOM = 60;
@@ -62,6 +64,8 @@ uniform vec3 cPsr;
 uniform vec3 cLow;
 uniform vec3 cHigh;
 uniform vec3 aLay;          // blend weights of cPsr, cLow, cHigh
+// Day and night at the selected moment (daylight.js).
+${DAYLIGHT_UNIFORMS_GLSL}
 varying vec3 vPos;
 varying vec2 vUv;
 varying float vNz;
@@ -82,6 +86,7 @@ float lineAA(float d, float px, float widthPx) {
   return 1.0 - smoothstep(0.5 * widthPx - 0.6, 0.5 * widthPx + 0.6, w);
 }
 float nearestMultiple(float x, float step) { return abs(x - step * floor(x / step + 0.5)); }
+${DAYLIGHT_FUNCS_GLSL}
 
 void main() {
   vec3 u = normalize(vPos);
@@ -104,6 +109,14 @@ void main() {
   c = clamp((pow(c, 0.9) - 0.4) * 1.18 + 0.44, 0.0, 1.0);
   vec3 col = vec3(c) * vec3(1.0, 0.985, 0.955);
 
+  // Day and night, and the Earth's shadow in an eclipse: the ground dims on the night side; the layer colours dim
+  // less, so they stay readable.
+  float lit = daylight(u);
+  lit *= 1.0 - earthShadow(u);
+  vec3 shade = dayShade(lit);
+  vec3 layShade = mix(vec3(1.0), shade, ${LAYER_NIGHT_SHARE.toFixed(3)});
+  col *= shade;
+
   // Map layers, tinted by the ground's grey so the relief stays readable. All three images are sampled every time
   // (no texture reads in non-uniform branches: their mipmap level needs the neighbouring pixels).
   if (uLayOn.x + uLayOn.y > 0.0) {
@@ -116,9 +129,9 @@ void main() {
     float lo = smoothstep(0.15, 0.4, m.g) * uLayOn.y;
     float hi = smoothstep(0.62, 0.88, m.g) * uLayOn.y;
     float relief = 0.55 + 0.45 * c;
-    col = mix(col, cPsr * relief, aLay.x * psr);
-    col = mix(col, cLow * relief, aLay.y * lo * (1.0 - hi));
-    col = mix(col, cHigh * relief, aLay.z * hi);
+    col = mix(col, cPsr * relief * layShade, aLay.x * psr);
+    col = mix(col, cLow * relief * layShade, aLay.y * lo * (1.0 - hi));
+    col = mix(col, cHigh * relief * layShade, aLay.z * hi);
   }
 
   col *= mix(0.5, 1.0, pow(clamp(vNz, 0.0, 1.0), 0.45));
@@ -340,7 +353,7 @@ function levelOf(zoom) {
  * @param {Promise} [opts.hiResAfter] the full-resolution textures load only after this settles (the preview first)
  * @param {string} [opts.overlayUrl] folder of overlays.json and the map layer images (default "data/overlays/")
  * @returns {Promise<object>} the globe API (setSites, setPins, showPoints, goTo, flyTo, fitTo, showRoute, clearRoute,
- *   setMarker, clearMarker, setViewCone, setLayers, getLayers, layerPoleInView,
+ *   setMarker, clearMarker, setViewCone, setLayers, getLayers, layerPoleInView, setSunDir,
  *   setPreset, addTool, slots, resize, getView, setView)
  */
 export async function createGlobe(container, opts = {}) {
@@ -396,7 +409,9 @@ export async function createGlobe(container, opts = {}) {
   // (above the credit line) a place card.
   const top = el("div", "globe-top");
   const slotTop = el("div", "globe-slot-top");
-  top.append(slotTop, presets);
+  // A one-line caption under the chips (the page's day/night time line); the frame makes room for it.
+  const slotCaption = el("div", "globe-slot-caption");
+  top.append(slotTop, presets, slotCaption);
   const slotBottom = el("div", "globe-slot-bottom");
   root.append(stage, top, tools, readout, slotBottom, credit);
   // Touch: in the page, a vertical swipe scrolls the page and a horizontal drag turns the globe (globe.css: touch-action
@@ -451,6 +466,12 @@ export async function createGlobe(container, opts = {}) {
     cLow: { value: v3(layerInfo.sun.rgb.low) },
     cHigh: { value: v3(layerInfo.sun.rgb.high) },
     aLay: { value: v3([layerInfo.psr.alpha.psr, layerInfo.sun.alpha.low, layerInfo.sun.alpha.high]) },
+    uSunDir: { value: new THREE.Vector3(1, 0, 0) },
+    uDayOn: { value: 0 },
+    cNight: { value: v3(NIGHT_RGB) },
+    uSunKm: { value: new THREE.Vector3(1.5e8, 0, 0) },
+    uEarthKm: { value: new THREE.Vector3(-3.8e5, 0, 0) },
+    uEclOn: { value: 0 },
   };
   const mat = new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, uniforms });
   scene.add(new THREE.Mesh(geo, mat));
@@ -496,7 +517,11 @@ export async function createGlobe(container, opts = {}) {
     return { ...l, v: latLonToVec(l.lat, l.lon), el: e, shown: false };
   });
 
-  function requestRender() {
+  // overlay = false: only the sphere's shading changed (the Sun moved), so the next frame redraws the sphere and leaves
+  // the HTML overlay (labels, markers, pins, routes, wedges) where it is.
+  let overlayDue = true;
+  function requestRender(overlay = true) {
+    if (overlay) overlayDue = true;
     if (!frame) frame = requestAnimationFrame(render);
   }
 
@@ -586,6 +611,8 @@ export async function createGlobe(container, opts = {}) {
       if (Math.abs(Math.log(view.zoom / clusterZoom)) > 0.08) clusterSpots(s, view.zoom);
     }
     renderer.render(scene, camera);
+    if (!overlayDue) return;
+    overlayDue = false;
     placeOverlay();
     syncPresetButtons();
   }
@@ -1323,6 +1350,34 @@ export async function createGlobe(container, opts = {}) {
     return r;
   });
 
+  const drawnSun = new THREE.Vector3(1, 0, 0);
+  /**
+   * Day and night (daylight.js): dir = unit vector toward the Sun from the Moon's centre in MOON_ME, or null for the
+   * whole Moon lit. shadow (optional): { sunKm, earthKm } (apparent positions from the Moon's centre, km, MOON_ME)
+   * while the Earth's shadow can touch the Moon (an eclipse), else null. Cheap to call every frame: it redraws the
+   * sphere only (not the HTML overlay), and only once the terminator has moved by a screen pixel (at the whole-disc
+   * zoom, about every 35 min of Moon time: twice a second at 1 h/s); the Earth's shadow, which crosses the Moon in
+   * about an hour, is redrawn at every call.
+   */
+  function setSunDir(dir, shadow = null) {
+    const on = Array.isArray(dir) && dir.every(Number.isFinite) ? 1 : 0;
+    const ecl = on && shadow ? 1 : 0;
+    // The uniforms always hold the true moment (any redraw, e.g. a zoom, shows it); drawnSun is the last one asked for.
+    if (on) uniforms.uSunDir.value.set(dir[0], dir[1], dir[2]).normalize();
+    const moved = on ? Math.acos(Math.min(1, drawnSun.dot(uniforms.uSunDir.value))) : 0;
+    const visible = on !== uniforms.uDayOn.value || ecl || uniforms.uEclOn.value || moved * rpx() > 1;
+    uniforms.uDayOn.value = on;
+    uniforms.uEclOn.value = ecl;
+    if (ecl) {
+      uniforms.uSunKm.value.set(...shadow.sunKm);
+      uniforms.uEarthKm.value.set(...shadow.earthKm);
+    }
+    root.dataset.daylight = on ? (ecl ? "shadow" : "on") : "off"; // for screenshots and tests ("shadow": the Earth's too)
+    if (!visible) return;
+    drawnSun.copy(uniforms.uSunDir.value);
+    requestRender(false);
+  }
+
   // The top bar grows when the page puts its search box in (and with the font); the frame follows it.
   const ro = new ResizeObserver(resize);
   ro.observe(stage);
@@ -1504,7 +1559,8 @@ export async function createGlobe(container, opts = {}) {
     setLayers,
     getLayers: () => layerIds.slice(),
     layerPoleInView,
-    slots: { top: slotTop, bottom: slotBottom },
+    slots: { top: slotTop, bottom: slotBottom, caption: slotCaption },
+    setSunDir,
     setPreset,
     resize,
     getView: () => ({ ...view }),

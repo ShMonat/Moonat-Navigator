@@ -1,12 +1,14 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
-// The globe's "Layers" control, as on a web map: a button in the globe's tool column opens a small panel with the map
-// layers of web/js/globe/layers.js (NASA's permanently shadowed regions and the most sunlit ground). The choice lives
-// in the store (store.mapLayers; the share link keeps it as "ml"). Turning a layer on while no pole is in view flies to
-// the nearer pole, since the layers only have data poleward of 80°. The legend under the map lists the layers that
-// are on.
+// The globe's "Layers" control, as on a web map: a button in the globe's tool column opens a small panel with the
+// day/night shading at the selected time (web/js/globe/daylight.js, on by default) and the map layers of
+// web/js/globe/layers.js (NASA's permanently shadowed regions and the most sunlit ground). The choice lives in the store
+// (store.daylight, store.mapLayers; the share link keeps both in "ml"). Turning a polar layer on while no pole is in
+// view flies to the nearer pole, since those layers only have data poleward of 80°. The legend under the map lists
+// what is on.
 
 import { store, subscribe, setUi } from "./store.js";
 import { LAYERS, LAYER_LIMIT_LAT, POLE_VIEW, setLayer, poleFor } from "../globe/layers.js";
+import { DAYLIGHT_LAYER } from "../globe/daylight.js";
 
 /** Stacked layers (24 x 24): the web-map "Layers" button. */
 const LAYERS_ICON =
@@ -55,28 +57,21 @@ function buildPanel() {
   head.append(el("span", "glayers-title", "Map layers"), close);
   p.append(head);
 
+  // Day and night at the selected time (everywhere), then the polar layers.
+  const day = layerRow(DAYLIGHT_LAYER, (box) => {
+    status.textContent = "";
+    setUi({ daylight: box.checked });
+  });
+  day.querySelector("input").dataset.daylight = "on";
+  day.classList.add("glayer-day");
+  p.append(day, el("div", "glayers-sep"));
   for (const layer of LAYERS) {
-    const row = el("label", "glayer");
-    const box = el("input");
-    box.type = "checkbox";
-    box.dataset.layer = layer.id;
-    box.addEventListener("change", () => {
+    const row = layerRow(layer, (box) => {
       status.textContent = "";
       setUi({ mapLayers: setLayer(store.mapLayers, layer.id, box.checked) });
       if (box.checked) reveal();
     });
-    const body = el("span", "glayer-body");
-    body.append(el("span", "glayer-name", layer.label));
-    const keys = el("span", "glayer-keys");
-    for (const [color, text] of layer.swatches) {
-      const k = el("span", "glayer-key");
-      const sw = el("i", "glayer-sw");
-      sw.style.setProperty("--c", color);
-      k.append(sw, text);
-      keys.append(k);
-    }
-    body.append(keys, el("span", "glayer-note", layer.note), el("span", "glayer-src", layer.source));
-    row.append(box, body);
+    row.querySelector("input").dataset.layer = layer.id;
     p.append(row);
   }
 
@@ -101,6 +96,27 @@ function buildPanel() {
   return p;
 }
 
+/** A panel row: a checkbox, the layer's name, its colour keys, note and source. onChange(box) runs on a change. */
+function layerRow(layer, onChange) {
+  const row = el("label", "glayer");
+  const box = el("input");
+  box.type = "checkbox";
+  box.addEventListener("change", () => onChange(box));
+  const body = el("span", "glayer-body");
+  body.append(el("span", "glayer-name", layer.label));
+  const keys = el("span", "glayer-keys");
+  for (const [color, text] of layer.swatches) {
+    const k = el("span", "glayer-key");
+    const sw = el("i", "glayer-sw");
+    sw.style.setProperty("--c", color);
+    k.append(sw, text);
+    keys.append(k);
+  }
+  body.append(keys, el("span", "glayer-note", layer.note), el("span", "glayer-src", layer.source));
+  row.append(box, body);
+  return row;
+}
+
 function open(on, focusButton = false) {
   panel.hidden = !on;
   btn.setAttribute("aria-expanded", String(on));
@@ -109,10 +125,11 @@ function open(on, focusButton = false) {
   if (!on && focusButton) btn.focus({ preventScroll: true });
 }
 
-/** The globe, the panel, the button and the legend under the map follow store.mapLayers. */
+/** The globe, the panel, the button and the legend under the map follow store.mapLayers and store.daylight. */
 function sync() {
   const on = store.mapLayers;
   for (const box of panel.querySelectorAll("input[data-layer]")) box.checked = on.includes(box.dataset.layer);
+  panel.querySelector("input[data-daylight]").checked = store.daylight;
   btn.classList.toggle("has-layers", on.length > 0);
   btn.title = on.length ? `Map layers (${on.length} on)` : "Map layers";
   globe.setLayers(on).catch(() => {
@@ -121,8 +138,8 @@ function sync() {
   const legend = document.querySelector(".map-legend");
   if (legend) {
     for (const li of legend.querySelectorAll(".lg-layer")) li.remove();
-    for (const layer of LAYERS) {
-      if (!on.includes(layer.id)) continue;
+    for (const layer of [DAYLIGHT_LAYER, ...LAYERS]) {
+      if (layer === DAYLIGHT_LAYER ? !store.daylight : !on.includes(layer.id)) continue;
       for (const [color, text] of layer.swatches) {
         const li = el("li", "lg-layer");
         const sw = el("span", "lg lg-area");
@@ -155,7 +172,7 @@ export function initMapLayers(g) {
     if (!panel.hidden && !panel.contains(e.target) && !btn.contains(e.target)) open(false);
   });
   subscribe((kind, detail) => {
-    if (kind === "ui" && "mapLayers" in detail) sync();
+    if (kind === "ui" && ("mapLayers" in detail || "daylight" in detail)) sync();
   });
   sync();
 }

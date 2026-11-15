@@ -10,7 +10,7 @@
 //   - t_src (optional, not in links): where the times came from, "mission" (a catalog mission's landing),
 //     "user" (typed or picked) or "default" (set when the place changed); see hasMissionDates.
 
-import { formatLayers, parseLayers } from "../globe/layers.js";
+import { formatMapLink, parseLayers, parseDaylight } from "../globe/layers.js";
 
 /**
  * Categorical palette: six colours that stay apart for colour-blind readers in every pair (lines overlap, so all pairs
@@ -401,9 +401,10 @@ function b64urlDecode(str) {
 /**
  * Encode the app state into a URL hash string (with the leading "#"). `sky` (optional): { offsetMs, view: { az_deg,
  * el_deg, fov_deg } }, as returned by the sky panel; null fields are left out. `tab` and `sky.look` are written only
- * when given (the page of the tab era wrote them; tests rebuild such links).
+ * when given (the page of the tab era wrote them; tests rebuild such links). `layers`: the globe's map layers on;
+ * `daylight`: its day/night shading (on by default; "noday" in "ml" when off).
  */
-export function encodeHash({ scenarios, tab = "compare", xaxis = "met", body = "sun", sky = null, layers = [] }) {
+export function encodeHash({ scenarios, tab = "compare", xaxis = "met", body = "sun", sky = null, layers = [], daylight = true }) {
   const rows = scenarios.map((s) => [
     s.label || "",
     s.lat_deg === null ? null : round(s.lat_deg, 5),
@@ -427,16 +428,17 @@ export function encodeHash({ scenarios, tab = "compare", xaxis = "met", body = "
       p.set("v", [((v.az_deg % 360) + 360) % 360, v.el_deg, v.fov_deg].map((x) => String(round(x, 2))).join(","));
     }
   }
-  const ml = formatLayers(layers);
+  const ml = formatMapLink(layers, daylight);
   if (ml) p.set("ml", ml);
   p.set("s", b64urlEncode(JSON.stringify(rows)));
   return "#" + p.toString();
 }
 
 /**
- * Decode a URL hash. Returns { scenarios, tab, tabGiven, xaxis, body, sky: { offsetMs, look, view }, layers } (sky
- * fields null when absent, layers [] when none), with scenarios = [] for a link without them (e.g. "#tab=sky"). Null
- * when the hash holds nothing Moonat knows, or broken scenarios.
+ * Decode a URL hash. Returns { scenarios, tab, tabGiven, xaxis, body, sky: { offsetMs, look, view }, layers,
+ * daylight } (sky fields null when absent, layers [] when none, daylight true unless the link turns it off), with
+ * scenarios = [] for a link without them (e.g. "#tab=sky"). Null when the hash holds nothing Moonat knows, or broken
+ * scenarios.
  */
 export function decodeHash(hash) {
   if (!hash || hash.length < 2) return null;
@@ -475,7 +477,8 @@ export function decodeHash(hash) {
     const v = (p.get("v") || "").split(",").map(Number);
     const view = v.length === 3 && v.every(Number.isFinite) && v[2] > 0 ? { az_deg: v[0], el_deg: v[1], fov_deg: v[2] } : null;
     const sky = { offsetMs: Number.isFinite(t) && t > 0 ? t * 1000 : null, look, view };
-    return { scenarios, tab, tabGiven: p.has("tab"), xaxis, body, sky, layers: parseLayers(p.get("ml")) };
+    const ml = p.get("ml");
+    return { scenarios, tab, tabGiven: p.has("tab"), xaxis, body, sky, layers: parseLayers(ml), daylight: parseDaylight(ml) };
   } catch {
     return null;
   }

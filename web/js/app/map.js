@@ -14,6 +14,7 @@ import { consumeMapClick } from "../rover/pick.js";
 import { initPlaces, selectSite, dropPin, removePlace, movePlace, showPlaceCard } from "./places.js";
 import { attachGlobe } from "./globe_api.js";
 import { initMapLayers } from "./map_layers.js";
+import { initDaylight } from "./daylight_link.js";
 import { siteFlag } from "./flags.js";
 
 let globe;
@@ -46,6 +47,7 @@ export async function initMap(opts = {}) {
   });
   initPlaces(globe);
   initMapLayers(globe);
+  initDaylight(globe);
   attachGlobe(globe);
   drawSites();
   drawScenarios(true);

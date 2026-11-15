@@ -2,7 +2,8 @@
 // The Moon globe's optional map layers (contract C8b): NASA's permanently shadowed regions and the most sunlit ground,
 // both from the PGDA polar illumination maps (web/data/overlays/overlays.json, built by
 // scripts/data/build_map_layers.py). Pure helpers with no DOM and no three.js: the layer list with its colours and
-// wording, the link format, and the pole to show. Tests: web/tests/globe_layers.test.mjs.
+// wording, the link format (with the "noday" word of the day/night shading, daylight.js), and the pole to show.
+// Tests: web/tests/globe_layers.test.mjs, web/tests/globe_daylight.test.mjs.
 
 /** Latitude (deg) poleward of which the layers have data (both poles). */
 export const LAYER_LIMIT_LAT = 80;
@@ -57,6 +58,22 @@ export function formatLayers(list) {
 /** A link value ("psr.sun"; commas work too) as a layer list; unknown words are dropped. */
 export function parseLayers(str) {
   return normalizeLayers(String(str ?? "").split(/[.,\s]+/));
+}
+
+/**
+ * Link word for the globe's day and night shading turned off (web/js/globe/daylight.js). The shading is on by default,
+ * so a link only says when it is off: "ml=noday", "ml=psr.noday".
+ */
+export const NO_DAYLIGHT = "noday";
+
+/** The "ml" link value of the layers `list` and the day/night shading (`daylight`, default on): "psr.sun.noday". */
+export function formatMapLink(list, daylight = true) {
+  return [formatLayers(list), daylight ? "" : NO_DAYLIGHT].filter(Boolean).join(".");
+}
+
+/** Whether an "ml" link value (or none) keeps the day/night shading on: true unless it holds NO_DAYLIGHT. */
+export function parseDaylight(str) {
+  return !String(str ?? "").split(/[.,\s]+/).includes(NO_DAYLIGHT);
 }
 
 /** The list with layer `id` turned on or off. */

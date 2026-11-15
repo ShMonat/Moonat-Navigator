@@ -1,8 +1,9 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
 // The ONE adapter between the UI and the browser physics (contract C6 `sky-state`, web/js/physics/index.js).
-// The UI only uses: initPhysics, physicsError, physicsCoverage, siteFor, stateAt, seriesFor, loadHorizon, useLiveTerrain.
+// The UI only uses: initPhysics, physicsError, physicsCoverage, siteFor, stateAt, seriesFor, subsolarAt, loadHorizon,
+// useLiveTerrain.
 
-import { loadEphem, makeSite, skyState, series, horizonFromTiles } from "../physics/index.js";
+import { loadEphem, makeSite, skyState, series, horizonFromTiles, subsolarPoint } from "../physics/index.js";
 
 let coverage = null; // years covered by the ephemeris tables
 let loadError = null;
@@ -117,6 +118,11 @@ export async function customHorizon(lat_deg, lon_deg) {
 /** C6 skyState(site, tMs). */
 export function stateAt(site, tMs) {
   return skyState(site, tMs);
+}
+
+/** Sub-solar point at tMs (UTC epoch ms): { lat_deg, lon_deg, dir_me } in MOON_ME (physics subsolarPoint). */
+export function subsolarAt(tMs) {
+  return subsolarPoint(tMs);
 }
 
 /** C6 series(site, t0Ms, t1Ms, stepMs). */

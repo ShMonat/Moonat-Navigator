@@ -214,6 +214,21 @@
 /* The open search list covers the chips. */
 .globe-top:has(.gsearch.open) .globe-presets { visibility: hidden; }
 
+/* Day and night caption under the chips (web/js/app/daylight_link.js): the moment the globe's shading shows. Light on
+   dark glass, like the readout, since the globe sits on the dark space panel in both themes. */
+.globe-slot-caption { max-width: 100%; pointer-events: none; }
+.globe-slot-caption:not(:has(.globe-daylight:not([hidden]))) { display: none; }
+.globe-top:has(.gsearch.open) .globe-slot-caption { visibility: hidden; }
+.globe-daylight {
+  pointer-events: auto; display: inline-flex; align-items: center; gap: 6px; max-width: 100%; box-sizing: border-box;
+  padding: 2px 9px 2px 7px; border-radius: 999px; background: var(--g-glass); color: var(--g-ink-2);
+  font-size: 11.5px; line-height: 16px; white-space: nowrap; cursor: help; font-variant-numeric: tabular-nums;
+}
+.globe-daylight[hidden] { display: none; }
+.globe-daylight span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.globe-daylight svg { flex: none; width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.4; }
+.globe-daylight svg path { fill: currentColor; stroke: none; }
+
 .globe-tools {
   position: absolute; right: 10px; bottom: 28px; z-index: 3; display: flex; flex-direction: column; gap: 6px;
 }
@@ -411,6 +426,7 @@
 .glayers-pole:hover { background: var(--gs-hover); }
 .glayers-status { margin: 6px 10px 0; font-size: 12px; color: var(--gs-ink); }
 .glayers-status:empty { display: none; }
+.glayers-sep { height: 1px; margin: 4px 10px; background: var(--gs-line); }
 
 /* Whole-window mode */
 .globe.globe-full {
