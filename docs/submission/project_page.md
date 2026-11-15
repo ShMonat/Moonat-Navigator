@@ -1,6 +1,6 @@
 # NASA Space Apps project page: draft texts (paste into the site)
 
-> Draft v0.8 (2026-11-15). Numbers come from docs/validation/ and docs/research/. Ready to paste; nothing open.
+> Draft v0.9 (2026-11-15, evening). Numbers come from docs/validation/ and docs/research/. Ready to paste; nothing open.
 > Editor: Shay. Everything here is English, as the rules require.
 
 ## Project name
@@ -14,7 +14,9 @@ ephemerides, checks whether a ridge or crater rim hides them using NASA LOLA ter
 point), and reports the sunlight and Earth contact a lander or base would get, including eclipses of the Sun by the Earth.
 A first-person sky view shows it all, and the map shows where each view is looking and where it is day or night at that
 moment. Map layers show NASA's permanently shadowed regions and most sunlit ground at the poles, and many sites and dates compare side by side. A story shows what
-the tardigrades on Israel's Beresheet lander see from its crash site right now. We used Moonat to choose a site for a
+the tardigrades on Israel's Beresheet lander see from its crash site right now. In AI mode, a user describes a mission in
+plain words; Claude turns it into requirements and uses Moonat's validated physics as tools to suggest and rank sites
+and dates. We used Moonat to choose a site for a
 lunar base: the Malapert massif crest, which over 2030–2040 gets 82 % of full sunlight on average and keeps 98 % of the
 Earth's disk in view on average (the Earth never fully sets there).
 
@@ -40,6 +42,7 @@ https://shmonat.github.io/Moonat-Navigator/ — source code: https://github.com/
   - Rover trip: the fastest route through all stops within the rover's slope limit, drawn on the globe, with elevation and slope profiles and the Sun and Earth along the drive, against time or distance travelled. The travel time is coloured like traffic on a map app, by how much slower the route is than a straight drive on flat ground. Pressing play drives the route in the sky view, optionally in a driver's view.
   - Map: day and night at the chosen moment, including the Earth's shadow during eclipses. The point under the Sun agrees with JPL Horizons to 0.7 arcseconds.
   - Map layers: NASA's permanently shadowed regions, and the ground lit at least 70 % of the time at both poles. Every spot on the Moon spends some time in darkness; the best ridges are lit about 89–93 % of the time.
+  - AI mode: describe a mission (for example, "a 10-year crewed base from 2030 that needs maximum sunlight and continuous Earth contact"). The AI states its assumptions as requirements, screens candidate sites (the catalog and NASA's most-sunlit spots), evaluates the best ones with Moonat's own physics and real terrain, suggests dates, and ranks the sites with the computed numbers. One click puts them on the map.
 - Mission durations, from hours to years, become timelines with one line per scenario, so trade-offs are visible at a glance. Playback can follow the Sun or the Earth. Every view can be shared as a link.
 
 **How it works**
@@ -52,6 +55,7 @@ https://shmonat.github.io/Moonat-Navigator/ — source code: https://github.com/
 7. Rover trips: a shortest-time path search through every stop on a Moon Trek elevation grid, with VIPER-class (0.2 m/s, ≤ 15°) and Apollo LRV (2.5 m/s, ≤ 20°) presets from NASA sources.
 8. Suggested dates: a two-year scan of the place's sunlight, Earth visibility and eclipse geometry in a background thread (under 1 s at the poles). It finds every umbral lunar eclipse in NASA's 2025–2030 catalog.
 9. A base-siting study with the same physics: 80,648 south-polar points screened, the best refined at 20 m resolution over 2030–2040. The recommended StarHab site (Malapert massif crest, −85.968°, −2.287°) gets 82 % of full sunlight on average, 98 % of the Earth's disk in view on average with the Earth never fully hidden, and a longest night of 7 days, on a 10 m mast. Our illumination matches Gläser et al. (2014) within 0.2 points, and our Earth visibility matches NASA's south-pole Earth-visibility map with r = 0.97.
+10. AI mode: Claude (Anthropic, model Claude Opus 5.5), called from the browser with the user's own API key, never computes physics itself. It calls five tools that run Moonat's validated code: set requirements, find candidate sites, evaluate a site over a time window, suggest dates, and a final recommendation. The result cards show the tools' numbers, not the model's.
 
 **Tools**
 Python (skyfield, numpy), JavaScript (three.js, Plotly), GitHub Pages. Built with AI coding agents (see Use of AI).
@@ -64,8 +68,12 @@ and it scales from one landing to choosing where a permanent base should go.
 ## Use of AI
 Yes. The team set the vision, architecture and physics requirements, reviewed the app and directed changes. AI coding agents
 (Claude Code by Anthropic) wrote the code, tests, validation reports and documentation under the team's direction. Every source file carries an AI-generated header, and commits
-carry an AI co-author tag. No AI-generated images or video are used. The sky views are computed renders from NASA data. Details:
-docs/AI_USE.md in the repository.
+carry an AI co-author tag. No AI-generated images or video are used. The sky views are computed renders from NASA data.
+In the app, the optional AI mode calls Claude (Anthropic) at run time with the user's own API key. It suggests sites
+and dates, and every number it shows comes from Moonat's physics. Details: docs/AI_USE.md and docs/ai_mode.md in
+the repository.
+
+Team: Shay Monat (https://www.linkedin.com/in/shay-monat/) and Shahar Caspi (https://www.linkedin.com/in/shahar-caspi/).
 
 ## Space Agency Data
 - **JPL Horizons** (challenge resource): reference positions of the Sun and Earth from lunar sites; our validation benchmark (cached responses are test fixtures).
