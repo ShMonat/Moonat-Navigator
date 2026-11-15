@@ -141,6 +141,10 @@ await series(site, t0Ms, t1Ms, stepMs) -> {     // arrays, same length
 - **Body radii** (manifest `body_radii_km`): Sun **695 700 km** (IAU 2015 Resolution B3 nominal, the value JPL Horizons
   uses; Shay's decision, 2026-11-14), Earth 6378.137 km (equatorial). `ang_radius_deg` = asin(R / dist_km).
 - `flux_horiz_wm2` = 1361 · (1 AU / r)² · flux_frac · max(0, sin el). `flux_normal_wm2` = 1361 · (1 AU / r)² · flux_frac.
+  The app's third panel option, a panel turning on a vertical mast at a fixed tilt ε0, is not a series field: the app
+  computes it from these fields with `metrics.js` `tiltPanelFlux(flux_normal_wm2, sun_el, ε0)` = flux_normal ·
+  max(0, cos(el − ε0)), ε0 = `meanVisibleElevation(series)` (mean `sun_el` over samples with `sun_vis` > 0).
+  Definition in docs/validation/physics.md §7 (added 2026-11-15, pending Shay's review).
 - `series().eclipses`: one entry per eclipse in the window: first and last contact at the site (`start_ms`, `end_ms`: the
   site enters and leaves the Earth's penumbra), totality (`total_*`: the site in the umbra; null if partial), greatest
   eclipse at the site (`max_ms`: minimum Sun–Earth separation) and `max_frac`; null = outside the window. Times are refined

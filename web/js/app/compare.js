@@ -10,6 +10,7 @@ import { horizonElAt, findEvents, stats, pctAbove, compassPoint } from "./derive
 import { elevationIcon, azimuthIcon, visibleIcon, phaseIcon, fluxIcon, ringIcon, clockIcon } from "./icons.js";
 import { eclipseText, earthElCaption, rankRows, sortRows, bestIds, rankSentence, RANK_KEYS } from "./compare_text.js";
 import { withDetail, envelopeIndices, longestRun, JULIAN_YEAR_MS } from "./playback.js";
+import { tiltPanelFlux, meanVisibleElevation } from "../physics/metrics.js";
 
 const AU_KM = 149597870.7;
 const S0 = 1361;
@@ -51,8 +52,45 @@ const deg = (x, d = 1) => {
 const pct = (x) => (Number.isFinite(x) ? `${Math.round(x)}%` : "–");
 const wm2 = (x) => (Number.isFinite(x) ? `${Math.round(x).toLocaleString("en-US")} W/m²` : "–");
 
-let fluxMode = "normal"; // "normal" (Sun-facing panel) or "horiz" (flat ground)
+// "normal" (Sun-facing panel), "tilt" (a panel turning on a vertical mast, at a fixed tilt) or "horiz" (flat ground)
+let fluxMode = "normal";
 let lastArgs = null;
+
+const tiltCache = new WeakMap();
+/**
+ * The turning panel at a fixed tilt for a mission series (physics/metrics.js): its tilt eps0 (deg, the mean Sun
+ * elevation over the samples with some Sun above the terrain; NaN when there are none) and `view`, a series-like
+ * object with `flux_tilt_wm2` (W/m²) per sample and in each eclipse detail, for withDetail. Cached per series.
+ */
+function tiltOf(se) {
+  let v = tiltCache.get(se);
+  if (!v) {
+    const eps0 = meanVisibleElevation(se);
+    const flux = (fn, el) => Array.from(fn, (f, i) => tiltPanelFlux(f, el[i], eps0));
+    v = {
+      eps0,
+      view: {
+        t_ms: se.t_ms,
+        flux_tilt_wm2: flux(se.flux_normal_wm2, se.sun_el),
+        // A detail without elevations is left out (withDetail then keeps the coarse samples).
+        detail: (se.detail || []).map((d) => ({ t_ms: d.t_ms, flux_tilt_wm2: d.sun_el ? flux(d.flux_normal_wm2, d.sun_el) : null })),
+      },
+    };
+    tiltCache.set(se, v);
+  }
+  return v;
+}
+
+const TILT_TIP = "Turns about a vertical mast to face the Sun; tilted at the mission's average Sun elevation while lit";
+
+/** Tooltip of the "Fixed tilt" button: the tilt of each mission shown. */
+function tiltTip(missions) {
+  const tilts = missions.map((it) => ({ label: it.label, eps0: tiltOf(it.series).eps0 }));
+  if (!tilts.length) return TILT_TIP;
+  const one = (x) => (Number.isFinite(x.eps0) ? deg(x.eps0) : "undefined: the Sun never clears the terrain");
+  if (tilts.length === 1) return `${TILT_TIP} (ε0 = ${one(tilts[0])})`;
+  return `${TILT_TIP} (ε0: ${tilts.map((x) => `${x.label} ${one(x)}`).join(", ")})`;
+}
 
 /**
  * Render the Sun and Earth data.
@@ -96,6 +134,9 @@ export function renderCompare(items, opts) {
   sunCharts.hidden = earthCharts.hidden = false;
   ensureChartShells(sunCharts, "sun");
   ensureChartShells(earthCharts, "earth");
+  const tiltBtn = sunCharts.querySelector('.flux-seg [data-flux="tilt"]');
+  if (tiltBtn) tiltBtn.title = tiltTip(ok.filter((it) => it.series));
+  document.getElementById("help-sun-flux").textContent = fluxMode === "tilt" ? FLUX_HELP_TILT : FLUX_HELP;
   // The Earth elevation caption fits the sites shown (near side, poles and limb, far side).
   document.getElementById("help-earth-el").textContent = earthElCaption(ok);
   const args = lastArgs;
@@ -298,11 +339,16 @@ function farSideInsight(it, elArr, visArr) {
   return "";
 }
 
-/** Solar flux (W/m²) on a Sun-facing panel and on flat ground, from a C6 sun state (uses its flux fields when present). */
+/**
+ * Solar flux (W/m²) on a Sun-facing panel, on a turning panel at a fixed tilt and on flat ground, from a C6 sun state
+ * (uses its flux fields when present). For a single instant the "mission" is that one moment, so the turning panel's
+ * tilt is the Sun's elevation when it is visible and it gets the Sun-facing flux.
+ */
 function sunFlux(sun) {
   const normal = Number.isFinite(sun.flux_normal_wm2) ? sun.flux_normal_wm2 : S0 * (AU_KM / sun.dist_km) ** 2 * sun.flux_frac;
   const horiz = Number.isFinite(sun.flux_horiz_wm2) ? sun.flux_horiz_wm2 : normal * Math.max(0, Math.sin((sun.el_deg * Math.PI) / 180));
-  return { normal, horiz };
+  const tilt = tiltPanelFlux(normal, sun.el_deg, meanVisibleElevation({ sun_el: [sun.el_deg], sun_vis: [sun.vis_frac] }));
+  return { normal, horiz, tilt };
 }
 
 /** " (3.6× the Sun's width)" from the C6 angular radii, or "" when they are missing. */
@@ -356,11 +402,16 @@ function sunMissionCard(it) {
   const se = it.series;
   const lit = pctAbove(se.sun_flux_frac ?? se.sun_vis); // a total eclipse by the Earth is not sunlight
   const el = stats(se.sun_el);
-  const flux = stats(fluxMode === "horiz" ? se.flux_horiz_wm2 : se.flux_normal_wm2);
+  const tilt = fluxMode === "tilt" ? tiltOf(se) : null;
+  const flux = stats(fluxMode === "horiz" ? se.flux_horiz_wm2 : tilt ? tilt.view.flux_tilt_wm2 : se.flux_normal_wm2);
+  const fluxSub = fluxMode === "horiz" ? "average on flat ground"
+    : !tilt ? "average on a Sun-facing panel"
+    : Number.isFinite(tilt.eps0) ? `average on a turning panel tilted ${deg(tilt.eps0)}`
+    : "on a turning panel (no tilt: the Sun never clears the terrain)";
   const rows = [
     row(ringIcon(lit), pct(lit), "of the stay with sunlight"),
     row(elevationIcon(el.max), `${deg(el.min)} to ${deg(el.max)}`, "Sun height (elevation), lowest to highest"),
-    row(fluxIcon(flux.mean / S0), wm2(flux.mean), fluxMode === "horiz" ? "average on flat ground" : "average on a Sun-facing panel"),
+    row(fluxIcon(flux.mean / S0), wm2(flux.mean), fluxSub),
     // The night a base must ride out on batteries (terrain shadow, night, or the Earth's shadow).
     longestRow(it, se.sun_flux_frac ?? se.sun_vis, "longest darkness", "dark spells"),
   ].join("");
@@ -392,11 +443,14 @@ function earthMissionCard(it) {
 // ---------------------------------------------------------------------------------------------
 // Charts
 
+const FLUX_HELP = "Solar power reaching a panel, in W/m².";
+const FLUX_HELP_TILT = `${FLUX_HELP} Fixed tilt: the panel turns on a vertical mast to face the Sun, tilted at the stay's average Sun elevation while lit.`;
+
 const CHARTS = {
   sun: [
     { id: "sun-el", wide: true, title: "Sun elevation", help: "Height above the flat, ideal horizon. Dotted: the real terrain horizon in that direction. Above 0° does not guarantee sunlight." },
     { id: "sun-vis", title: "Visible Sun", help: "Share of the Sun's light that reaches the site (100% = the full Sun). Terrain and, during an eclipse, the Earth block part of it." },
-    { id: "sun-flux", title: "Sunlight power", help: "Solar power reaching a panel, in W/m².", toggle: true },
+    { id: "sun-flux", title: "Sunlight power", help: FLUX_HELP, toggle: true },
   ],
   earth: [
     { id: "earth-el", wide: true, title: "Earth elevation", help: "Height above the flat, ideal horizon. Dotted: the real terrain horizon in that direction." },
@@ -430,8 +484,9 @@ function ensureChartShells(container, body) {
 
 function fluxToggle() {
   return `<div class="seg flux-seg" role="group" aria-label="Panel orientation">
-    <button data-flux="normal" aria-pressed="${fluxMode === "normal"}">Sun-facing</button>
-    <button data-flux="horiz" aria-pressed="${fluxMode === "horiz"}">Flat</button></div>`;
+    <button data-flux="normal" aria-pressed="${fluxMode === "normal"}" title="Always faces the Sun (tracks it in azimuth and elevation)">Sun-facing</button>
+    <button data-flux="tilt" aria-pressed="${fluxMode === "tilt"}" title="${TILT_TIP}">Fixed tilt</button>
+    <button data-flux="horiz" aria-pressed="${fluxMode === "horiz"}" title="Lies flat on level ground">Flat</button></div>`;
 }
 
 function cssVar(name) {
@@ -617,23 +672,40 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
   }
   react("sun-vis", sunVisTraces, sunVisLayout, config);
 
-  const fluxKey = fluxMode === "horiz" ? "flux_horiz_wm2" : "flux_normal_wm2";
-  // The scale starts at 0 and reaches at least 1400 W/m² for a Sun-facing panel (the solar constant is 1361) or 100 W/m²
-  // on flat ground, so a site in the dark reads as zero power instead of a flat line on a 0-1 axis.
+  // Fixed tilt: the flux comes from tiltOf(series).view (flux_tilt_wm2), one tilt per scenario.
+  const fluxKey = { horiz: "flux_horiz_wm2", tilt: "flux_tilt_wm2" }[fluxMode] || "flux_normal_wm2";
+  const fluxSrc = (it) => (fluxMode === "tilt" ? tiltOf(it.series).view : it.series);
+  const tiltLabel = (eps0) => (Number.isFinite(eps0) ? `tilt ${deg(eps0)}` : "never lit");
+  // The scale starts at 0 and reaches at least 1400 W/m² for a Sun-facing or turning panel (the solar constant is 1361)
+  // or 100 W/m² on flat ground, so a site in the dark reads as zero power instead of a flat line on a 0-1 axis.
   let fluxMax = 0;
-  for (const it of missions) for (const v of it.series[fluxKey]) if (v > fluxMax) fluxMax = v;
-  for (const it of instants) fluxMax = Math.max(fluxMax, sunFlux(it.state0.sun)[fluxMode === "horiz" ? "horiz" : "normal"] || 0);
+  for (const it of missions) for (const v of fluxSrc(it)[fluxKey]) if (v > fluxMax) fluxMax = v;
+  for (const it of instants) fluxMax = Math.max(fluxMax, sunFlux(it.state0.sun)[fluxMode] || 0);
+  let fluxTitle = fluxMode === "horiz" ? "Flat ground (W/m²)" : "Sun-facing panel (W/m²)";
+  // Several scenarios on a phone-width page: the legend keeps the plain names (long ones would squeeze the plot), and
+  // each tilt is in the hover and on the scenario's card.
+  const tiltInLegend = (document.getElementById("compare-body").clientWidth || 1000) >= 700;
+  if (fluxMode === "tilt") {
+    // One mission: its tilt on the axis; several: each scenario's tilt in its legend entry and hover.
+    const eps = missions.length === 1 && !instants.length ? tiltOf(missions[0].series).eps0 : null;
+    fluxTitle = eps === null ? (tiltInLegend ? "Turning panel, tilt per scenario (W/m²)" : "Turning panel (W/m²)")
+      : Number.isFinite(eps) ? `Turning panel, tilt ${deg(eps)} (W/m²)` : "Turning panel, tilt undefined (W/m²)";
+  }
   react(
     "sun-flux",
     traces(
-      (it) => [line(it, withDetail(it.series, fluxKey), { hovertemplate: "%{y:.0f} W/m²" })],
       (it) => {
-        const f = sunFlux(it.state0.sun);
-        const v = fluxMode === "horiz" ? f.horiz : f.normal;
+        if (fluxMode !== "tilt") return [line(it, withDetail(it.series, fluxKey), { hovertemplate: "%{y:.0f} W/m²" })];
+        const t = tiltLabel(tiltOf(it.series).eps0);
+        const name = multi && tiltInLegend ? `${it.label} · ${t}` : it.label;
+        return [line(it, withDetail(fluxSrc(it), fluxKey), { name, hovertemplate: `%{y:.0f} W/m² (${t})` })];
+      },
+      (it) => {
+        const v = sunFlux(it.state0.sun)[fluxMode];
         return instantMarker(it, v, `${Math.round(v)} W/m²`);
       },
     ),
-    withEclipses(layoutBase(fluxMode === "horiz" ? "Flat ground (W/m²)" : "Sun-facing panel (W/m²)", { range: [0, Math.max(fluxMode === "horiz" ? 100 : 1400, fluxMax * 1.04)] })),
+    withEclipses(layoutBase(fluxTitle, { range: [0, Math.max(fluxMode === "horiz" ? 100 : 1400, fluxMax * 1.04)] })),
     config,
   );
 

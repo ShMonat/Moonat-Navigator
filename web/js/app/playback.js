@@ -58,7 +58,7 @@ export const DETAIL_STEP_MS = 2 * 60e3;
  * one step before the first contact to one step after the last. The charts draw it in place of the coarse samples; the
  * card statistics keep the evenly spaced samples (so every sample weighs the same).
  * seriesFn(site, t0Ms, t1Ms, stepMs) is the C6 series (physics_adapter seriesFor). Adds `step_ms` and `detail`
- * ([{ t_ms, sun_flux_frac, sun_vis, sun_eclipse, flux_normal_wm2, flux_horiz_wm2 }], possibly empty).
+ * ([{ t_ms, sun_el, sun_flux_frac, sun_vis, sun_eclipse, flux_normal_wm2, flux_horiz_wm2 }], possibly empty).
  */
 export async function missionSeries(site, t0Ms, t1Ms, seriesFn, stepMs = chooseStep(t1Ms - t0Ms)) {
   const se = await seriesFn(site, t0Ms, t1Ms, stepMs);
@@ -71,7 +71,7 @@ export async function missionSeries(site, t0Ms, t1Ms, seriesFn, stepMs = chooseS
       if (!(b - a >= 2 * DETAIL_STEP_MS)) continue;
       const d = await seriesFn(site, a, b, DETAIL_STEP_MS);
       se.detail.push({
-        t_ms: d.t_ms, sun_flux_frac: d.sun_flux_frac, sun_vis: d.sun_vis, sun_eclipse: d.sun_eclipse,
+        t_ms: d.t_ms, sun_el: d.sun_el, sun_flux_frac: d.sun_flux_frac, sun_vis: d.sun_vis, sun_eclipse: d.sun_eclipse,
         flux_normal_wm2: d.flux_normal_wm2, flux_horiz_wm2: d.flux_horiz_wm2,
       });
     }

@@ -12,6 +12,7 @@ What the browser computes, how we test it, and how close it gets. Run the tests 
 | Topocentric az/el, distance, angular radius | `web/js/physics/index.js` | body_ME − site_ME, rotated into ENU; ρ = asin(R/d) |
 | Visible fraction `vis_frac`, flux fraction `flux_frac` | `visibility.js` = `src/moonat/visibility.py` | 400-point sunflower sampling of the disk (uniform in solid angle), each point mapped exactly to az/el and compared with the horizon profile |
 | Flux | `metrics.js` = `src/moonat/metrics.py` | 1361 W/m² · (1 au / r)² · flux_frac (· sin el on the horizontal) |
+| Flux on a turning panel at a fixed tilt | `metrics.js` (`tiltPanelFlux`, `meanVisibleElevation`; JS only) | flux_normal · cos(el − ε0), ε0 = mean Sun elevation while visible (§7) |
 | Earth phase | same | (1 + cos α)/2, α = Sun–Earth–observer angle |
 | Earth Rotation Angle | `frames.js` | IERS 2010 eq. 5.15 with UT1 = UTC |
 | Next sunset / Earthset | `metrics.js` | first sample pair vis > 0 → 0, then bisection on the real geometry to 1 s |
@@ -120,3 +121,40 @@ Tile horizons read **about 1–1.4° low** at typical sites, because the relief 
 resolution. Where the far field sets the horizon (valleys, crater walls: Apollo 17, Haworth), they are 4× to 200×
 better than a flat horizon. On rims and peaks (Shackleton, the south pole), the near field dominates and tiles do not help.
 The UI labels these horizons "approximate terrain (coarse)".
+
+## 7. Solar panel orientations in the Sunlight power chart (pending Shay's review)
+The chart and the mission card offer three panels. All three start from the Sun-facing flux `flux_normal_wm2` of C6,
+which already includes the share of the Sun above the terrain, the Earth's shadow and limb darkening. Frame: site ENU
+with up = radial; `el` is the Sun's apparent elevation (centre of the disk), in degrees.
+
+| Option | Panel | Flux (W/m²) |
+|---|---|---|
+| Sun-facing | always faces the Sun (two-axis tracking) | F_normal |
+| Fixed tilt | turns about a vertical mast to face the Sun's azimuth; its normal stays at a fixed elevation ε0 | F_normal · max(0, cos(el − ε0)) |
+| Flat | lies on level ground (normal at the zenith) | F_normal · max(0, sin el) = C6 `flux_horiz_wm2` |
+
+- The Sun and the turning panel's normal share an azimuth, so the angle of incidence is |el − ε0|. Flat ground is the
+  same formula with ε0 = 90°, and a test checks that it reproduces `flux_horiz_wm2`.
+- **ε0, per scenario:** the mean Sun elevation over the scenario's evenly spaced series samples with some Sun above the
+  terrain horizon (`sun_vis` > 0). Night samples are left out, so the panel is not tilted toward a Sun below the
+  horizon. ε0 is not clamped: at a raised polar site the visible Sun can be slightly below 0°. When the Sun never clears
+  the terrain, ε0 is undefined and the flux is 0. A single instant uses ε0 = el, i.e. the Sun-facing flux.
+- **Assumptions:** perfect azimuth tracking; the back of the panel makes no power (cos < 0 gives 0, which needs
+  |el − ε0| > 90°); no light reflected from the ground or from the Earth.
+- The tilt is set once for the stay and is not optimised for energy: the mean elevation is not the energy-optimal tilt
+  in general, but the two are close where the elevation range is narrow (the poles).
+
+**Tests** (`web/tests/physics_tilt_panel.test.mjs`):
+
+| Case | Reference | Result |
+|---|---|---|
+| F_normal 1361, el 30°, ε0 0° | 1361 · cos 30° = 1178.66 | exact (1e-9) |
+| el = ε0 | F = F_normal | exact |
+| ε0 = 90° | C6 flat-ground flux | exact (1e-9) |
+| Synthetic polar stay, el = 1.5° · sin | each sample ≥ cos 1.5° = 0.99966 of Sun-facing | yes |
+| Synthetic day, el = 90° · sin(2πt/P) | ε0 = 90° · 2/π = 57.30° | 57.30°; means flat 511.5 < tilted 603.9 < Sun-facing 680.5 W/m² |
+| Real ephemeris, Apollo 11 site, flat horizon, 59 days from 2026-01-01 | near the equator el = 90° − \|hour angle\| grows linearly in time, so by day el is uniform on [0°, 90°]: ε0 = 45°, tilted / Sun-facing = 2√2/π = 0.900, flat / Sun-facing = 2/π = 0.637 | ε0 = 44.6°; means flat 442.6, tilted 628.7, Sun-facing 697.6 W/m² (ratios 0.901 and 0.634) |
+| Real ephemeris, 89.9° S, flat horizon, same window | Sun within ±1.5°: tilted ≈ Sun-facing | ε0 = 0.74°; tilted / Sun-facing = 0.99997 |
+
+Near the equator the real mean daytime elevation is about 45°, not the 57.3° of a 90° · sin model: the Sun crosses the
+sky on a great circle through (nearly) the zenith at a constant rate, so its elevation grows linearly with time.

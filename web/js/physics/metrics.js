@@ -21,6 +21,39 @@ export function fluxHorizWm2(dist_km, flux_frac, el_deg) {
 }
 
 /**
+ * Irradiance on a panel that turns about the local vertical (a vertical mast) to face the Sun's azimuth, with its
+ * normal at a fixed elevation eps0 above the local horizontal plane (W/m²).
+ * Frame: site ENU, up = radial (as C6). The Sun and the panel normal share an azimuth, so the angle of incidence is
+ * |e − eps0| and F = F_normal · cos(e − eps0); F = F_normal when e = eps0.
+ * Inputs: fNormal = irradiance on a Sun-facing panel at that instant (C6 flux_normal_wm2, W/m²: already includes the
+ * share of the disk above the terrain, the Earth's shadow and limb darkening); e_deg = the Sun's apparent elevation
+ * (deg, centre of the disk, C6 el_deg); eps0_deg = the panel's tilt (deg, may be below 0 at a raised polar site).
+ * Assumptions: the azimuth tracking is perfect; the panel's back side makes no power, so cos < 0 gives 0 (only when
+ * |e − eps0| > 90°); no reflected light from the ground. Returns 0 when fNormal is 0 or eps0 is undefined (not finite).
+ */
+export function tiltPanelFlux(fNormal, e_deg, eps0_deg) {
+  if (!(fNormal > 0) || !Number.isFinite(eps0_deg) || !Number.isFinite(e_deg)) return 0;
+  const c = Math.cos(((e_deg - eps0_deg) * Math.PI) / 180);
+  return c > 0 ? fNormal * c : 0;
+}
+
+/**
+ * Tilt eps0 for tiltPanelFlux over a mission: the mean of the Sun's elevation (deg, site ENU) over the samples where
+ * the Sun is at least partly above the terrain horizon (sun_vis > 0, C6 terrain-only visible fraction). Night samples
+ * are left out, so the panel is not tilted toward a Sun below the horizon. The samples are taken as evenly spaced
+ * (C6 series), so each weighs the same. series: { sun_el: [deg], sun_vis: [0..1] }. Returns NaN when the Sun is never
+ * visible (eps0 undefined). Not clamped: at a raised polar site the visible Sun can be slightly below 0°.
+ */
+export function meanVisibleElevation(series) {
+  const el = series?.sun_el || [], vis = series?.sun_vis || [];
+  let sum = 0, n = 0;
+  for (let i = 0; i < el.length; i++) {
+    if (vis[i] > 0 && Number.isFinite(el[i])) { sum += el[i]; n++; }
+  }
+  return n ? sum / n : NaN;
+}
+
+/**
  * Illuminated fraction of the Earth's disk: (1 + cos α)/2, α = Sun–Earth–observer angle.
  * Positions in one common frame and unit (e.g. MOON_ME km).
  */
