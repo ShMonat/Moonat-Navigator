@@ -1,4 +1,6 @@
 <!-- AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team. -->
+This solution was developed as part of NASA Space Apps Tel Aviv 2026. The event was led by the Space Engineering Center (SEC) and SpaceTAU at Tel Aviv University, in partnership with the Rakia Mission and Space Campus IL.
+
 # Moonat: Lunar Landing Site Navigator
 
 **See the Sun and the Earth from any point on the Moon, at any time, behind the real LOLA horizon.**
