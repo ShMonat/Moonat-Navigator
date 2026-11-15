@@ -328,52 +328,16 @@
 .gs-ico.k-home, .gplace-ico.k-home { background: var(--site-home); }
 .gs-ico.k-home::after, .gplace-ico.k-home::after { display: none; }
 .gs-ico svg, .gplace-ico svg { width: 19px; height: 19px; fill: none; stroke: #fff; stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; }
-/* A selected place shows its pin in the scenario colour. */
-.gplace-ico.sel { background: var(--gs-ico); }
-.gplace-ico.sel::after {
-  display: block; width: 13px; height: 13px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
-  background: var(--c); border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
-}
-.gplace-ico.sel svg { display: none; }
+/* A story (quick start) in the search list: its line icon in an accent badge. */
+.gs-ico.gs-story-ico { background: color-mix(in srgb, var(--accent) 20%, var(--gs-ico)); color: var(--accent); }
+.gs-ico.gs-story-ico::after { display: none; }
+.gs-ico.gs-story-ico svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 2; }
 
-/* ---------- Place card (bottom of the map) ---------- */
+/* ---------- Bottom slot of the map (page controls) ---------- */
 .globe-slot-bottom {
   position: absolute; left: 10px; right: 56px; bottom: 26px; z-index: 4; pointer-events: none;
   display: flex; justify-content: flex-start;
 }
-.gplace {
-  pointer-events: auto; width: 100%; max-width: 400px; padding: 9px 10px 9px 11px; border-radius: 14px;
-  background: var(--gs-bg); color: var(--gs-ink); border: 1px solid var(--gs-line); box-shadow: var(--gs-shadow);
-  font-size: 13px; line-height: 1.35; user-select: text; -webkit-user-select: text;
-}
-.gplace[hidden] { display: none; }
-/* Searching hides the card (the list needs the room), as on a web map. */
-.globe:has(.gsearch.open) .gplace { display: none; }
-.gplace-head { display: flex; align-items: center; gap: 10px; }
-.gplace-title { flex: 1; min-width: 0; }
-.gplace-name { margin: 0; font-size: 15px; font-weight: 650; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.gplace-kind { margin: 1px 0 0; font-size: 12px; color: var(--gs-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.gplace-close {
-  flex: none; align-self: flex-start; width: 30px; height: 30px; margin: -4px -4px 0 0; border: 0; border-radius: 50%;
-  background: transparent; color: var(--gs-muted); font-size: 14px; cursor: pointer; display: grid; place-items: center; padding: 0;
-}
-.gplace-close:hover { background: var(--gs-hover); color: var(--gs-ink); }
-.gplace-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 6px; }
-.gplace-coords { margin: 0; font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--gs-ink); min-width: 0; }
-.gplace-blurb {
-  margin: 4px 0 0; color: var(--gs-muted); font-size: 12.5px;
-  display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-}
-.globe-short .gplace-blurb { -webkit-line-clamp: 1; line-clamp: 1; }
-.gplace-btn {
-  flex: none; padding: 4px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; cursor: pointer;
-  border: 1px solid var(--gs-line); background: transparent; color: var(--accent);
-}
-.gplace-btn:hover { background: var(--gs-hover); }
-.gplace-add { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
-.gplace-add:hover { background: var(--accent); filter: brightness(1.08); }
-/* The tools and the readout move up above an open card. */
-.globe.has-card .globe-readout { bottom: calc(var(--card-h, 110px) + 34px); }
 
 /* ---------- Map layers (web/js/app/map_layers.js) ---------- */
 /* The Layers button shows a small dot while a layer is on; its panel opens beside the tool column (above the tool row
@@ -437,7 +401,24 @@
 .globe.globe-full .globe-preset { padding: 7px 14px; font-size: 13px; }
 html.globe-locked, html.globe-locked body { overflow: hidden; }
 
-/* Map hint: mouse or touch wording */
+/* Map hint: the "i" button at the end of the legend row and its popover (map_hint.js), with mouse or touch wording. */
+.map-legend .lg-info { order: 99; position: relative; margin: 0; }
+.map-info {
+  display: inline-grid; place-items: center; width: 22px; height: 22px; padding: 0; border-radius: 50%;
+  border: 1px solid var(--line, rgba(127, 127, 127, 0.4)); background: transparent; color: var(--text-2); cursor: pointer;
+  font-size: 15px;
+}
+.map-info:hover, .map-info.open { color: var(--accent); border-color: var(--accent); }
+.map-info:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.map-hint-pop {
+  position: fixed; z-index: 60; width: max-content; max-width: 340px; padding: 8px 11px; border-radius: 10px;
+  background: var(--gs-bg, var(--surface)); color: var(--gs-ink, var(--text)); border: 1px solid var(--gs-line, var(--line));
+  box-shadow: var(--gs-shadow, 0 6px 22px rgba(0, 0, 0, 0.3)); font-size: 12.5px; line-height: 1.4;
+}
+.map-hint-pop[hidden] { display: none; }
+/* The sunlit-spot legend entries: the globe's sun marker. */
+.lg.lg-sun { width: auto; height: auto; border: 0; background: none; line-height: 0; }
+@media (pointer: coarse) { .map-info { width: 30px; height: 30px; } }
 .map-hint .hint-touch { display: none; }
 @media (pointer: coarse) {
   .map-hint .hint-mouse { display: none; }

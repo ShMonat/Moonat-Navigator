@@ -1,21 +1,24 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
 // Places on the Moon globe, the Google Maps way:
-//   - "Search the Moon": one search box floating on the globe. Focused and empty it lists Home (StarHab), the missions,
-//     the potential Artemis sites and the places of interest; typing filters them; typed coordinates offer
-//     "Go to …". A choice flies the globe there, selects the place and opens its place card. A mission's name has the
-//     flag of the nation that flew it next to it (flags.js), in the list and on the card.
-//   - The place card (bottom of the map): name, kind, coordinates, blurb, and Remove (or Add).
+//   - "Search the Moon": one search box floating on the globe. Focused and empty it lists the stories (the quick
+//     starts, each with an icon and a one-line subtitle), Home (StarHab), the missions, the potential Artemis sites
+//     and the places of interest; typing filters them all; typed coordinates offer "Go to …". A place flies the globe
+//     there and selects it; a story loads. A mission's name has the flag of the nation that flew it next to it
+//     (flags.js). Each story row is `.gs-story[data-story="<QUICK_STARTS key>"]` (scripts click it by that).
+//   - No place card on the globe (Shay: it covered the map); the place's card in the left column (scenarios_ui.js)
+//     has its name, coordinates and Remove.
 //   - The Home button (house icon) flies to the home base.
 //   - The selection actions the map uses: a catalog pin or a search result adds a place, a selected pin removes it, a
-//     click on the ground drops a new pin, a dragged pin moves.
+//     click on the ground drops a new pin (a click on a sunlit-spot marker drops it exactly on the spot, named
+//     "Sunlit spot, lit 88 %"), a dragged pin moves.
 // Each selected place is one scenario (contract C7) in the store, so the scenario cards stay in step both ways.
-// Pure helpers (coordinates, the result list): place_search.js.
+// Pure helpers (coordinates, the result list, the stories group, spot names): place_search.js.
 
 import { store, subscribe, removeScenario, updateScenario, setActive, setScenarios, activeScenario } from "./store.js";
 import { colorHex, pointLabel, isPointLabel, PALETTE } from "./state.js";
 import { catalogSites, siteById, shortName, scenarioFieldsFromSite, HOME_SITE_ID } from "./catalog.js";
 import { applySite, clearAll } from "./scenarios_ui.js";
-import { placeResults, siteSubtitle, fmtSigned, fmtHemi, KIND_ONE } from "./place_search.js";
+import { placeResults, siteSubtitle, fmtSigned, fmtHemi, KIND_ONE, isSpotLabel, storyResults } from "./place_search.js";
 import { HOUSE_PATH } from "../globe/globe.js";
 import { consumeMapClick } from "../rover/pick.js";
 import { icon as svgIcon } from "./icons.js";
@@ -25,6 +28,7 @@ import { siteFlag } from "./flags.js";
 export const MAX_PLACES = PALETTE.dark.length;
 
 let globe = null;
+let stories = {}; // initPlaces opts.stories
 
 function el(tag, attrs = {}, ...children) {
   const e = document.createElement(tag);
@@ -44,7 +48,7 @@ const round4 = (x) => Math.round(x * 1e4) / 1e4;
 const houseSvg = (cls = "") => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${HOUSE_PATH}"/></svg>`;
 
 /**
- * A place's name for the search list and the place card: the text, then, for a mission, the flag of the nation that
+ * A place's name for the search list: the text, then, for a mission, the flag of the nation that
  * flew it (flags.js; the image at its own aspect ratio, sized by CSS).
  */
 function nameWithFlag(tag, cls, name, site) {
@@ -126,15 +130,21 @@ export function selectSite(site) {
   return appendScenario({ ...sharedTimes(), ...patch });
 }
 
-/** Drop a pin at a custom point (lat, east lon, deg): fills an empty card or adds a scenario. Returns it, or null. */
-export function dropPin(lat, lon) {
+/** True for a name the user typed (kept when the place moves), false for an automatic one (it follows the place). */
+const typedLabel = (label) => !!label && !isPointLabel(label) && !isSpotLabel(label);
+
+/**
+ * Drop a pin at a custom point (lat, east lon, deg): fills an empty card or adds a scenario. Returns it, or null.
+ * opts.label: its automatic name (default "Point …"; a sunlit spot's is "Sunlit spot, lit 88 %").
+ */
+export function dropPin(lat, lon, { label = null } = {}) {
   lat = round4(lat);
   lon = round4(lon);
+  const auto = label || pointLabel(lat, lon);
   const empty = emptyScenario();
   if (empty) {
-    // A name the user typed is kept; an automatic one follows the place.
-    const keep = empty.label && !isPointLabel(empty.label);
-    updateScenario(empty.id, { lat_deg: lat, lon_deg: lon, site_id: null, label: keep ? empty.label : pointLabel(lat, lon) }, "field", { external: true });
+    const keep = typedLabel(empty.label);
+    updateScenario(empty.id, { lat_deg: lat, lon_deg: lon, site_id: null, label: keep ? empty.label : auto }, "field", { external: true });
     setActive(empty.id);
     return empty;
   }
@@ -142,19 +152,21 @@ export function dropPin(lat, lon) {
     fullToast();
     return null;
   }
-  return appendScenario({ ...sharedTimes(), lat_deg: lat, lon_deg: lon, site_id: null, label: pointLabel(lat, lon) });
+  return appendScenario({ ...sharedTimes(), lat_deg: lat, lon_deg: lon, site_id: null, label: auto });
 }
 
-/** Move a dropped pin (a custom point) to lat, east lon (deg). Catalog places and rover traverses do not move. */
-export function movePlace(id, lat, lon) {
+/**
+ * Move a dropped pin (a custom point) to lat, east lon (deg). Catalog places and rover traverses do not move.
+ * opts.label: the automatic name at the new place (default "Point …"); a name the user typed is kept.
+ */
+export function movePlace(id, lat, lon, { label = null } = {}) {
   const s = store.scenarios.find((x) => x.id === id);
   if (!s || s.site_id || s.route) return;
   lat = round4(lat);
   lon = round4(lon);
-  const keep = s.label && !isPointLabel(s.label);
-  updateScenario(id, { lat_deg: lat, lon_deg: lon, label: keep ? s.label : pointLabel(lat, lon) }, "field", { external: true });
+  const keep = typedLabel(s.label);
+  updateScenario(id, { lat_deg: lat, lon_deg: lon, label: keep ? s.label : label || pointLabel(lat, lon) }, "field", { external: true });
   setActive(id);
-  if (card?.id === id) renderCard();
 }
 
 /** Remove a place (its scenario); the last one leaves an empty card that keeps its times. A toast offers Undo. */
@@ -215,82 +227,9 @@ function zoomFor(lat) {
   return Math.abs(lat) > 80 ? 5 : 3.5;
 }
 
-/** Fly to a place, landing it in the middle of the map area the controls and the place card leave free. */
+/** Fly to a place, landing it in the middle of the map area the controls leave free. */
 function flyToPlace(lat, lon) {
   globe?.flyTo(lat, lon, zoomFor(lat), { avoidControls: true });
-}
-
-// ---------------------------------------------------------------------------------------------
-// Place card
-
-let card = null; // { id: scenario id } (a selected place) or { siteId } (a catalog place shown, not selected)
-let cardEl = null;
-
-/** Show the place card of a scenario (by id) or, unselected, of a catalog site (by site id). */
-export function showPlaceCard(target) {
-  card = target;
-  renderCard();
-}
-
-export function closePlaceCard() {
-  card = null;
-  renderCard();
-}
-
-function cardKind(s, site) {
-  if (site) {
-    const year = site.t_start_utc ? ` · ${site.t_start_utc.slice(0, 4)}` : "";
-    const agency = site.kind === "mission" && site.agency ? ` · ${site.agency}` : "";
-    const crash = site.outcome === "crash" ? " · crash site" : "";
-    return `${KIND_ONE[site.kind] || "Place"}${agency}${year}${crash}${site.kind === "candidate" ? " · approximate point" : ""}`;
-  }
-  if (s?.route) return "Rover traverse (start)";
-  return "Dropped pin · drag it to move";
-}
-
-function renderCard() {
-  if (!cardEl) return;
-  let s = card?.id ? store.scenarios.find((x) => x.id === card.id) : null;
-  if (card?.id && (!s || !hasPlace(s))) card = null;
-  if (card?.siteId) s = scenarioOfSite(card.siteId);
-  const site = s ? (s.site_id ? siteById(s.site_id) : null) : card?.siteId ? siteById(card.siteId) : null;
-  if (!card || (!s && !site)) {
-    cardEl.hidden = true;
-    globe?.element.classList.remove("has-card");
-    return;
-  }
-  const lat = s ? s.lat_deg : site.lat_deg;
-  const lon = s ? s.lon_deg : site.lon_deg;
-  const name = s?.label || (site ? shortName(site) : pointLabel(lat, lon));
-  const kind = site?.kind || "pin";
-  const ico = el("span", { class: `gplace-ico k-${kind}${s ? " sel" : ""}`, "aria-hidden": "true", html: kind === "home" ? houseSvg() : "" });
-  if (s) ico.style.setProperty("--c", colorHex(s.color, store.theme));
-  const close = el("button", { type: "button", class: "gplace-close", "aria-label": "Close the place card", title: "Close", html: svgIcon("close") });
-  close.addEventListener("click", closePlaceCard);
-  const act = el("button", { type: "button", class: `gplace-btn ${s ? "gplace-remove" : "gplace-add"}`, text: s ? "Remove" : "Add place" });
-  act.addEventListener("click", () => {
-    if (s) {
-      removePlace(s.id);
-      return;
-    }
-    const added = selectSite(site);
-    if (added) showPlaceCard({ id: added.id });
-  });
-  const blurb = site?.blurb || (s && !site ? "A point you chose. Its terrain loads live from NASA Moon Trek." : "");
-  cardEl.replaceChildren(
-    el("div", { class: "gplace-head" }, ico,
-      el("div", { class: "gplace-title" },
-        nameWithFlag("h3", "gplace-name", name, site),
-        el("p", { class: "gplace-kind", text: cardKind(s, site) })),
-      close),
-    el("div", { class: "gplace-row" },
-      el("p", { class: "gplace-coords", text: `${fmtHemi(lat, lon, 3)}${s ? "" : " · not selected"}` }), act),
-    blurb ? el("p", { class: "gplace-blurb", text: blurb }) : null,
-  );
-  cardEl.hidden = false;
-  cardEl.dataset.kind = kind;
-  globe?.element.classList.add("has-card");
-  globe?.element.style.setProperty("--card-h", `${cardEl.offsetHeight}px`);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -320,6 +259,7 @@ function buildSearch() {
       el("span", { class: "gs-text" }, nameWithFlag("span", "gs-name", name, site), sub ? el("span", { class: "gs-sub", text: sub }) : null),
       selected ? el("span", { class: "gs-on", title: "On the map", "aria-label": "selected", html: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 8.4l3 3 6.6-7"/></svg>' }) : null);
     if (selected) li.style.setProperty("--c", selected);
+    if (cls.includes("gs-story")) li.dataset.story = items[i].key;
     li.addEventListener("mousedown", (e) => {
       e.preventDefault();
       choose(i);
@@ -332,10 +272,27 @@ function buildSearch() {
     return s ? colorHex(s.color, store.theme) : null;
   };
 
+  const storyIco = (name) => el("span", { class: "gs-ico gs-story-ico", "aria-hidden": "true", html: svgIcon(name) });
+  // The stories (quick starts): the first group of the empty list; after the places for typed text.
+  const addStories = (list, nodes) => {
+    if (!list.length) return;
+    nodes.push(el("li", { class: "gs-group", role: "presentation", text: "Stories" }));
+    const on = stories.active?.() ?? null;
+    for (const st of list) {
+      items.push({ type: "story", key: st.key });
+      const li = option(items.length - 1, "gs-story", storyIco(st.icon), st.label, st.sub, st.key === on ? "var(--accent)" : null);
+      li.title = st.title;
+      nodes.push(li);
+    }
+  };
+
   const open = () => {
     const r = placeResults(input.value, catalogSites());
+    const storyList = stories.list ? storyResults(input.value, stories.list) : [];
+    const typed = !!input.value.trim();
     items = [];
     const nodes = [];
+    if (!typed) addStories(storyList, nodes);
     if (r.coords) {
       const { lat, lon } = r.coords;
       items.push({ type: "coords", lat, lon });
@@ -354,6 +311,7 @@ function buildSearch() {
         nodes.push(option(items.length - 1, "", kindIco(site.kind), site.name, siteSubtitle(site), selColor(site), site));
       }
     }
+    if (typed) addStories(storyList, nodes);
     if (r.home && !r.homeFirst) {
       nodes.push(el("li", { class: "gs-group", role: "presentation", text: KIND_ONE.home }));
       addHome();
@@ -395,17 +353,18 @@ function buildSearch() {
     input.value = "";
     clear.hidden = true;
     input.blur();
+    if (it.type === "story") {
+      stories.run?.(it.key);
+      return;
+    }
     // A rover trip's row waiting for "Choose on the globe" takes the place (web/js/rover/pick.js), as a click would.
     if (it.type === "coords" ? consumeMapClick(it.lat, it.lon) : consumeMapClick(it.site.lat_deg, it.site.lon_deg)) return;
-    // The card first, so the flight lands the place above it.
     if (it.type === "coords") {
-      const s = dropPin(it.lat, it.lon);
-      if (s) showPlaceCard({ id: s.id });
+      dropPin(it.lat, it.lon);
       flyToPlace(it.lat, it.lon);
       return;
     }
-    const s = selectSite(it.site);
-    showPlaceCard(s ? { id: s.id } : { siteId: it.site.id });
+    selectSite(it.site);
     flyToPlace(it.site.lat_deg, it.site.lon_deg);
   };
 
@@ -449,41 +408,28 @@ function buildSearch() {
 // ---------------------------------------------------------------------------------------------
 // Home
 
-/** Fly to the home base and show its place card (with "Add place" when it is not selected yet). */
+/** Fly to the home base (its marker adds it, as any catalog marker). */
 export function goHome() {
   const home = siteById(HOME_SITE_ID);
   if (!home) return;
-  const s = scenarioOfSite(home.id);
-  showPlaceCard(s ? { id: s.id } : { siteId: home.id });
   flyToPlace(home.lat_deg, home.lon_deg);
 }
 
 // ---------------------------------------------------------------------------------------------
 // Wiring
 
-/** Put the search box, the place card and the Home button on the globe (web/js/app/map.js calls this once). */
-export function initPlaces(g) {
+/**
+ * Put the search box and the Home button on the globe (web/js/app/map.js calls this once). opts.stories: { list:
+ * QUICK_STARTS, run(key): load a story, active(): the key of the story shown, or null } for the list's Stories group.
+ */
+export function initPlaces(g, opts = {}) {
   globe = g;
+  stories = opts.stories ?? {};
   g.slots.top.append(buildSearch());
-  cardEl = el("section", { class: "gplace", "aria-label": "Place", "aria-live": "polite", hidden: true });
-  cardEl.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") {
-      e.stopPropagation();
-      closePlaceCard();
-    }
-  });
-  g.slots.bottom.append(cardEl);
   if (siteById(HOME_SITE_ID)) {
     g.addTool({
       html: houseSvg("home-ico"), label: "Home: StarHab", title: "Home: StarHab, our lunar base concept",
       className: "globe-home", onClick: goHome,
     });
   }
-  // The card follows its place: renamed, moved, recoloured, or gone (removed in the cards or on the map).
-  subscribe((kind) => {
-    if (card && kind !== "active") renderCard();
-  });
-  new ResizeObserver(() => {
-    if (card && cardEl && !cardEl.hidden) g.element.style.setProperty("--card-h", `${cardEl.offsetHeight}px`);
-  }).observe(cardEl);
 }

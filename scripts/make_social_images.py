@@ -99,8 +99,9 @@ def main() -> None:
             )
             page = ctx.new_page()
             page.goto(base)
-            page.wait_for_selector("#quickstarts [data-qs=eclipse]")
-            page.click("#quickstarts [data-qs=eclipse]")
+            page.wait_for_selector("#globe-search")
+            page.click("#globe-search")  # the stories are the first group of the search list
+            page.click(".gs-story[data-story=eclipse]")
             ready = """() => { const v = document.querySelector('#sky-grid .sky-view');
                 return !!(v && v.querySelector('canvas') && !v.querySelector('.sky-loading'))
                   && document.getElementById('sky-clock').textContent.startsWith('T+1 h 28'); }"""

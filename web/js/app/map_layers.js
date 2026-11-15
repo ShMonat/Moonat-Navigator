@@ -9,6 +9,7 @@
 import { store, subscribe, setUi } from "./store.js";
 import { LAYERS, LAYER_LIMIT_LAT, POLE_VIEW, setLayer, poleFor } from "../globe/layers.js";
 import { DAYLIGHT_LAYER } from "../globe/daylight.js";
+import { sunSpotIcon } from "./icons.js";
 
 /** Stacked layers (24 x 24): the web-map "Layers" button. */
 const LAYERS_ICON =
@@ -142,9 +143,12 @@ function sync() {
       if (layer === DAYLIGHT_LAYER ? !store.daylight : !on.includes(layer.id)) continue;
       for (const [color, text] of layer.swatches) {
         const li = el("li", "lg-layer");
-        const sw = el("span", "lg lg-area");
+        // The sunlight classes: the globe's sun marker in the class colour (icons.js sunSpotIcon); else a colour patch.
+        const sun = layer.id === "sun";
+        const sw = el("span", sun ? "lg lg-sun" : "lg lg-area");
         sw.setAttribute("aria-hidden", "true");
-        sw.style.setProperty("--c", color);
+        if (sun) sw.innerHTML = sunSpotIcon(color);
+        else sw.style.setProperty("--c", color);
         li.append(sw, text);
         legend.append(li);
       }

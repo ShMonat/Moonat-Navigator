@@ -198,14 +198,16 @@
           <li><span class="lg lg-poi" aria-hidden="true"></span>Places of interest</li>
           <li><span class="lg lg-home" aria-hidden="true"></span>Home (StarHab)</li>
           <li><span class="lg lg-pin" aria-hidden="true"></span>Selected</li>
+          <!-- How to use the map: an "i" button whose popover opens on click or tap, hover and keyboard focus (map_hint.js). -->
+          <li class="lg-info map-hint" id="map-hint"><button type="button" class="map-info" id="map-info" aria-label="How to use the map" aria-expanded="false" aria-controls="map-hint-pop" aria-describedby="map-hint-pop"><span data-icon="info"></span></button><span class="map-hint-pop" id="map-hint-pop" role="tooltip" hidden><span class="hint-mouse">Click a marker to compare it, click its pin again to remove it, or click anywhere to drop a pin. Drag to turn, scroll to zoom.</span><span class="hint-touch">Tap a marker to compare it, tap its pin again to remove it, or tap anywhere to drop a pin. Drag to turn, pinch to zoom.</span></span></li>
         </ul>
-        <p class="map-hint" id="map-hint"><span class="hint-mouse">Click a marker to compare it, click its pin again to remove it, or click anywhere to drop a pin. Drag to turn, scroll to zoom.</span><span class="hint-touch">Tap a marker to compare it, tap its pin again to remove it, or tap anywhere to drop a pin. Drag to turn, pinch to zoom.</span></p>
       </section>
 
       <section class="block scen-block" id="scen-block" aria-labelledby="scen-title">
         <div class="block-head">
           <h2 class="block-title" id="scen-title">Place and time</h2>
           <button class="link-btn" id="btn-clear" hidden>Clear all</button>
+          <a class="jump-link" href="#sky-panel">Sky view &darr;</a>
         </div>
         <div id="cards" class="cards"></div>
         <div class="add-row" id="add-row">
@@ -213,14 +215,7 @@
           <button class="add-btn" id="btn-add-time" title="Same place, new time">+ Add time</button>
         </div>
       </section>
-
-      <section class="block qs-block" id="qs-block" aria-labelledby="qs-title">
-        <div class="block-head">
-          <h2 class="block-title" id="qs-title">Stories</h2>
-          <a class="jump-link" href="#sky-panel">Sky view &darr;</a>
-        </div>
-        <div class="chips" id="quickstarts"></div>
-      </section>
+      <!-- The stories are the first group of the globe's "Search the Moon" list (places.js), and chips in the empty state. -->
     </div>
 
     <div class="output" id="output">

@@ -12,14 +12,12 @@ import { bindAxisLock } from "../app/gestures.js";
 import {
   DEG, PRESETS, latLonToVec, vecToLatLon, pickPx, projectPx, dragView, rotateView, quatAxisAngle, viewRight,
   radiusPx, frustumHalf, northUp, fitPoints, norm, dot, angleDeg, greatCirclePath, visibleRuns, fitView, flightZoom,
-  flightMs, padBox,
+  flightMs, padBox, MIN_ZOOM, MAX_ZOOM, FIT_MAX_ZOOM, R_MOON_KM, snapTarget,
 } from "./geo.js";
 import { LAYERS, LIT_THRESHOLDS, normalizeLayers, capSamples } from "./layers.js";
 import { createConeLayer } from "./view_cone.js";
 import { DAYLIGHT_UNIFORMS_GLSL, DAYLIGHT_FUNCS_GLSL, NIGHT_RGB, LAYER_NIGHT_SHARE } from "./daylight.js";
 
-const MIN_ZOOM = 0.9;
-const MAX_ZOOM = 60;
 const TAP_SLOP_PX = { mouse: 4, pen: 6, touch: 10 };
 
 // ----- Shaders -----
@@ -180,6 +178,7 @@ const SPOT_VERT = /* glsl */ `
 attribute vec2 aSpot;       // spot radius on the ground (rad), class (0: lit >= 70 %, 1: >= 80 % of the time)
 uniform float uPxPerRad;    // device px per radian (= per Moon radius)
 uniform float uDpr;
+uniform float uMaxPt;       // largest point size the GPU draws (device px)
 varying float vR;           // ring radius, CSS px
 varying float vSize;        // point size, CSS px
 varying float vSym;         // 1: sun symbol, 0: ring
@@ -194,7 +193,9 @@ void main() {
   vR = rg + 3.0;
   vSize = 2.0 * max(10.0, vR + 2.5);
   vHi = aSpot.y;
-  gl_PointSize = vSize * uDpr;
+  // A ring larger than the GPU's largest point (deep zoom) fades out; the layer image fills the spot by then.
+  vFade *= 1.0 - smoothstep(0.85 * uMaxPt, uMaxPt, vSize * uDpr);
+  gl_PointSize = min(vSize * uDpr, uMaxPt);
 }`;
 
 const SPOT_FRAG = /* glsl */ `
@@ -230,6 +231,13 @@ void main() {
 }`;
 
 // ----- Small helpers -----
+
+/** The largest point size (device px) the GPU draws, at least 64. */
+function maxPointPx(renderer) {
+  const gl = renderer.getContext();
+  const r = gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE);
+  return Math.max(64, r?.[1] ?? 64);
+}
 
 function el(tag, cls, attrs = {}) {
   const e = document.createElement(tag);
@@ -481,6 +489,7 @@ export async function createGlobe(container, opts = {}) {
   const spotUniforms = {
     uPxPerRad: { value: 1 },
     uDpr: { value: dpr() },
+    uMaxPt: { value: maxPointPx(renderer) },
     uAlpha: { value: 0 },
     cLow: uniforms.cLow,
     cHigh: uniforms.cHigh,
@@ -762,9 +771,9 @@ export async function createGlobe(container, opts = {}) {
   /**
    * Turn and zoom smoothly so that every point [{lat_deg, lon_deg}] is in view, inside `padding` (CSS px: a number or
    * {top, right, bottom, left}; default clear of the search box and the tools), like a web map's "fit bounds".
-   * One point: fly to it at min(maxZoom, max(current zoom, 4)). maxZoom default MAX_ZOOM (60: about 60 km across).
+   * One point: fly to it at min(maxZoom, max(current zoom, 4)). maxZoom default FIT_MAX_ZOOM (60: about 60 km across).
    */
-  function fitTo(points, { padding = null, maxZoom = MAX_ZOOM, duration = "auto" } = {}) {
+  function fitTo(points, { padding = null, maxZoom = FIT_MAX_ZOOM, duration = "auto" } = {}) {
     const ok = (points ?? []).filter((p) => Number.isFinite(p?.lat_deg) && Number.isFinite(p?.lon_deg));
     if (!ok.length) return;
     if (ok.length === 1) {
@@ -1019,14 +1028,18 @@ export async function createGlobe(container, opts = {}) {
         dragPin = g.item;
         g.item.el.classList.add("dragging");
       }
-      const hit = pick(x + g.dx, y + g.dy);
+      // Near a sunlit-spot marker the pin snaps onto the spot.
+      const spot = spotAt(x + g.dx, y + g.dy);
+      const hit = spot ? spot.v : pick(x + g.dx, y + g.dy);
       if (hit) {
-        const ll = vecToLatLon(hit);
+        const ll = spot ? { lat: spot.lat, lon: spot.lon } : vecToLatLon(hit);
         g.item.v = hit;
         g.lat = ll.lat;
         g.lon = ll.lon;
-        g.item.el.style.transform = `translate(${(x + g.dx).toFixed(1)}px, ${(y + g.dy).toFixed(1)}px)`;
-        readout.textContent = fmtLatLon(ll.lat, ll.lon, view.zoom > 8 ? 3 : 2);
+        g.spot = spot ? spotInfo(spot) : null;
+        const at = spot ? proj(spot.v) : { x: x + g.dx, y: y + g.dy };
+        g.item.el.style.transform = `translate(${at.x.toFixed(1)}px, ${at.y.toFixed(1)}px)`;
+        readout.textContent = fmtLatLon(ll.lat, ll.lon, readoutDigits());
         readout.hidden = false;
       }
       gesture.px = x;
@@ -1064,12 +1077,12 @@ export async function createGlobe(container, opts = {}) {
     stage.classList.remove("dragging");
     if (g.pin && g.moved && !g.multi) {
       // A pin drop: the pin stays at its new place until the page redraws the pins (setPins).
-      const { item, lat, lon } = g.pin;
+      const { item, lat, lon, spot } = g.pin;
       item.el.classList.remove("dragging");
       dragPin = null;
       if (g.type !== "mouse") readout.hidden = true; // the mouse readout follows the pointer; a finger has none
       if (cancelled) revertPinDrag(g);
-      else if (opts.onPinDrag) opts.onPinDrag(item.data, lat, lon);
+      else if (opts.onPinDrag) opts.onPinDrag(item.data, lat, lon, spot ?? null);
       requestRender();
       return;
     }
@@ -1083,6 +1096,12 @@ export async function createGlobe(container, opts = {}) {
       const p = pins[Number(g.target.dataset.pin)];
       if (p && opts.onPin) opts.onPin(p.data);
       else if (p) showTip(p);
+      return;
+    }
+    // A tap on a sunlit-spot marker picks the spot itself (its own coordinates), not the pixel under the pointer.
+    const spot = opts.onSpot ? spotAt(x, y) : null;
+    if (spot) {
+      opts.onSpot(spotInfo(spot));
       return;
     }
     const hit = pick(x, y);
@@ -1133,6 +1152,9 @@ export async function createGlobe(container, opts = {}) {
 
   // ----- Readout and tooltips -----
 
+  /** Decimals of the coordinate readout: about one screen pixel or finer (0.0001 deg is 3 m). */
+  const readoutDigits = () => (view.zoom > 300 ? 4 : view.zoom > 8 ? 3 : 2);
+
   function updateReadout(x, y) {
     const hit = pick(x, y);
     if (!hit) {
@@ -1141,7 +1163,7 @@ export async function createGlobe(container, opts = {}) {
     }
     const { lat, lon } = vecToLatLon(hit);
     const spot = spotAt(x, y);
-    readout.textContent = fmtLatLon(lat, lon, view.zoom > 8 ? 3 : 2) + (spot ? ` · sunlit spot: lit up to ${spot.lit.toFixed(0)} % of the time` : "");
+    readout.textContent = fmtLatLon(lat, lon, readoutDigits()) + (spot ? ` · sunlit spot: lit up to ${spot.lit.toFixed(0)} % of the time` : "");
     readout.hidden = false;
   }
 
@@ -1387,7 +1409,6 @@ export async function createGlobe(container, opts = {}) {
   // ----- Map layers (permanent shadow, most sunlit ground) -----
   // Loaded on first use: overlays.json, then the three layer images (about 270 kB) and the sunlit spots.
   const overlayUrl = opts.overlayUrl ?? "data/overlays/";
-  const R_MOON_KM = 1737.4;
   let layerIds = [];
   let layerLoad = null;
   let spots = []; // [{ v, r (rad), hi (0/1), lit (%) }], brightest first
@@ -1407,7 +1428,7 @@ export async function createGlobe(container, opts = {}) {
     const [iLat, iLon, iArea, iLit] = ["lat_deg", "lon_deg", "area_km2", "max_lit_pct"].map((k) => f.indexOf(k));
     const hiPct = 100 * LIT_THRESHOLDS[1];
     spots = (table?.rows ?? [])
-      .map((r) => ({ v: latLonToVec(r[iLat], r[iLon]), r: Math.sqrt(r[iArea] / Math.PI) / R_MOON_KM, lit: r[iLit], hi: r[iLit] >= hiPct ? 1 : 0 }))
+      .map((r) => ({ v: latLonToVec(r[iLat], r[iLon]), lat: r[iLat], lon: r[iLon], r: Math.sqrt(r[iArea] / Math.PI) / R_MOON_KM, lit: r[iLit], hi: r[iLit] >= hiPct ? 1 : 0 }))
       .sort((a, b) => b.lit - a.lit);
     const n = spots.length;
     spotGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(n * 3), 3));
@@ -1439,22 +1460,18 @@ export async function createGlobe(container, opts = {}) {
     spotGeo.setDrawRange(0, clusters.length);
   }
 
-  /** The ring (sunlit spot group) under a canvas position (CSS px), when the sunlight layer shows rings; else null. */
+  /**
+   * The sunlit-spot marker (a spot or a group, as drawn) that a pointer at a canvas position (CSS px) snaps to, while
+   * the sunlight layer shows its markers; else null. Reach: geo.js snapTarget (12 px around a sun symbol).
+   */
   function spotAt(x, y) {
     if (!spotPoints.visible || spotUniforms.uAlpha.value < 0.5) return null;
     const s = rpx();
-    let best = null;
-    let bestD = Infinity;
-    for (const c of clusters) {
-      const p = proj(c.v);
-      const d = Math.hypot(p.x - x, p.y - y);
-      if (p.depth > 0.05 && d <= Math.max(9, c.r * s + 4) && d < bestD) {
-        best = c;
-        bestD = d;
-      }
-    }
-    return best;
+    const items = clusters.map((c) => ({ ...proj(c.v), rPx: c.r * s, c }));
+    return snapTarget(items, x, y)?.c ?? null;
   }
+  /** What a snap reports: the spot's own coordinates (deg, from the spot table) and its share of time in sunlight (%). */
+  const spotInfo = (c) => ({ lat: c.lat, lon: c.lon, lit: c.lit });
 
   function loadLayers() {
     if (layerLoad) return layerLoad;

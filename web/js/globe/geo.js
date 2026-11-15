@@ -387,3 +387,46 @@ export function flightZoom(z0, z1, angleRad, u) {
 export function flightMs(angleRad, z0, z1) {
   return Math.round(clampN(450 + 520 * (angleRad / Math.PI) + 140 * Math.abs(Math.log2(z1 / z0)), 450, 1600));
 }
+
+// ----- Zoom limits and snapping -----
+
+/** Mean Moon radius (km), the sphere the globe draws (IAU 2015). */
+export const R_MOON_KM = 1737.4;
+
+/**
+ * Zoom limits. MIN_ZOOM shows the disc with room around it. MAX_ZOOM shows about 1.5 km across the frame's shorter
+ * side (viewSpanKm); the images are stretched past their own resolution there (blurred, not wrong). FIT_MAX_ZOOM caps
+ * the automatic "fit these points" moves (about 60 km across), so they never dive in further than a person would.
+ */
+export const MIN_ZOOM = 0.9;
+export const MAX_ZOOM = 2500;
+export const FIT_MAX_ZOOM = 60;
+
+/** Ground distance (km) across the frame's shorter side at `zoom`, for a view straight down (orthographic). */
+export function viewSpanKm(zoom) {
+  return (2 * FIT_MARGIN * R_MOON_KM) / zoom;
+}
+
+/** Pointer distance (CSS px) within which a click or a dragged pin snaps onto a sunlit-spot marker. */
+export const SNAP_PX = 12;
+
+/**
+ * The marker a pointer at (x, y) (CSS px) snaps to, or null: the nearest of `items` [{x, y, rPx, depth}] within its
+ * reach. The reach is SNAP_PX around a small marker (a sun symbol); a ring drawn around a larger spot reaches to the
+ * ring plus 4 px, at most `maxPx`, so that a deep zoom can still place a pin anywhere inside a big ring's centre area.
+ * Items with depth <= 0.05 (at or behind the limb) never snap.
+ */
+export function snapTarget(items, x, y, { minPx = SNAP_PX, maxPx = 40 } = {}) {
+  let best = null;
+  let bestD = Infinity;
+  for (const it of items) {
+    if (!(it.depth > 0.05)) continue;
+    const d = Math.hypot(it.x - x, it.y - y);
+    const reach = Math.min(maxPx, Math.max(minPx, (it.rPx || 0) + 4));
+    if (d <= reach && d < bestD) {
+      best = it;
+      bestD = d;
+    }
+  }
+  return best;
+}

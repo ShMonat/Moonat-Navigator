@@ -361,7 +361,10 @@ function toast(msg) {
 // ---------------------------------------------------------------------------------------------
 // Stories (quick starts), About, x-axis toggle
 
-/** Story chips (in QUICK_STARTS order: the demo video clicks them by position). Any [data-qs] button runs one. */
+/**
+ * The stories: the "Stories" group of the globe's search list (places.js; rows `.gs-story[data-story="<key>"]`, in
+ * QUICK_STARTS order) and the empty state's chips. Any [data-qs] button runs one.
+ */
 function initQuickStarts() {
   const chip = (q) => {
     const b = document.createElement("button");
@@ -372,19 +375,22 @@ function initQuickStarts() {
     b.dataset.qs = q.key;
     return b;
   };
-  $("quickstarts").replaceChildren(...QUICK_STARTS.map(chip));
-  // The same stories in the empty state (after "Clear all"), outside #quickstarts so its chips keep their positions.
+  // The empty state (no place yet, e.g. after "Clear all") lists them as chips.
   for (const list of document.querySelectorAll("[data-qs-list]")) list.replaceChildren(...QUICK_STARTS.map(chip));
   document.addEventListener("click", (e) => {
     const b = e.target.closest("[data-qs]");
     if (!b) return;
-    // A keyboard choice in the empty state (which then hides) keeps the focus on the same story in the list.
-    const refocus = b.matches(":focus-visible") && !$("quickstarts").contains(b);
-    runQuickStart(b.dataset.qs);
-    if (refocus) $("quickstarts").querySelector(`[data-qs="${b.dataset.qs}"]`)?.focus({ preventScroll: true });
-    revealSky();
+    runStory(b.dataset.qs);
   });
 }
+
+/** Load story `key` (a chip or the search list's Stories group) and bring the sky into view on a one-column page. */
+function runStory(key) {
+  runQuickStart(key);
+  revealSky();
+}
+
+let activeStory = null; // the QUICK_STARTS key of the story shown (syncQuickStartUi), or null
 
 let storySeq = 0;
 
@@ -467,8 +473,9 @@ function firstResult() {
 function syncQuickStartUi() {
   const sig = encodeHash({ scenarios: store.scenarios });
   const q = quickStartSigs().find(([, s]) => s === sig)?.[0] || null;
-  for (const c of $("quickstarts").children) {
-    const on = !!q && c.dataset.qs === q.key;
+  activeStory = q?.key ?? null;
+  for (const c of document.querySelectorAll("[data-qs-list] [data-qs]")) {
+    const on = c.dataset.qs === activeStory;
     c.classList.toggle("active", on);
     c.setAttribute("aria-pressed", String(on));
   }
@@ -539,6 +546,7 @@ function showPhysicsError() {
 
 async function boot() {
   fillIcons();
+  import("./map_hint.js").then((m) => m.initMapHint()).catch(() => {}); // the map's "i" hint (not needed for the first paint)
   initTheme();
   initInfoTips();
   initAbout();
@@ -595,7 +603,7 @@ async function boot() {
   // The globe loads three.js and its images (the sky needs three.js too); its full-resolution textures (4 MB) wait for
   // the first sky view.
   import("./map.js")
-    .then((m) => m.initMap({ hiResAfter: firstView }))
+    .then((m) => m.initMap({ hiResAfter: firstView, stories: { list: QUICK_STARTS, run: runStory, active: () => activeStory } }))
     .catch((err) => {
       console.error("[moonat] map failed", err);
       $("map").textContent = "The map could not load. You can still type coordinates or pick a mission.";

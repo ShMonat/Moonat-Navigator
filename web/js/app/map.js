@@ -1,9 +1,10 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
 // Moon map: the globe picker (web/js/globe/) wired to the app store, Google Maps style. Several places can be selected:
 // a click on a catalog marker adds that site, a click on a selected pin removes it, a click on the ground drops a new
-// pin, and a dropped pin can be dragged. Selected places are pins in their scenario colours; the other catalog sites
+// pin, and a dropped pin can be dragged. A click on a sunlit-spot marker (sunlight layer) drops the pin exactly on the
+// spot, named "Sunlit spot, lit 88 %"; a pin dragged near one snaps onto it; an armed trip stop takes the spot too. Selected places are pins in their scenario colours; the other catalog sites
 // are small markers in their kind colours (a mission's marker holds the flag of the nation that flew it, flags.js).
-// The search box, the place card and Home: places.js. Other modules reach the globe through globe_api.js (routes,
+// The search box (with the stories) and Home: places.js. Other modules reach the globe through globe_api.js (routes,
 // fly-to, fit-to-points).
 
 import { createGlobe } from "../globe/globe.js";
@@ -11,7 +12,8 @@ import { store, subscribe, setActive } from "./store.js";
 import { colorHex } from "./state.js";
 import { catalogSites, siteById } from "./catalog.js";
 import { consumeMapClick, dropTripPoint } from "../rover/pick.js";
-import { initPlaces, selectSite, dropPin, removePlace, movePlace, showPlaceCard } from "./places.js";
+import { initPlaces, selectSite, dropPin, removePlace, movePlace } from "./places.js";
+import { spotLabel } from "./place_search.js";
 import { attachGlobe } from "./globe_api.js";
 import { initMapLayers } from "./map_layers.js";
 import { initDaylight } from "./daylight_link.js";
@@ -21,7 +23,10 @@ let globe;
 let lastFitKey = "";
 let lastSitesKey = null;
 
-/** opts.hiResAfter: a promise that holds back the globe's full-resolution textures (see createGlobe). */
+/**
+ * opts.hiResAfter: a promise that holds back the globe's full-resolution textures (see createGlobe). opts.stories:
+ * the search list's Stories group ({ list, run, active }, places.js initPlaces).
+ */
 export async function initMap(opts = {}) {
   globe = await createGlobe(document.getElementById("map"), {
     dataUrl: "data/moonmap/",
@@ -29,13 +34,16 @@ export async function initMap(opts = {}) {
     // A rover traverse being picked (or selected) takes the click first (web/js/rover/pick.js).
     onPick: (lat, lon) => {
       if (consumeMapClick(lat, lon)) return;
-      const s = dropPin(lat, lon);
-      if (s) showPlaceCard({ id: s.id });
+      dropPin(lat, lon);
+    },
+    // A sunlit-spot marker: the spot's own coordinates (for a trip stop too), named after its share of sunlight.
+    onSpot: ({ lat, lon, lit }) => {
+      if (consumeMapClick(lat, lon)) return;
+      dropPin(lat, lon, { label: spotLabel(lit) });
     },
     onSite: (site) => {
       if (consumeMapClick(site.lat_deg, site.lon_deg)) return;
-      const s = selectSite(site);
-      if (s) showPlaceCard({ id: s.id });
+      selectSite(site);
     },
     onPin: (pin) => {
       if (consumeMapClick(pin.lat, pin.lon)) return;
@@ -44,9 +52,11 @@ export async function initMap(opts = {}) {
       else removePlace(pin.id);
     },
     // A dropped pin moves; a trip's start or end pin moves that point of the trip (like a route's ends in Google Maps).
-    onPinDrag: (pin, lat, lon) => (pin.route ? dropTripPoint(pin.id, pin.end ? -1 : 0, lat, lon) : movePlace(pin.id, lat, lon)),
+    // spot: the sunlit spot the pin snapped onto (its coordinates are lat, lon), or null.
+    onPinDrag: (pin, lat, lon, spot) => (pin.route ? dropTripPoint(pin.id, pin.end ? -1 : 0, lat, lon)
+      : movePlace(pin.id, lat, lon, { label: spot ? spotLabel(spot.lit) : null })),
   });
-  initPlaces(globe);
+  initPlaces(globe, { stories: opts.stories });
   initMapLayers(globe);
   initDaylight(globe);
   attachGlobe(globe);

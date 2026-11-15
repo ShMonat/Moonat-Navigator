@@ -46,7 +46,25 @@ const PATHS = {
   up: '<path d="M12 19V5M6.5 10.5 12 5l5.5 5.5"/>',
   // A house: the home base.
   home: '<path d="M4 11.5 12 4.5l8 7"/><path d="M6.5 10v9.5h11V10"/><path d="M10 19.5v-5h4v5"/>',
+  // A clock face: "the sky now" (a live story).
+  clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 2.2"/>',
 };
+
+/**
+ * The sunlit-spot marker of the globe's sunlight layer (globe.js SPOT_FRAG) as an SVG string, for the map legend: a
+ * disc of radius 3 and eight rays from 4.5 to 8.2 px, 1.5 px wide, in `color`, on a dark edge 1.3 px wider, 19 px
+ * across at 1:1. aria-hidden.
+ */
+export function sunSpotIcon(color, size = 17) {
+  const rays = (r0, r1) => Array.from({ length: 8 }, (_, i) => {
+    const a = (i * Math.PI) / 4;
+    const [c, s] = [Math.cos(a), Math.sin(a)];
+    return `M${(r0 * c).toFixed(2)} ${(r0 * s).toFixed(2)}L${(r1 * c).toFixed(2)} ${(r1 * s).toFixed(2)}`;
+  }).join("");
+  return `<svg class="sun-spot-ico" viewBox="-9.6 -9.6 19.2 19.2" width="${size}" height="${size}" aria-hidden="true" focusable="false">` +
+    `<g fill="rgba(10,10,18,0.85)" stroke="rgba(10,10,18,0.85)"><circle r="4.3" stroke="none"/><path d="${rays(3.2, 9.5)}" stroke-width="4.1"/></g>` +
+    `<g fill="${color}" stroke="${color}"><circle r="3" stroke="none"/><path d="${rays(4.5, 8.2)}" stroke-width="1.5"/></g></svg>`;
+}
 
 /** Names of the interface icons. */
 export const ICON_NAMES = Object.freeze(Object.keys(PATHS));

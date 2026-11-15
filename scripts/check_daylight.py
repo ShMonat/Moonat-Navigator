@@ -92,7 +92,9 @@ class Run:
         time.sleep(1.0)
 
     def story(self, key: str) -> None:
-        self.page.click(f'#quickstarts [data-qs="{key}"]')
+        # The stories are the first group of the globe's search list (focus the box, then click the story's row).
+        self.page.click("#globe-search")
+        self.page.click(f'.gs-story[data-story="{key}"]')
         time.sleep(0.5)
         wait_for(self.page, READY_JS, 90)
         time.sleep(2.5)  # the globe's fly-to

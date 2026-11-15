@@ -1,6 +1,7 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
 // "Search the Moon" (the search box on the globe), pure part: typed coordinates, the grouped result list (Home, then
-// missions, potential Artemis sites and places of interest) and the one-line subtitle of each place.
+// missions, potential Artemis sites and places of interest), the one-line subtitle of each place, the "Stories" group
+// (the quick starts, with an icon and a subtitle each) and the name of a place picked on a sunlit-spot marker.
 // No DOM, so node tests can import it (web/tests/app_places.test.mjs). The box itself: web/js/app/places.js.
 //
 // Coordinates are selenographic (MOON_ME): latitude -90..90 deg, east-positive longitude -180..180 deg (CONTRACTS §0).
@@ -111,4 +112,51 @@ export function placeResults(query, sites) {
   }
   const best = q && found.length ? found[0] : null;
   return { coords, home, homeFirst, best, groups };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Sunlit spots (the sunlight layer's markers on the globe)
+
+/** Name of a place picked on a sunlit-spot marker: "Sunlit spot, lit 88 %" (lit: share of time in sunlight, %). */
+export function spotLabel(lit) {
+  return `Sunlit spot, lit ${Math.round(lit)} %`;
+}
+
+/** True for a name spotLabel made (an automatic name, which follows the place when it moves). */
+export function isSpotLabel(label) {
+  return /^Sunlit spot, lit \d+ %$/.test(String(label || ""));
+}
+
+// ---------------------------------------------------------------------------------------------
+// Stories (quick starts) in the search list
+
+/** Icon (icons.js name) and one-line subtitle of each story, by QUICK_STARTS key. */
+export const STORY_META = {
+  apollo11: { icon: "flag", sub: "Tranquility Base, July 1969 · Earth high in the west" },
+  "apollo-all": { icon: "earthrise", sub: "All six landings, 1969–1972 · who saw Earth best" },
+  pole: { icon: "sun", sub: "Shackleton rim · the Sun skims the horizon for two months" },
+  farside: { icon: "earth", sub: "Chang'e 4, 2019 · the Earth never rises" },
+  eclipse: { icon: "eclipse", sub: "Blue Ghost, 14 March 2025 · the Earth eclipses the Sun" },
+  rover: { icon: "viper", sub: "A 19 km rover drive at the south pole · October 2027" },
+  "beresheet-now": { icon: "clock", sub: "Israel's lander in Mare Serenitatis · the sky right now" },
+};
+
+const storyFold = (x) => fold(x).replace(/['’]/g, "");
+
+/**
+ * The "Stories" group of the search list: every story (in QUICK_STARTS order) for an empty query; for typed text, the
+ * stories whose name or subtitle holds every typed word (case and accents ignored); none for typed coordinates.
+ * @returns {{key: string, label: string, title: string, icon: string, sub: string}[]}
+ */
+export function storyResults(query, stories) {
+  const q = String(query ?? "").trim();
+  if (parseLatLon(q)) return [];
+  const words = storyFold(q).split(/\s+/).filter(Boolean);
+  const out = [];
+  for (const s of stories ?? []) {
+    const meta = STORY_META[s.key] ?? { icon: "play", sub: s.title ?? "" };
+    const hay = storyFold(`${s.label} ${meta.sub}`);
+    if (words.every((w) => hay.includes(w))) out.push({ key: s.key, label: s.label, title: s.title ?? "", icon: meta.icon, sub: meta.sub });
+  }
+  return out;
 }

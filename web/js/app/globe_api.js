@@ -51,7 +51,8 @@ export function clearRoute(id) {
 /**
  * Turn and zoom the globe smoothly so that all points [{lat_deg, lon_deg}, ...] are in view, like a web map's
  * "fit bounds". opts: { padding: CSS px, a number or {top, right, bottom, left} (default: clear of the search box,
- * the tools and the place card), maxZoom (default 60, the globe's limit, about 60 km across; 1 = the whole disc) }.
+ * the tools), maxZoom (default 60, about 60 km across; 1 = the whole disc; the globe's own limit is 2500, about
+ * 1.5 km across, geo.js MAX_ZOOM) }.
  */
 export function fitTo(points, opts = {}) {
   if (globe) globe.fitTo(points, opts);

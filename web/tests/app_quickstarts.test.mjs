@@ -165,12 +165,12 @@ test("the first-visit caption in index.html is the Apollo 11 caption", () => {
   assert.equal(m[1].replace(/\s+/g, " ").trim(), QUICK_STARTS[0].caption);
 });
 
-test("every story button written in index.html runs an existing quick start; the chips come from QUICK_STARTS", () => {
+test("every story button written in index.html runs an existing quick start; the stories live in the search list", () => {
   for (const [, k] of HTML.matchAll(/data-qs="([^"]+)"/g)) assert.ok(byKey(k), k);
-  assert.match(HTML, /<div class="chips" id="quickstarts"><\/div>/);
-  // The stories sit right under the scenario box, before the sky (one flow: place and time, then the sky).
-  const iCards = HTML.indexOf('id="cards"'), iStories = HTML.indexOf('id="quickstarts"'), iSky = HTML.indexOf('id="sky-panel"');
-  assert.ok(iCards > 0 && iCards < iStories && iStories < iSky);
+  // No "Stories" chips block in the left column any more (they are the search list's first group, places.js); the
+  // empty state keeps its own chips.
+  assert.doesNotMatch(HTML, /id="quickstarts"/);
+  assert.match(HTML, /<div class="chips empty-chips" data-qs-list><\/div>/);
 });
 
 test("the eclipse quick start opens the sky at 81 % cover, inside the window and before totality", async () => {

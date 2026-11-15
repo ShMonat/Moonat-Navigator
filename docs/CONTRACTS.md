@@ -303,9 +303,11 @@ await globeReady()                                            // the globe objec
   It is drawn on a dark casing, under the markers and pins. A route stays until `clearRoute` (or `showRoute` again with
   the same id); routes do not follow the scenarios by themselves.
 - `fitTo`: like a web map's "fit bounds": the centre and zoom that put every point inside `padding` (CSS px, a number
-  or `{ top, right, bottom, left }`; default: clear of the search box, the tools and an open place card), north up
-  (top-down poleward of 75°), animated. One point: a fly-to at max(current zoom, 4). `maxZoom` default 60, the
-  globe's limit (about 60 km across). Points that cannot all face the camera give the whole disc (`fitView` in geo.js;
+  or `{ top, right, bottom, left }`; default: clear of the search box and the tools), north up
+  (top-down poleward of 75°), animated. One point: a fly-to at max(current zoom, 4). `maxZoom` default 60
+  (`FIT_MAX_ZOOM`, about 60 km across). The globe's own zoom limit is `MAX_ZOOM` 2500 (about 1.5 km across the
+  frame's shorter side, `viewSpanKm` in geo.js; changed 2026-11-15 from 60, Shay's request); past the images' own
+  resolution they are stretched. `flyTo` accepts any zoom up to that limit. Points that cannot all face the camera give the whole disc (`fitView` in geo.js;
   tested near the poles, across 180° and with asymmetric padding in web/tests/globe_routes.test.mjs).
 - `setMarker`: a dot in `color` with a white ring, above the pins, not clickable; with `ahead` (a point further on) a
   small arrow on it points that way on screen; `text` (1–2 characters, added 2026-11-14 for trip stop letters) is
@@ -330,8 +332,15 @@ await globeReady()                                            // the globe objec
   page's own controls), `getView`, `setView`. Its view is centred in the map frame below the top bar, so an overlay
   that projects points itself with geo.js `projectPx(view, v, width, height)` on the whole canvas is off by that inset:
   use `setMarker` and `showRoute` instead. The app wires it in web/js/app/map.js (pins = scenarios) and
-  web/js/app/places.js (search box, place card, Home). `slots.caption` (added 2026-11-15) is a one-line slot under the
-  preset chips (the day/night caption); the map frame makes room for it.
+  web/js/app/places.js (search box with its Stories group, Home; no place card on the globe since 2026-11-15, Shay:
+  the place's card in the left column has its name, coordinates and Remove). `slots.caption` (added 2026-11-15) is a
+  one-line slot under the preset chips (the day/night caption); the map frame makes room for it.
+- **Sunlit-spot snap** (added 2026-11-15, Shay's request): while the sunlight layer shows its spot markers, a tap within
+  `SNAP_PX` (12 CSS px; a larger ring reaches to its edge + 4 px, at most 40 px; geo.js `snapTarget`) of a marker calls
+  the `createGlobe` option `onSpot({ lat, lon, lit })` with the spot's own table coordinates (deg) and its share of time
+  lit (%) instead of `onPick`; a dragged pin's tip within the same reach snaps onto the spot, and `onPinDrag(pin, lat,
+  lon, spot)` gets that spot as a fourth argument (null otherwise). The app names such a place "Sunlit spot, lit 88 %"
+  (place_search.js `spotLabel`), and an armed trip stop (web/js/rover/pick.js) takes the spot's coordinates.
 - The view is centred in the **map frame**: the canvas minus the top bar (search box, preset chips) and the credit line;
   zoom 1 fits the whole disc in it.
 - **Map layers** (added 2026-11-15, Shay's request; data pipeline pending Shahar's review). The globe object also has
