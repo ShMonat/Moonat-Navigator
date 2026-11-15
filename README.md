@@ -7,7 +7,7 @@
 *Computed render (not an AI-generated image): Apollo 11 at touchdown, 1969-07-20 20:17 UTC. Sun 10.7° up in the east, Earth 59.2° up in the west.*
 
 **Live app: <https://shmonat.github.io/Moonat-Navigator/>** · **30 s demo video:
-<https://shmonat.github.io/Moonat-Navigator/video/moonat_demo.mp4>**
+<https://shmonat.github.io/Moonat-Navigator/video/moonat_demo.mp4>** · **Slides (PDF): <https://shmonat.github.io/Moonat-Navigator/slides/moonat_slides.pdf>** ([HTML](https://shmonat.github.io/Moonat-Navigator/slides/))
 
 Our entry for NASA Space Apps Challenge 2026,
 [Lunar Landing Site Navigator](https://www.spaceappschallenge.org/2026/challenges/lunar-landing-site-navigator/).

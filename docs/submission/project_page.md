@@ -23,6 +23,8 @@ real render of the app, recorded by scripts/video/record_demo.py: Apollo 11, sug
 seen from the Blue Ghost lander, the south pole, a rover drive and the far side. Optional: upload the same file to YouTube as unlisted
 and use that link instead.)
 
+Backup: 7-slide presentation: https://shmonat.github.io/Moonat-Navigator/slides/ (PDF: https://shmonat.github.io/Moonat-Navigator/slides/moonat_slides.pdf)
+
 ## Final Project
 https://shmonat.github.io/Moonat-Navigator/ — source code: https://github.com/ShMonat/Moonat-Navigator
 

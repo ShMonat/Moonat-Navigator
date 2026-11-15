@@ -1,0 +1,496 @@
+<!doctype html>
+<!-- AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team. -->
+<!-- Moonat: the 7-slide presentation (backup for the 30 s demo video). 1920x1080 slides scaled to the window; phones
+     read the slides as one scrolling column; print (and moonat_slides.pdf) gives one slide per page.
+     Screenshots in img/ and the PDF are rebuilt by scripts/slides/build_slides.py <site-url>. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Moonat: Lunar Landing Site Navigator (7 slides)</title>
+  <meta name="description" content="Moonat, our NASA Space Apps 2026 entry, in 7 slides: see the Sun and Earth from anywhere on the Moon.">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#090b10">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <style>
+    /* Colours and type follow the app's dark theme (web/css/app.css). */
+    :root {
+      color-scheme: dark;
+      --bg: #090b10;
+      --glow: radial-gradient(1400px 700px at 80% -10%, rgba(80, 110, 190, 0.18), transparent 60%),
+        radial-gradient(1000px 600px at -10% 110%, rgba(120, 90, 160, 0.12), transparent 60%);
+      --surface: #12151c;
+      --surface-2: #191d26;
+      --surface-3: #222734;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-strong: rgba(255, 255, 255, 0.16);
+      --text: #eceae4;
+      --text-2: #b8b6ad;
+      --muted: #8a8880;
+      --accent: #8fb4ff;
+      --sun: #ffc94d;
+      --earth: #5aa9ff;
+      --earth-ink: #7dbbff;
+      --ok: #6fd69a;
+      --warn: #f5c26b;
+      --danger: #ff8a80;
+      --moon: #d9d6cc;
+      /* Design unit (1 px of the 1920x1080 slide) and type sizes; phones override them below. */
+      --k: 1px;
+      --fs-hero: 132px;
+      --fs-sub: 64px;
+      --fs-title: 70px;
+      --fs-lead: 44px;
+      --fs-body: 34px;
+      --fs-small: 27px;
+      --fs-tiny: 22px;
+      --fs-num: 66px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: #05070b; color: var(--text); }
+    body { font: 400 var(--fs-body)/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+    h1, h2, h3, p, ol, ul, figure { margin: 0; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    b, strong { font-weight: 650; color: var(--text); }
+    .sun { color: var(--sun); }
+    .earth { color: var(--earth-ink); }
+    .ok { color: var(--ok); }
+    .muted { color: var(--muted); }
+
+    /* Stage: one 1920x1080 slide at a time, scaled to fit the window. */
+    .deck { position: fixed; inset: 0; overflow: hidden; }
+    .slide {
+      position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; margin: -540px 0 0 -960px;
+      transform: scale(var(--s, 0.5)); display: none; flex-direction: column; overflow: hidden;
+      padding: calc(76 * var(--k)) calc(110 * var(--k)) calc(64 * var(--k));
+      background: var(--glow), var(--bg);
+    }
+    .slide.current { display: flex; }
+    .slide > header { margin-bottom: calc(36 * var(--k)); }
+    .kicker { font-size: var(--fs-small); font-weight: 650; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+    h2 { font-size: var(--fs-title); line-height: 1.08; font-weight: 680; letter-spacing: -0.012em; margin-top: calc(8 * var(--k)); }
+    .lead { font-size: var(--fs-lead); line-height: 1.3; color: var(--text-2); }
+    .lead b { color: var(--text); }
+    .body-fill { flex: 1; min-height: 0; }
+    .foot {
+      display: flex; justify-content: space-between; align-items: baseline; gap: calc(20 * var(--k));
+      margin-top: auto; padding-top: calc(18 * var(--k)); font-size: var(--fs-tiny); color: var(--muted);
+    }
+    .brandmark { display: inline-flex; align-items: center; gap: calc(10 * var(--k)); }
+    .brandmark svg { width: calc(30 * var(--k)); height: calc(30 * var(--k)); }
+    .crescent { fill: var(--moon); }
+
+    /* 1. Title */
+    .title-grid { flex: 1; display: grid; grid-template-columns: 1fr auto; gap: calc(80 * var(--k)); align-items: center; }
+    .title-logo { width: calc(150 * var(--k)); height: calc(150 * var(--k)); display: block; margin-bottom: calc(26 * var(--k)); }
+    h1 { font-weight: 700; letter-spacing: -0.015em; line-height: 1.02; }
+    h1 .t1 { display: block; font-size: var(--fs-hero); }
+    h1 .t2 { display: block; font-size: var(--fs-sub); font-weight: 600; color: var(--text); margin-top: calc(14 * var(--k)); }
+    .subtitle { font-size: var(--fs-lead); color: var(--text-2); margin-top: calc(30 * var(--k)); }
+    .rule { width: calc(150 * var(--k)); height: calc(4 * var(--k)); border-radius: 2px; background: var(--accent); margin: calc(54 * var(--k)) 0 calc(38 * var(--k)); }
+    .team { font-size: var(--fs-lead); font-weight: 600; }
+    .event { font-size: var(--fs-body); color: var(--text-2); margin-top: calc(10 * var(--k)); }
+    .qr-card {
+      display: flex; flex-direction: column; align-items: center; gap: calc(22 * var(--k));
+      padding: calc(34 * var(--k)); border-radius: calc(28 * var(--k)); background: var(--surface); border: 1px solid var(--border-strong);
+    }
+    .qr-card img { width: calc(400 * var(--k)); height: calc(400 * var(--k)); background: #fff; border-radius: calc(16 * var(--k)); padding: calc(14 * var(--k)); display: block; }
+    .qr-card figcaption { text-align: center; font-size: var(--fs-small); color: var(--text-2); line-height: 1.35; }
+    .qr-card figcaption b { color: var(--accent); }
+
+    /* 2. Problem */
+    .problem { display: flex; flex-direction: column; gap: calc(30 * var(--k)); flex: 1; }
+    .problem .lead { font-size: calc(46 * var(--k)); color: var(--text); max-width: calc(1600 * var(--k)); }
+    .tiles-2 { display: grid; grid-template-columns: 1fr 1fr; gap: calc(36 * var(--k)); }
+    .tile {
+      display: flex; gap: calc(30 * var(--k)); align-items: flex-start; padding: calc(34 * var(--k)) calc(38 * var(--k));
+      background: var(--surface); border: 1px solid var(--border); border-radius: calc(24 * var(--k));
+    }
+    .tile svg { flex: none; width: calc(120 * var(--k)); height: calc(120 * var(--k)); }
+    .tile h3 { font-size: calc(42 * var(--k)); font-weight: 650; margin-bottom: calc(10 * var(--k)); }
+    .tile p { color: var(--text-2); }
+    .tile.t-sun { border-color: rgba(255, 201, 77, 0.35); }
+    .tile.t-earth { border-color: rgba(90, 169, 255, 0.35); }
+    .callout {
+      font-size: var(--fs-lead); font-weight: 600; padding: calc(26 * var(--k)) calc(36 * var(--k)); border-radius: calc(20 * var(--k));
+      background: rgba(143, 180, 255, 0.12); border-left: calc(8 * var(--k)) solid var(--accent);
+    }
+
+    /* 3. What it does */
+    .split { flex: 1; min-height: 0; display: grid; grid-template-columns: calc(590 * var(--k)) 1fr; gap: calc(50 * var(--k)); align-items: start; }
+    .steps { list-style: none; padding: 0; counter-reset: st; display: flex; flex-direction: column; gap: calc(24 * var(--k)); }
+    .steps li { counter-increment: st; position: relative; padding-left: calc(74 * var(--k)); color: var(--text-2); font-size: calc(32 * var(--k)); line-height: 1.3; }
+    .steps li::before {
+      content: counter(st); position: absolute; left: 0; top: calc(-2 * var(--k)); width: calc(52 * var(--k)); height: calc(52 * var(--k));
+      border-radius: 50%; background: rgba(143, 180, 255, 0.16); color: var(--accent); font-weight: 700; font-size: calc(28 * var(--k));
+      display: flex; align-items: center; justify-content: center;
+    }
+    .shot { display: flex; flex-direction: column; gap: calc(12 * var(--k)); }
+    .shot img { display: block; width: 100%; height: auto; border-radius: calc(14 * var(--k)); border: 1px solid var(--border-strong); background: var(--surface); }
+    .shot figcaption { font-size: var(--fs-tiny); color: var(--muted); }
+
+    /* 4. How it works */
+    .flow-row { display: grid; grid-template-columns: calc(230 * var(--k)) repeat(4, 1fr); gap: calc(46 * var(--k)); align-items: stretch; }
+    .box {
+      position: relative; padding: calc(26 * var(--k)) calc(26 * var(--k)); border-radius: calc(20 * var(--k));
+      background: var(--surface); border: 1px solid var(--border-strong); font-size: var(--fs-small); color: var(--text-2); line-height: 1.32;
+    }
+    .box h3 { font-size: calc(33 * var(--k)); color: var(--text); font-weight: 650; margin-bottom: calc(10 * var(--k)); line-height: 1.15; }
+    .box .src { display: block; margin-top: calc(12 * var(--k)); font-size: var(--fs-tiny); color: var(--accent); }
+    .box.input { display: flex; flex-direction: column; justify-content: center; background: rgba(143, 180, 255, 0.12); border-color: rgba(143, 180, 255, 0.4); }
+    .box + .box::before {
+      content: ""; position: absolute; left: calc(-40 * var(--k)); top: 50%; width: calc(34 * var(--k)); height: calc(34 * var(--k)); margin-top: calc(-17 * var(--k));
+      background: no-repeat center / contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 12h14M12 5l7 7-7 7' fill='none' stroke='%238fb4ff' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    }
+    .how-bottom { display: grid; grid-template-columns: 1.25fr 1fr; gap: calc(40 * var(--k)); margin-top: calc(40 * var(--k)); align-items: stretch; }
+    .illus { background: #000; border: 1px solid var(--border-strong); border-radius: calc(20 * var(--k)); overflow: hidden; display: flex; flex-direction: column; }
+    .illus svg { display: block; width: 100%; height: auto; }
+    .illus figcaption { font-size: var(--fs-tiny); color: var(--muted); padding: calc(10 * var(--k)) calc(20 * var(--k)) calc(14 * var(--k)); background: var(--surface); }
+    .browser {
+      display: flex; flex-direction: column; justify-content: center; gap: calc(16 * var(--k)); padding: calc(34 * var(--k)) calc(40 * var(--k));
+      border-radius: calc(20 * var(--k)); background: rgba(111, 214, 154, 0.09); border: 1px solid rgba(111, 214, 154, 0.35);
+    }
+    .browser h3 { font-size: calc(44 * var(--k)); font-weight: 680; color: var(--ok); line-height: 1.12; }
+    .browser p { font-size: var(--fs-small); color: var(--text-2); }
+
+    /* 5. Validated */
+    .tiles-6 { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 1fr; gap: calc(24 * var(--k)); }
+    .vt {
+      display: flex; flex-direction: column; gap: calc(8 * var(--k)); padding: calc(24 * var(--k)) calc(32 * var(--k));
+      background: var(--surface); border: 1px solid var(--border); border-radius: calc(22 * var(--k));
+    }
+    .vt .num { font-size: var(--fs-num); font-weight: 720; line-height: 1.05; color: var(--ok); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+    .vt .what { font-size: calc(29 * var(--k)); color: var(--text); line-height: 1.28; }
+    .vt .ref { margin-top: auto; font-size: var(--fs-tiny); color: var(--muted); }
+    .note { margin-top: calc(18 * var(--k)); font-size: var(--fs-small); color: var(--text-2); }
+
+    /* 6. Found and shows */
+    .found { flex: 1; min-height: 0; display: grid; grid-template-columns: calc(820 * var(--k)) 1fr; gap: calc(48 * var(--k)); }
+    .feature { display: flex; flex-direction: column; gap: calc(14 * var(--k)); }
+    .feature h3 { font-size: calc(36 * var(--k)); font-weight: 650; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: calc(18 * var(--k)); }
+    .stat { background: var(--surface); border: 1px solid var(--border); border-radius: calc(18 * var(--k)); padding: calc(10 * var(--k)) calc(20 * var(--k)) calc(12 * var(--k)); }
+    .stat .num { font-size: calc(48 * var(--k)); font-weight: 720; line-height: 1.05; }
+    .stat .lbl { font-size: var(--fs-tiny); color: var(--text-2); line-height: 1.25; }
+    .feature .cap { font-size: var(--fs-tiny); color: var(--muted); line-height: 1.3; }
+    .rows { display: flex; flex-direction: column; gap: calc(20 * var(--k)); }
+    .row { display: grid; grid-template-columns: calc(340 * var(--k)) 1fr; gap: calc(26 * var(--k)); align-items: center; }
+    .row img { display: block; width: 100%; height: auto; border-radius: calc(12 * var(--k)); border: 1px solid var(--border-strong); background: var(--surface); }
+    .row h3 { font-size: calc(32 * var(--k)); font-weight: 650; margin-bottom: calc(6 * var(--k)); }
+    .row p { font-size: calc(25 * var(--k)); color: var(--text-2); line-height: 1.3; }
+    .traffic i { font-style: normal; font-weight: 650; }
+
+    /* 7. Next and links */
+    .end { flex: 1; display: grid; grid-template-columns: 1fr calc(880 * var(--k)); gap: calc(70 * var(--k)); }
+    .end h3 { font-size: calc(40 * var(--k)); font-weight: 650; margin-bottom: calc(22 * var(--k)); color: var(--accent); }
+    .next { list-style: none; padding: 0; display: flex; flex-direction: column; gap: calc(26 * var(--k)); }
+    .next li { padding-left: calc(30 * var(--k)); border-left: calc(5 * var(--k)) solid var(--surface-3); color: var(--text-2); }
+    .next li b { display: block; font-size: calc(38 * var(--k)); }
+    .links { display: flex; flex-direction: column; gap: calc(22 * var(--k)); }
+    .link { display: grid; grid-template-columns: calc(190 * var(--k)) 1fr; gap: calc(20 * var(--k)); align-items: baseline; }
+    .link span { font-size: var(--fs-small); color: var(--muted); }
+    .link a { font-size: calc(31 * var(--k)); font-weight: 600; overflow-wrap: anywhere; }
+    .end-qr { display: flex; align-items: center; gap: calc(26 * var(--k)); margin-top: calc(14 * var(--k)); }
+    .end-qr img { width: calc(190 * var(--k)); height: calc(190 * var(--k)); background: #fff; border-radius: calc(12 * var(--k)); padding: calc(8 * var(--k)); }
+    .end-qr p { font-size: var(--fs-small); color: var(--text-2); }
+    .disclose { margin-top: calc(26 * var(--k)); font-size: var(--fs-small); color: var(--text-2); padding: calc(18 * var(--k)) calc(26 * var(--k)); background: var(--surface); border-radius: calc(16 * var(--k)); border: 1px solid var(--border); }
+
+    /* Navigation (screen only). */
+    .nav {
+      position: fixed; right: 14px; bottom: 12px; z-index: 10; display: flex; gap: 6px; align-items: center;
+      font: 500 14px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--text-2);
+    }
+    .nav button, .nav a {
+      min-width: 36px; height: 34px; padding: 0 12px; border-radius: 9px; border: 1px solid var(--border-strong);
+      background: rgba(18, 21, 28, 0.85); color: var(--text); font: inherit; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+    }
+    .nav a { color: var(--accent); text-decoration: none; }
+    .nav .count { min-width: 52px; text-align: center; }
+
+    /* Phones and portrait windows: the slides as one scrolling column, with the layout reflowed. */
+    @media screen and (max-width: 760px), screen and (orientation: portrait) and (max-width: 1100px) {
+      :root {
+        --k: calc(100vw / 860);
+        --fs-hero: 52px; --fs-sub: 26px; --fs-title: 29px; --fs-lead: 20px; --fs-body: 17px;
+        --fs-small: 15px; --fs-tiny: 13px; --fs-num: 32px;
+      }
+      html, body { background: var(--bg); }
+      .deck { position: static; overflow: visible; }
+      .slide {
+        position: relative; left: auto; top: auto; width: auto; height: auto; margin: 0; transform: none; display: flex;
+        padding: 28px 16px 22px; border-bottom: 1px solid var(--border-strong);
+      }
+      .slide > header { margin-bottom: 16px; }
+      .title-grid, .split, .tiles-2, .how-bottom, .found, .end, .row { grid-template-columns: 1fr; gap: 18px; }
+      .flow-row { grid-template-columns: 1fr; gap: 30px; }
+      .box + .box::before { left: 50%; top: -28px; margin: 0 0 0 -11px; width: 22px; height: 22px; transform: rotate(90deg); }
+      .tiles-6 { grid-template-columns: 1fr 1fr; gap: 12px; }
+      .problem { gap: 18px; }
+      .problem .lead { font-size: 21px; }
+      .tile { padding: 16px; gap: 14px; }
+      .tile svg { width: 56px; height: 56px; }
+      .tile h3, .box h3, .feature h3, .row h3, .end h3 { font-size: 19px; }
+      .browser h3 { font-size: 22px; }
+      .steps li, .vt .what, .row p, .next li, .link a { font-size: 16px; }
+      .next li b { font-size: 19px; }
+      .steps li { padding-left: 40px; }
+      .steps li::before { width: 28px; height: 28px; font-size: 15px; }
+      .stat .num { font-size: 26px; }
+      .qr-card { justify-self: center; }
+      .qr-card img { width: 200px; height: 200px; }
+      .title-logo { width: 72px; height: 72px; }
+      .rule { margin: 22px 0 18px; }
+      .link { grid-template-columns: 1fr; gap: 2px; }
+      .nav { position: sticky; top: 0; bottom: auto; right: auto; justify-content: flex-end; padding: 8px 12px; background: rgba(9, 11, 16, 0.92); border-bottom: 1px solid var(--border); }
+      .nav button, .nav .count { display: none; }
+    }
+
+    /* Print and PDF: every slide at its design size, one per page. */
+    @page { size: 1920px 1080px; margin: 0; }
+    @media print {
+      html, body { background: var(--bg); }
+      .deck { position: static; overflow: visible; }
+      .slide { position: relative; left: 0; top: 0; margin: 0; transform: none; display: flex; break-after: page; page-break-after: always; }
+      .slide:last-child { break-after: auto; page-break-after: auto; }
+      .nav { display: none; }
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+  <!-- The crescent of the app's header logo (web/index.html), as a mask so it sits on any background. -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <mask id="crescent-mask" maskContentUnits="userSpaceOnUse"><rect width="32" height="32" fill="#fff"/><circle cx="21.5" cy="11.5" r="11" fill="#000"/></mask>
+      <symbol id="crescent" viewBox="0 0 32 32"><circle class="crescent" cx="16" cy="16" r="13" mask="url(#crescent-mask)"/></symbol>
+    </defs>
+  </svg>
+
+  <nav class="nav" aria-label="Slides">
+    <button type="button" id="prev" aria-label="Previous slide">&#8249;</button>
+    <span class="count" id="count">1 / 7</span>
+    <button type="button" id="next" aria-label="Next slide">&#8250;</button>
+    <a id="pdf-link" href="moonat_slides.pdf">PDF</a>
+    <a href="../">Open the app</a>
+  </nav>
+
+  <main class="deck" id="deck">
+
+    <!-- 1. Title -->
+    <section class="slide current" id="s1" aria-label="Slide 1: Title">
+      <div class="title-grid">
+        <div>
+          <svg class="title-logo" aria-hidden="true"><use href="#crescent"/></svg>
+          <h1><span class="t1">Moonat:</span> <span class="t2">Lunar Landing Site Navigator</span></h1>
+          <p class="subtitle">See the Sun and Earth from anywhere on the Moon.</p>
+          <div class="rule"></div>
+          <p class="team" data-team></p>
+          <p class="event">NASA Space Apps Challenge 2026 · Tel Aviv</p>
+        </div>
+        <figure class="qr-card">
+          <img src="img/qr.svg" width="400" height="400" alt="QR code to the live app, https://shmonat.github.io/Moonat-Navigator/">
+          <figcaption>Open the live app<br><b>shmonat.github.io/Moonat-Navigator</b></figcaption>
+        </figure>
+      </div>
+      <div class="foot"><span class="brandmark"><svg aria-hidden="true"><use href="#crescent"/></svg>Moonat</span><span class="pageno"></span></div>
+    </section>
+
+    <!-- 2. The problem -->
+    <section class="slide" id="s2" aria-label="Slide 2: The problem">
+      <header><p class="kicker">The problem</p><h2>Light and line of sight decide a landing site</h2></header>
+      <div class="problem">
+        <p class="lead">At the lunar south pole, <b>a few hundred metres</b> or <b>a few days</b> decide whether a lander has
+          <span class="sun">sunlight for power</span> and a <span class="earth">line of sight to Earth for radio</span>.</p>
+        <div class="tiles-2">
+          <div class="tile t-sun">
+            <svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="58" r="30" fill="#ffc94d"/><path d="M0 120 L0 74 L26 66 L44 80 L70 52 L96 72 L120 64 L120 120 Z" fill="#3b3a37"/></svg>
+            <div><h3 class="sun">Sunlight = power</h3><p>Near the pole the Sun skims the horizon. A ridge or a crater rim can hide it for days.</p></div>
+          </div>
+          <div class="tile t-earth">
+            <svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="34" fill="#5aa9ff"/><path d="M60 26 A34 34 0 0 1 60 94 A20 34 0 0 0 60 26 Z" fill="#0b2a52"/><path d="M0 120 L0 96 L34 88 L60 100 L90 84 L120 92 L120 120 Z" fill="#3b3a37"/></svg>
+            <div><h3 class="earth">Earth in view = radio</h3><p>From the pole the Earth hangs low and drifts a few degrees up and down (libration). A hill can cut the link.</p></div>
+          </div>
+        </div>
+        <p class="callout">The challenge asks for a rapid, intuitive comparison of sites and dates.</p>
+      </div>
+      <div class="foot"><span class="brandmark"><svg aria-hidden="true"><use href="#crescent"/></svg>Moonat</span><span class="pageno"></span></div>
+    </section>
+
+    <!-- 3. What Moonat does -->
+    <section class="slide" id="s3" aria-label="Slide 3: What Moonat does">
+      <header><p class="kicker">What Moonat does</p><h2>A map app for the Moon</h2></header>
+      <div class="split">
+        <ol class="steps">
+          <li><b>Pick places</b> on a 3D globe, or search missions from Apollo to Beresheet.</li>
+          <li><b>Suggested dates</b> for the most sunlight, the best Earth contact, or an eclipse.</li>
+          <li><b>Rover trips</b> with stops, like directions in a map app.</li>
+          <li><b>A first-person sky view</b> over the real terrain, with a timelapse.</li>
+          <li><b>Sun and Earth data:</b> height, visible share of the disk, solar power, time to sunset.</li>
+        </ol>
+        <figure class="shot">
+          <img src="img/app.jpg" width="1600" height="900" alt="The Moonat app: the Moon globe with mission flags on the left, the sky from Apollo 11's landing site on the right, with the Earth high in the west.">
+          <figcaption>The live app: the sky at Apollo 11's landing site, 20 July 1969, 20:17 UTC.</figcaption>
+        </figure>
+      </div>
+      <div class="foot"><span class="brandmark"><svg aria-hidden="true"><use href="#crescent"/></svg>Moonat</span><span class="pageno"></span></div>
+    </section>
+
+    <!-- 4. How it works -->
+    <section class="slide" id="s4" aria-label="Slide 4: How it works">
+      <header><p class="kicker">How it works</p><h2>Real ephemerides, real terrain, in the browser</h2></header>
+      <div class="flow-row">
+        <div class="box input"><h3>Place and time</h3>Any point on the Moon, any moment</div>
+        <div class="box"><h3>Where are the Sun and Earth?</h3>JPL DE421 ephemeris in the Moon-fixed MOON_ME frame, so libration is included<span class="src">JPL / NAIF</span></div>
+        <div class="box"><h3>Where is the skyline?</h3>NASA LOLA terrain horizons, fetched live from Moon Trek for any point<span class="src">NASA LRO LOLA, Moon Trek</span></div>
+        <div class="box"><h3>How much is visible?</h3>The visible share of the <span class="sun">Sun's</span> and <span class="earth">Earth's</span> disks, and eclipses of the Sun by the Earth</div>
+        <div class="box"><h3>Results</h3>Sky view, solar power, Earth contact, suggested dates, rover routes</div>
+      </div>
+      <div class="how-bottom">
+        <figure class="illus">
+          <svg viewBox="0 0 1000 300" role="img" aria-label="Illustration: the skyline cuts off part of the Sun's disk; the Earth is fully above the skyline.">
+            <defs><linearGradient id="gnd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5b5953"/><stop offset="1" stop-color="#26252a"/></linearGradient></defs>
+            <circle cx="300" cy="196" r="62" fill="#ffc94d"/>
+            <circle cx="740" cy="104" r="44" fill="#5aa9ff"/>
+            <path d="M740 60 A44 44 0 0 1 740 148 A24 44 0 0 0 740 60 Z" fill="#0b2a52"/>
+            <path d="M0 300 L0 214 L120 196 L200 218 L262 206 L318 168 L356 186 L420 232 L540 222 L640 236 L760 214 L880 224 L1000 210 L1000 300 Z" fill="url(#gnd)"/>
+            <text x="300" y="100" fill="#ffc94d" font-size="30" font-weight="600" text-anchor="middle" font-family="system-ui, Segoe UI, sans-serif">Sun: part of the disk hidden</text>
+            <text x="740" y="40" fill="#7dbbff" font-size="30" font-weight="600" text-anchor="middle" font-family="system-ui, Segoe UI, sans-serif">Earth: whole disk in view</text>
+          </svg>
+          <figcaption>Illustration (not to scale): the app computes the share of each disk above the real skyline.</figcaption>
+        </figure>
+        <div class="browser">
+          <h3>All computed in your browser</h3>
+          <p>A static site: compact tables from the JPL ephemeris, terrain from NASA, and the geometry in JavaScript. No server of our own.</p>
+        </div>
+      </div>
+      <div class="foot"><span class="brandmark"><svg aria-hidden="true"><use href="#crescent"/></svg>Moonat</span><span class="pageno"></span></div>
+    </section>
+
+    <!-- 5. Validated -->
+    <section class="slide" id="s5" aria-label="Slide 5: Validated against NASA and JPL">
+      <header><p class="kicker">How accurate is it?</p><h2>Validated against NASA and JPL</h2></header>
+      <div class="tiles-6">
+        <div class="vt"><div class="num">0.055″</div><div class="what">Sun and Earth directions vs <b>JPL Horizons</b>, worst case (target was 36″)</div><div class="ref">3 sites, 3 epochs, 399 rows</div></div>
+        <div class="vt"><div class="num">0.13″</div><div class="what">Independent check: the browser code itself vs <b>JPL Horizons</b>, worst case</div><div class="ref">20 random sites incl. both poles and the far side, 1966–2040</div></div>
+        <div class="vt"><div class="num" style="font-size:calc(56 * var(--k))">92.7 % <span class="muted" style="font-weight:500">vs</span> 92.5 %</div><div class="what">South-pole illumination vs <b>Gläser et al. 2014</b>, at a connecting-ridge point</div><div class="ref">10 m above the ground, 18.5 years</div></div>
+        <div class="vt"><div class="num">4.2 s</div><div class="what">Contact times of eclipses seen from the Moon vs <b>NASA</b> (Espenak)</div><div class="ref">Eclipses of 14 Mar 2025 and 24 Apr 1967, worst case</div></div>
+        <div class="vt"><div class="num">0.07–0.37°</div><div class="what">Live horizons from <b>NASA Moon Trek</b> vs our precomputed LOLA horizons, RMS</div><div class="ref">10 of 12 test sites</div></div>
+        <div class="vt"><div class="num">r = 0.97</div><div class="what">Earth visibility vs the <b>NASA PGDA</b> south-pole Earth-visibility map</div><div class="ref">46 206 points, 89–90° S</div></div>
+      </div>
+      <p class="note">1″ is 1/3600 of a degree. Every check is a report you can rerun: docs/validation/ in the source code.</p>
+      <div class="foot"><span class="brandmark"><svg aria-hidden="true"><use href="#crescent"/></svg>Moonat</span><span class="pageno"></span></div>
+    </section>
+
+    <!-- 6. What it found and shows -->
+    <section class="slide" id="s6" aria-label="Slide 6: What it found and shows">
+      <header><p class="kicker">What it found, and what it shows</p><h2>A base site, rover trips, map layers and a story</h2></header>
+      <div class="found">
+        <div class="feature">
+          <h3>StarHab lunar base site: <span class="ok">Malapert massif crest</span></h3>
+          <img src="img/starhab.jpg" width="1280" height="720" style="display:block;width:100%;height:auto;border-radius:calc(14 * var(--k));border:1px solid var(--border-strong)" alt="Moonat's sky view from the StarHab site on the Malapert massif crest, near the lunar south pole.">
+          <div class="stats">
+            <div class="stat"><div class="num sun">82 %</div><div class="lbl">Sun (average share of full sunlight)</div></div>
+            <div class="stat"><div class="num earth">98 %</div><div class="lbl">Earth (average share of its disk in view)</div></div>
+            <div class="stat"><div class="num">7 days</div><div class="lbl">Longest night</div></div>
+          </div>
+          <p class="cap">85.97° S, 2.29° W · 2030–2040 · 10 m mast · best of 80,648 polar points</p>
+        </div>
+        <div class="rows">
+          <div class="row">
+            <img src="img/rover.jpg" width="760" height="480" alt="A rover route drawn on the Moon globe near the south pole, with the trip card showing the travel time.">
+            <div><h3>Rover trips</h3><p class="traffic">The fastest drivable route between stops. The travel time is coloured like traffic: <i class="ok">green</i>, <i style="color:var(--warn)">orange</i> or <i style="color:var(--danger)">red</i>.</p></div>
+          </div>
+          <div class="row">
+            <img src="img/layers.jpg" width="760" height="480" alt="The Moon globe over the south pole with the permanently shadowed regions and the most sunlit ground marked.">
+            <div><h3>Map layers</h3><p>NASA's permanently shadowed regions, where ice may hide, and the ground lit most of the time.</p></div>
+          </div>
+          <div class="row">
+            <img src="img/beresheet.jpg" width="760" height="480" alt="The sky right now at the Beresheet crash site in Mare Serenitatis.">
+            <div><h3>Beresheet, right now</h3><p>The sky at the crash site of Israel's first Moon mission (2019), where its tardigrades lie.</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="foot"><span class="brandmark"><svg aria-hidden="true"><use href="#crescent"/></svg>Moonat</span><span>Screenshots are real renders of the live app.</span><span class="pageno"></span></div>
+    </section>
+
+    <!-- 7. Next, and links -->
+    <section class="slide" id="s7" aria-label="Slide 7: Next, and links">
+      <header><p class="kicker">Next, and links</p><h2>Where Moonat goes next</h2></header>
+      <div class="end">
+        <div>
+          <ul class="next">
+            <li><b>A phone app</b>The same views in your pocket, on site or in the control room.</li>
+            <li><b>More worlds: Mars, Titan</b>The same sky and terrain engine for other surfaces.</li>
+            <li><b>AI mode (planned)</b>Describe a mission and get suggested sites and dates.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Try it</h3>
+          <div class="links">
+            <div class="link"><span>Live app</span><a href="https://shmonat.github.io/Moonat-Navigator/">shmonat.github.io/Moonat-Navigator</a></div>
+            <div class="link"><span>Source code</span><a href="https://github.com/ShMonat/Moonat-Navigator">github.com/ShMonat/Moonat-Navigator</a></div>
+            <div class="link"><span>30 s video</span><a href="https://shmonat.github.io/Moonat-Navigator/video/moonat_demo.mp4">shmonat.github.io/Moonat-Navigator/video/moonat_demo.mp4</a></div>
+          </div>
+          <div class="end-qr"><img src="img/qr.svg" width="190" height="190" alt="QR code to the live app"><p>Scan to open the live app on your phone.</p></div>
+        </div>
+      </div>
+      <p class="disclose">Built with AI coding agents (Claude Code), directed by the team; screenshots are real renders of the app.</p>
+      <div class="foot"><span class="brandmark"><svg aria-hidden="true"><use href="#crescent"/></svg>Moonat · <span data-team></span></span><span class="pageno"></span></div>
+    </section>
+
+  </main>
+
+  <script>
+    // Team names: one place to edit.
+    const TEAM = "Shay Monat · Shahar";
+
+    const slides = [...document.querySelectorAll(".slide")];
+    const narrow = matchMedia("screen and (max-width: 760px), screen and (orientation: portrait) and (max-width: 1100px)");
+    let cur = 0;
+
+    document.querySelectorAll("[data-team]").forEach((e) => { e.textContent = TEAM; });
+    slides.forEach((s, i) => { const n = s.querySelector(".pageno"); if (n) n.textContent = `${i + 1} / ${slides.length}`; });
+
+    function fit() {
+      const s = Math.min(innerWidth / 1920, innerHeight / 1080);
+      document.documentElement.style.setProperty("--s", String(s));
+    }
+
+    /** The slide nearest the top of the window (phone layout, where every slide is shown). */
+    function visibleIndex() {
+      let k = 0;
+      slides.forEach((s, i) => { if (s.getBoundingClientRect().top <= 60) k = i; });
+      return k;
+    }
+
+    function show(i, { scroll = true } = {}) {
+      cur = Math.max(0, Math.min(slides.length - 1, i));
+      slides.forEach((s, j) => s.classList.toggle("current", j === cur));
+      document.getElementById("count").textContent = `${cur + 1} / ${slides.length}`;
+      if (narrow.matches && scroll) slides[cur].scrollIntoView({ behavior: "smooth", block: "start" });
+      try { history.replaceState(null, "", `#${cur + 1}`); } catch { /* file: URLs */ }
+    }
+
+    function step(d) { show((narrow.matches ? visibleIndex() : cur) + d); }
+
+    addEventListener("keydown", (e) => {
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      if (["ArrowRight", "ArrowDown", "PageDown", " ", "Enter"].includes(e.key)) { e.preventDefault(); step(1); }
+      else if (["ArrowLeft", "ArrowUp", "PageUp", "Backspace"].includes(e.key)) { e.preventDefault(); step(-1); }
+      else if (e.key === "Home") { e.preventDefault(); show(0); }
+      else if (e.key === "End") { e.preventDefault(); show(slides.length - 1); }
+    });
+    document.getElementById("deck").addEventListener("click", (e) => {
+      if (narrow.matches || e.target.closest("a, button")) return;
+      step(e.clientX < innerWidth / 3 ? -1 : 1);
+    });
+    document.getElementById("prev").addEventListener("click", () => step(-1));
+    document.getElementById("next").addEventListener("click", () => step(1));
+    addEventListener("resize", fit);
+    fit();
+    const start = parseInt(location.hash.slice(1), 10);
+    show(Number.isFinite(start) ? start - 1 : 0, { scroll: Number.isFinite(start) });
+  </script>
+</body>
+</html>

@@ -9,7 +9,13 @@
   <meta name="color-scheme" content="dark light">
   <meta name="theme-color" content="#090b10">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <!-- Installable app (home screen on Android and iPhone): manifest, icons (scripts/make_app_icons.py), iOS tags. -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Moonat">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <!-- Link previews (Slack, WhatsApp, LinkedIn, X): og.png is the app's own render (scripts/make_social_images.py). -->
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Moonat">

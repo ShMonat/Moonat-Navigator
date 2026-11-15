@@ -24,6 +24,7 @@ dev = [
     "imageio-ffmpeg>=0.8.1",
     "playwright>=1.65.2",
     "pytest>=9.2.0",
+    "qrcode>=8.2",
     "ruff>=0.17.4",
 ]
 
