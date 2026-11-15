@@ -1,6 +1,6 @@
 # NASA Space Apps project page: draft texts (paste into the site)
 
-> Draft v0.5 (2026-11-15). Numbers come from docs/validation/ and docs/research/. Ready to paste; nothing open.
+> Draft v0.6 (2026-11-15). Numbers come from docs/validation/ and docs/research/. Ready to paste; nothing open.
 > Editor: Shay. Everything here is English, as the rules require.
 
 ## Project name
@@ -16,8 +16,9 @@ A first-person sky view shows it all, and many sites and dates compare side by s
 base: the Malapert massif crest, with sunlight 82 % and Earth in view 98 % of the time over 2030–2040.
 
 ## Project Demo
-https://shmonat.github.io/Moonat-Navigator/video/moonat_demo.mp4 (29.5 s, 1080p, plays in the browser; every frame is a
-real render of the app, recorded by scripts/video/record_demo.py. Optional: upload the same file to YouTube as unlisted
+https://shmonat.github.io/Moonat-Navigator/video/moonat_demo.mp4 (30 s, 1080p, plays in the browser; every frame is a
+real render of the app, recorded by scripts/video/record_demo.py: Apollo 11, suggested dates, a globe search, an eclipse
+seen from the Blue Ghost lander, the south pole, a rover drive and the far side. Optional: upload the same file to YouTube as unlisted
 and use that link instead.)
 
 ## Final Project

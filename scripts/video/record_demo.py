@@ -38,7 +38,7 @@ from playwright.sync_api import Page, sync_playwright
 ROOT = Path(__file__).resolve().parents[2]
 W, H, FPS = 1920, 1080, 30
 MAX_FRAMES = 30 * FPS  # hard limit: 30.0 s
-TARGET_FRAMES = 885  # 29.5 s: the end card is padded or trimmed to land here
+TARGET_FRAMES = 894  # 29.8 s: the end card is padded or trimmed to land here
 DISCLOSURE = "AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team."
 APP_URL = "https://shmonat.github.io/Moonat-Navigator/"
 
@@ -47,6 +47,8 @@ CAPTIONS = {
     "apollo": ("The sky Neil and Buzz saw", "Apollo 11 · Tranquility Base · 20 July 1969"),
     "compare": ("All six Apollo landings, ranked", "Sunlight and Earth, side by side"),
     "suggest": ("Moonat suggests the best dates", "Most sunlight · Earth in view · eclipses"),
+    "search": ("Search the Moon", "Fly to any crater, landing site or Artemis region"),
+    "rover": ("Plan a rover drive", "Sun and Earth along a 19 km route at the south pole"),
     "eclipse": (
         "The Earth eclipses the Sun, seen from the Moon",
         "Blue Ghost lander · 14 March 2025 · NASA eclipse times",
@@ -214,7 +216,7 @@ class Encoder:
             "-preset",
             "slow",
             "-crf",
-            "17",
+            "19",
             "-pix_fmt",
             "yuv420p",
             "-profile:v",
@@ -636,7 +638,7 @@ COMPASS = {"N": 0, "NE": 45, "E": 90, "SE": 135, "S": 180, "SW": 225, "W": 270, 
 def scene_title(d: Director) -> None:
     """0: title card over the app (a first visit opens Apollo 11 on the Sky tab), then fade to the app."""
     d.card(TITLE_CARD, alpha=1.0)
-    d.hold(76)
+    d.hold(62)
     d.keyframe("title")
     d.card(None)
     d.hold(12)
@@ -645,11 +647,11 @@ def scene_title(d: Director) -> None:
 def scene_apollo11(d: Director) -> None:
     """1: the first visit opens Apollo 11 (globe with its pins on the left, the sky on the right); Focus gives a
     tall frame with the high Earth and the ground together, like a Hasselblad photo."""
-    d.hold(10)
-    d.click("#sky-grid .sky-focus-btn", wait=d.wait_sky, xfade=8)
+    d.hold(4)
+    d.click("#sky-grid .sky-focus-btn", wait=d.wait_sky, xfade=8, n_move=10)
     d.cursor_on = False
     d.caption("apollo")
-    d.hold(66)
+    d.hold(54)
     d.keyframe("apollo11")
 
 
@@ -678,23 +680,24 @@ def scene_suggest(d: Director) -> None:
             time.sleep(0.1)
         time.sleep(0.4)
 
-    d.click("#cards .start-field .tp-btn", wait=wait_list, xfade=6)
+    d.click("#cards .start-field .tp-btn", wait=wait_list, xfade=6, n_move=10)
+    d.cursor_on = False
     d.caption("suggest", pos="right")
-    d.hold(12)
+    d.hold(6)
     # The list scrolls on its own (max-height): roll it down to the eclipses visible from the site.
     span = d.page.evaluate(
         "(() => { const l = document.querySelector('.tp-pop .suggest-list'); return l.scrollHeight - l.clientHeight; })()"
     )
-    n = 22
+    n = 18
     for i in range(1, n + 1):
         d.page.evaluate(
             "y => { document.querySelector('.tp-pop .suggest-list').scrollTop = y; }",
             span * ease(i / n),
         )
         d.frame()
-    d.hold(30)
+    d.hold(24)
     d.keyframe("suggest")
-    d.hold(8)
+    d.hold(4)
     # Close the picker with its ✕, off camera.
     d.page.evaluate("document.querySelector('.tp-pop .tp-close')?.click()")
     time.sleep(0.3)
@@ -702,7 +705,7 @@ def scene_suggest(d: Director) -> None:
 
 # Eclipse quick start: 2025-03-14 04:30 .. 10:20 UTC at Blue Ghost (slider 0..1000 = 350 min). It opens at 81 %
 # covered (u = 250); totality starts near 06:18 (u = 309) and ends with the diamond ring near 08:35 (u = 700).
-ECLIPSE_PARTS = [(250.0, 318.0, 72), (686.0, 714.0, 60)]  # (slider from, slider to, frames)
+ECLIPSE_PARTS = [(250.0, 318.0, 60), (686.0, 714.0, 54)]  # (slider from, slider to, frames)
 
 
 def scene_eclipse(d: Director) -> None:
@@ -736,14 +739,14 @@ def scene_eclipse(d: Director) -> None:
             d.frame()
             if (k, i) in ((0, n), (1, 30)):
                 d.keyframe(f"eclipse{k + 1}")
-        d.hold(16 if k == 0 else 12)
+        d.hold(12 if k == 0 else 10)
     d.show_playing(False)
 
 
 # South-pole timelapse in the quick start's window (2027-01-19 .. 03-22; slider 0..1000), 19-24 Jan: the Sun skims
 # 0.0-0.2 deg above the horizontal, lighting the ground with long shadows, and passes the crescent Earth, which
 # sinks and sets behind the ridge (u = 79).
-POLE_PARTS = [(0.0, 92.0, 114)]  # (slider from, slider to, frames)
+POLE_PARTS = [(0.0, 92.0, 88)]  # (slider from, slider to, frames)
 POLE_VIEW_AZ = 152.0  # fixed camera, about 105..200 deg: the Sun from 181 to 120 deg, the Earth at 131..141 deg
 
 
@@ -789,10 +792,83 @@ def scene_pole(d: Director) -> None:
             d.set_slider(u0 + (u1 - u0) * i / n)
             d.show_playing(True)
             d.frame()
-            if i == 52:
+            if i == 46:
                 d.keyframe("pole")
     d.show_playing(False)
     d.hold(6)
+
+
+def scene_search(d: Director) -> None:
+    """Search the Moon: type into the globe's search box, pick "Shackleton rim" from the results, and the globe
+    flies to the south pole (the place joins the comparison as a second card)."""
+    d.caption(None)
+    exit_focus(d)
+    d.cursor_on = True
+    # The left column may be scrolled down to the story chips: bring the search box back while the pointer moves.
+    delta = d.prepare_scroll("#globe-search")
+    x, y = d.center("#globe-search")
+
+    def focus_box() -> None:
+        time.sleep(0.2)
+        d.page.evaluate("document.getElementById('globe-search').focus()")
+
+    d.click(
+        (x, y - delta),
+        wait=focus_box,
+        xfade=1,
+        n_move=10,
+        during=(lambda t: d.scroll_by(delta * ease(t))) if delta else None,
+    )
+    d.caption("search", pos="right")
+    for ch in "Shackleton":
+        d.page.keyboard.type(ch)
+        time.sleep(0.05)
+        d.frame()
+    time.sleep(0.3)
+    d.hold(6)
+    item = ".gs-item:has-text('Shackleton rim')"
+    d.move_to(item, 8)
+    for i in range(3):
+        d.ripple = i / 6
+        d.frame()
+    d.ripple = -1.0
+    d.page.mouse.down()  # the results list acts on mousedown
+    d.page.mouse.up()
+    d.cursor_on = False
+    # The flight to the south pole takes about half a second: film it as it happens.
+    for _ in range(10):
+        d.frame()
+    d.wait_net()
+    d.hold(10)
+    d.keyframe("search")
+
+
+# Rover story: a VIPER-class drive of 19.3 km from the south pole to the Shackleton rim, 15-16 Oct 2027
+# (slider 0..1000 = the drive). Early on the Sun is behind terrain; from about u = 150 it skims the slope ahead.
+ROVER_PART = (150.0, 700.0, 52)  # (slider from, slider to, frames)
+
+
+def scene_rover(d: Director) -> None:
+    """Rover trip: the story loads the planned route (map on the globe, route card), Track keeps the Sun in view,
+    and the drive plays: the rover's dot moves along the route on the globe while the sky turns with it."""
+    d.caption(None)
+    exit_focus(d)
+    d.cursor_on = True
+    d.click_chip(6, wait=d.wait_story, capture=False)
+    d.set_slider(ROVER_PART[0])
+    d.reveal(8)
+    d.click("#btn-track", wait=lambda: time.sleep(0.4), xfade=4, n_move=10)
+    d.cursor_on = False
+    d.caption("rover", pos="right")
+    u0, u1, n = ROVER_PART
+    for i in range(1, n + 1):
+        d.set_slider(u0 + (u1 - u0) * i / n)
+        d.show_playing(True)
+        d.frame()
+        if i == n - 4:
+            d.keyframe("rover")
+    d.show_playing(False)
+    d.hold(4)
 
 
 def scene_farside(d: Director) -> None:
@@ -803,8 +879,8 @@ def scene_farside(d: Director) -> None:
     d.click_chip(4, wait=d.wait_story, xfade=8)
     d.caption("farside", pos="right")
     d.cursor_on = False
-    d.hold(10)
-    n = 64
+    d.hold(6)
+    n = 56
     for i in range(1, n + 1):
         d.set_slider(760.0 * i / n)
         d.show_playing(True)
@@ -831,13 +907,15 @@ SCENES = [
     scene_title,
     scene_apollo11,
     scene_suggest,
+    scene_search,
     scene_eclipse,
     scene_pole,
+    scene_rover,
     scene_farside,
     scene_end,
 ]
 # Saved to docs/figures/video_<name>.png for review.
-KEYFRAMES = ["apollo11", "suggest", "eclipse1", "eclipse2", "pole", "farside"]
+KEYFRAMES = ["apollo11", "suggest", "eclipse1", "eclipse2", "search", "pole", "rover", "farside"]
 
 
 # ---------------------------------------------------------------------------------------------------------------
