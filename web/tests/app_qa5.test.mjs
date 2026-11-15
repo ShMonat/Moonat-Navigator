@@ -61,8 +61,8 @@ test("empty state: a card that holds a place (a too-long trip leg) gets 'Almost 
   // The page's own markup keeps the "no place yet" words, which EMPTY_TEXT.none repeats.
   const html = read("index.html");
   assert.match(html, /<h2>Pick a place on the Moon and a time<\/h2>/);
-  assert.match(src, /none: \["Pick a place on the Moon and a time", "Search the Moon or click the globe, or type coordinates\. A story is the fastest way in:"\]/);
-  assert.match(html, /<p>Search the Moon or click the globe, or type coordinates\. A story is the fastest way in:<\/p>/);
+  assert.match(src, /none: \["Pick a place on the Moon and a time", "Search the Moon, click the globe, or start a story:"\]/);
+  assert.match(html, /<p>Search the Moon, click the globe, or start a story:<\/p>/);
 });
 
 test("date picker: a note (Earth always in view, no contact) keeps its long detail behind an i", () => {

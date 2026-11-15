@@ -147,6 +147,22 @@ function sheetMode() {
   return typeof window !== "undefined" && window.matchMedia(SHEET_QUERY).matches;
 }
 
+/**
+ * Where the picker opens next to its field (all px): "below" when its full height h fits under the field (`below`:
+ * room from the field's bottom to the window's bottom margin), else "above" when it fits over it (`above`), else
+ * "inside": in the window, over the field.
+ */
+export function popSpot(h, below, above) {
+  if (h + 6 <= below) return "below";
+  if (h + 6 <= above) return "above";
+  return "inside";
+}
+
+/** The picker's full height (px, borders included), also while a max-height makes it scroll. */
+function popHeight(root) {
+  return root.scrollHeight + (root.offsetHeight - root.clientHeight);
+}
+
 function openPicker(input, button, opts, focusGrid) {
   if (open) open.close(false);
   const years = [...new Set(opts.coverage() || [])].sort((a, b) => a - b);
@@ -491,16 +507,22 @@ function openPicker(input, button, opts, focusGrid) {
     const w = Math.min(root.offsetWidth || 600, vw - 16);
     let left = Math.min(r.left - 2, vw - 8 - w);
     left = Math.max(8, left);
-    const h = root.offsetHeight;
+    const h = popHeight(root);
     const below = vh - r.bottom - 8;
     const above = r.top - 8;
+    const spot = popSpot(h, below, above);
     let top;
-    if (h + 6 <= below || below >= above) {
+    if (spot === "below") {
       top = r.bottom + 6;
-      root.style.maxHeight = `${Math.max(220, below - 6)}px`;
+      root.style.maxHeight = `${below - 6}px`;
+    } else if (spot === "above") {
+      top = r.top - 6 - h;
+      root.style.maxHeight = `${above - 6}px`;
     } else {
-      top = Math.max(8, r.top - 6 - Math.min(h, above));
-      root.style.maxHeight = `${Math.max(220, above - 6)}px`;
+      // Too tall for either side of the field (a field in the middle of a short window): inside the window, over
+      // the field (the head repeats its value), so Now / Clear / Done show without scrolling inside the picker.
+      top = Math.max(8, vh - 8 - h);
+      root.style.maxHeight = `${vh - 16}px`;
     }
     root.style.left = `${left}px`;
     root.style.top = `${top}px`;

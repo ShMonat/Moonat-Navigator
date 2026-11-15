@@ -77,6 +77,23 @@ export function skyShareState() {
   return { offsetMs: maxSpan > 0 ? offsetMs : 0, view: view || null };
 }
 
+/**
+ * Turn the first view to a link's camera { az_deg, el_deg, fov_deg } (deg, local horizon frame): now, or when the view
+ * is built. For a link opened over the scenarios already shown (their views are kept, so queueSkyStart does not apply).
+ */
+export function setSkyCamera(cam) {
+  if (!cam) return;
+  const first = items.length ? cards.get(`${items[0].s.id}|${items[0].key}`) : null;
+  if (!first?.view) {
+    pendingCamera = cam;
+    return;
+  }
+  if (!first.view.lookAt || !first.view.setFov) return;
+  first.view.lookAt(Number(cam.az_deg) || 0, Number(cam.el_deg) || 0);
+  if (Number(cam.fov_deg) > 0) first.view.setFov(Number(cam.fov_deg));
+  first.camTouched = true;
+}
+
 /** Time since the scenarios' start shown now (ms), and the longest span (ms; 0 for single instants). */
 export function skyTime() {
   return { offsetMs: maxSpan > 0 ? offsetMs : 0, maxSpan };
@@ -368,9 +385,7 @@ export function setSkyItems(newItems) {
   offsetMs = Math.min(offsetMs, maxSpan);
   const hasMission = maxSpan > 0;
   $("sky-controls").classList.toggle("instant", !hasMission);
-  $("sky-slider").disabled = !hasMission;
-  $("btn-play").disabled = !hasMission;
-  $("sky-speed").disabled = !hasMission;
+  syncPlayControls();
   if (!hasMission) stop();
   if (hasMission && !speedTouched) $("sky-speed").value = String(autoSpeed(maxSpan));
   // The driver's view needs a rover traverse on screen.
@@ -811,7 +826,8 @@ function syncSlider() {
   // Plain words for the time since the start (T+): "Start", "5 d 14 h after start".
   // On phones the words shorten to "T+5 d 14 h" (app.css).
   const clock = $("sky-clock");
-  const html = !(maxSpan > 0) ? "Single instant: add an end time or a duration to play a timelapse"
+  const html = holdText ? esc(holdText)
+    : !(maxSpan > 0) ? "Single instant: add an end time or a duration to play a timelapse"
     : offsetMs < 30e3 ? "Start"
       : `<span class="clk-num">${formatDuration(offsetMs)}</span><span class="clk-word"> after start</span>`;
   if (html !== clockHtml) clock.innerHTML = clockHtml = html;
@@ -821,8 +837,32 @@ function syncSlider() {
   if (clock.title !== title) clock.title = title;
 }
 
+let holdText = null; // set while the results on screen are being replaced by a slow compute (holdPlayback)
+
+/**
+ * Hold the timelapse while the sky on screen belongs to the previous scenarios and their replacement is still being
+ * computed (main.js: a rover route being planned, about 10 s). text: the words for the timelapse clock and Play's
+ * tooltip (e.g. "Planning the rover route…"); null ends the hold. While held, playback stops and Play, the slider and
+ * the speed are disabled; the new results then open at their start (setSkyItems), ready to play.
+ */
+export function holdPlayback(text) {
+  holdText = text || null;
+  if (holdText) stop();
+  syncPlayControls();
+  syncSlider();
+}
+
+/** Enable Play, the slider and the speed when a scenario spans time and no hold is on. */
+function syncPlayControls() {
+  const can = maxSpan > 0 && !holdText;
+  $("sky-slider").disabled = !can;
+  $("btn-play").disabled = !can;
+  $("sky-speed").disabled = !can;
+  $("btn-play").title = holdText || "Play / pause";
+}
+
 function play() {
-  if (maxSpan <= 0) return;
+  if (maxSpan <= 0 || holdText) return;
   if (offsetMs >= maxSpan) offsetMs = 0;
   playing = true;
   $("btn-play").classList.add("playing");

@@ -73,8 +73,8 @@ function build() {
     <form method="dialog" class="about-close"><button class="icon-btn" aria-label="Close">${icon("close")}</button></form>
     <h2 id="ai-title"><span class="ai-title-ico">${icon("ai")}</span>AI mode: where should your mission go?</h2>
     <p class="ai-label">${LABEL}</p>
-    <p class="lead">Describe a mission in your own words. Claude turns it into requirements, runs Moonat's own Sun, Earth and
-      terrain calculations on candidate sites (at most ${MAX_EVALUATIONS}), and ranks them. It never makes up the numbers.</p>
+    <p class="lead">Describe a mission in your own words. Claude runs Moonat's own Sun, Earth and terrain calculations on up
+      to ${MAX_EVALUATIONS} candidate sites and ranks them.</p>
     <label class="ai-h" for="ai-mission">Your mission</label>
     <textarea id="ai-mission" rows="3" placeholder="e.g. A solar-powered lander at the south pole for one lunar day in 2027, with direct radio contact to Earth"></textarea>
     <div class="chips ai-examples" role="group" aria-label="Example missions"></div>
@@ -85,9 +85,8 @@ function build() {
         <button type="button" class="ghost" id="ai-forget">Forget key</button>
       </div>
       <label class="ai-check"><input type="checkbox" id="ai-remember"> Remember on this device</label>
-      <p class="ai-note">Uses your own Anthropic API key; a typical mission costs about $0.10–0.30. The key stays in this
-        browser (this tab only, unless you tick Remember), goes only to api.anthropic.com, and is never put in a link.
-        <a href="https://console.anthropic.com/" target="_blank" rel="noopener">Get a key in the Anthropic Console</a>.</p>
+      <p class="ai-note">About $0.10–0.30 a mission. The key stays in this browser, goes only to api.anthropic.com and is
+        never put in a link. <a href="https://console.anthropic.com/" target="_blank" rel="noopener">Get a key in the Anthropic Console</a>.</p>
     </div>
     <div class="ai-actions">
       <button type="button" class="ai-go" id="ai-go">${icon("ai")}<span>Suggest sites</span></button>

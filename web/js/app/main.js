@@ -14,7 +14,9 @@ import { initPhysics, physicsError, physicsCoverage, siteFor, stateAt, seriesFor
 import { readyTerrain, ensureTerrain, keepOnly, onTerrainChange } from "./terrain_live.js";
 import { initScenarioUI } from "./scenarios_ui.js";
 import { renderCompare, rerenderCompare, initBodySwitch, syncBody, holdChartsUntil, setChartCursor } from "./compare.js";
-import { initSky, setSkyItems, queueSkyStart, skyShareState, setSkyBody, jumpTo, skyTime } from "./sky_panel.js";
+import {
+  initSky, setSkyItems, queueSkyStart, skyShareState, setSkyBody, jumpTo, skyTime, holdPlayback, setSkyCamera,
+} from "./sky_panel.js";
 import { pickHint } from "./events.js";
 import { suggestBody, suggestWindow } from "./suggest_adapter.js";
 import { routeCore, isTrip } from "../rover/app.js";
@@ -85,11 +87,13 @@ function computeCore(s) {
       cache.delete(ckey);
       return { key, error };
     });
+    p.then(() => (p.done = true)); // a finished compute (recompute: a trip with `done` needs no planning)
     cache.set(ckey, p);
   }
   return cache.get(ckey);
 }
 
+const PLANNING_TEXT = "Planning the rover route…";
 let computeSeq = 0;
 let lastItems = [];
 let computed = false; // the first compute has finished (until then the page keeps its first-paint layout)
@@ -123,12 +127,16 @@ async function recompute() {
   const valid = store.scenarios
     .map((s, index) => ({ s, index }))
     .filter(({ s }) => validateScenario(s, physicsCoverage()).ok);
-  setBusy(true, valid.some(({ s }) => isTrip(s)) ? "Planning the rover route…" : "Computing…");
+  // A trip whose route is not planned yet takes seconds: the old sky stays on screen, dimmed, and cannot be played.
+  const planning = valid.some(({ s }) => isTrip(s) && !cache.get(physicsKey(s))?.done);
+  setBusy(true, planning ? PLANNING_TEXT : "Computing…");
+  holdPlayback(planning ? PLANNING_TEXT : null);
   // Stop fetching real terrain for points no scenario shows any more (rapid map clicks, edited coordinates).
   keepOnly(valid.filter(({ s }) => !s.site_id).map(({ s }) => [s.lat_deg, s.lon_deg]));
   const cores = await Promise.all(valid.map(({ s }) => computeCore(s)));
   if (seq !== computeSeq) return; // a newer request superseded this one
   setBusy(false);
+  holdPlayback(null);
   computed = true;
   lastItems = valid.map(({ s, index }, i) => ({ ...cores[i], s, index }));
   render();
@@ -157,7 +165,7 @@ function decorate(it) {
  * shown yet (a trip leg too long, a field still being typed) it points at the card's message instead.
  */
 const EMPTY_TEXT = {
-  none: ["Pick a place on the Moon and a time", "Search the Moon or click the globe, or type coordinates. A story is the fastest way in:"],
+  none: ["Pick a place on the Moon and a time", "Search the Moon, click the globe, or start a story:"],
   pending: ["Almost there: check the place and time", "The card's message says what is missing. Or start a story:"],
 };
 function emptyText(hasCards) {
@@ -345,7 +353,7 @@ function applyHash() {
     if (!same) {
       queueSkyStart({ offsetMs: h.sky.offsetMs || 0, view: h.sky.view });
       setScenarios(h.scenarios);
-    }
+    } else if (h.sky.view) setSkyCamera(h.sky.view); // the same scenarios with a camera ("v="): turn the first view
   } finally {
     restoring = false;
   }
