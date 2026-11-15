@@ -21,6 +21,7 @@ import { routeCore, isTrip } from "../rover/app.js";
 import { tripTime } from "../rover/ui.js";
 import { fillIcons, icon } from "./icons.js";
 import { initInfoTips } from "./info_tip.js";
+import { normalizeStyle } from "../globe/layers.js";
 
 const $ = (id) => document.getElementById(id);
 const LOOKAHEAD_MS = 30 * DAY_MS;
@@ -275,7 +276,7 @@ let lastIds = "";
 function currentHash() {
   return encodeHash({
     scenarios: store.scenarios, xaxis: store.xaxis, body: store.body, sky: skyShareState(), layers: store.mapLayers,
-    daylight: store.daylight,
+    daylight: store.daylight, style: store.mapStyle,
   });
 }
 
@@ -314,6 +315,9 @@ function applyHash() {
     // The globe's day and night (also in "ml"): on unless the link says "noday".
     const daylight = h?.daylight ?? true;
     if (daylight !== store.daylight) setUi({ daylight });
+    // The globe's base map, grid and contour lines (also in "ml"): the default style unless the link says otherwise.
+    const style = h?.style ?? normalizeStyle(null);
+    if (JSON.stringify(style) !== JSON.stringify(store.mapStyle)) setUi({ mapStyle: style });
     if (!h || !h.scenarios.length) {
       runQuickStart(QUICK_STARTS[0].key);
       return;

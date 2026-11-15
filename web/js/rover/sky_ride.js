@@ -234,15 +234,18 @@ export function lookAheadDirection(it, tMs, ride) {
 
 /**
  * Before a view shows a new moment of the ride: keep the camera on the same physical direction while the local frame
- * turns (near the pole it turns quickly with position). In the driver's view (ahead) the track mode aims it instead.
+ * turns (near the pole it turns quickly with position), in every camera mode. The 3D view turns its camera and its
+ * tracking target together (turnFrame), so Follow and the driver's view (ahead) keep their feed-forward and only ease
+ * real changes of aim; a view without turnFrame (the 2D fallback) is turned with lookAt, except in the driver's view.
  * The view's near field is moved so the eye is at the rover's exact position (setEye; the ground on show was built
  * around a ground point up to one rebuild behind).
  */
 export function rideCamera(rec, ride, { ahead = false } = {}) {
   const view = rec.view;
-  if (view && !ahead && rec.rideSite && view.getView) {
+  if (view && rec.rideSite) {
     const turn = frameTurnDeg(rec.rideSite, ride.site);
-    if (Math.abs(turn) > 0.02) {
+    if (typeof view.turnFrame === "function") view.turnFrame(turn);
+    else if (!ahead && view.getView && Math.abs(turn) > 0.02) {
       const v = view.getView();
       view.lookAt(v.az_deg + turn, v.el_deg);
     }

@@ -99,6 +99,25 @@ export function skyMoments() {
   return items.map((it) => ({ id: it.s.id, label: it.label, t_ms: timeFor(it) }));
 }
 
+/**
+ * For the playback checks (scripts/check_playback_smooth.py) and debugging: the views in card order, as
+ * [{ id (scenario id), view (null while not built), distance_m, site and heading_deg (a rover trip's distance driven, C6
+ * site and direction of travel at the last frame, else null), sun_az and earth_az (deg, the last sky state) }], the time
+ * shown and whether the timelapse is playing.
+ */
+export function skyDebug() {
+  return {
+    playing, offsetMs, trackMode,
+    views: items.map((it) => {
+      const rec = cards.get(`${it.s.id}|${it.key}`);
+      return {
+        id: it.s.id, view: rec?.view ?? null, distance_m: rec?.rideLast?.distance_m ?? null, site: rec?.rideSite ?? null,
+        heading_deg: rec?.rideLast?.heading_deg ?? null, sun_az: rec?.state?.sun.az_deg ?? null, earth_az: rec?.state?.earth.az_deg ?? null,
+      };
+    }),
+  };
+}
+
 /** opts.onTime(offsetMs): called whenever the time shown changes (slider, playback, a new set, jumpTo). */
 export function initSky({ onTime } = {}) {
   if (onTime) onTimeChange = onTime;
@@ -684,11 +703,12 @@ async function updateCard(rec) {
   rec.state = st;
   rec.lastT = t;
   if (ride) rideCamera(rec, ride, { ahead: trackMode === "ahead" });
+  // Driver's view (rover traverses): a new direction of travel for every frame, given before the view draws the frame;
+  // the view eases toward it.
+  if (trackMode === "ahead" && it.route && rec.view) applyTrack(rec, false, ride);
   if (rec.view) rec.view.update(st);
   if (ride) rideTerrain(rec, it, ride);
   if (ride) syncViewCone(rec); // the wedge rides with the rover even when the camera did not turn
-  // Driver's view (rover traverses): a new direction of travel for every frame; the view eases toward it.
-  if (trackMode === "ahead" && it.route && rec.view) applyTrack(rec, false, ride);
   // Plain words with the numbers (web/js/sky/words.js), for screen readers: the view's HUD shows the same numbers.
   // "hidden behind terrain" when the skyline hides a body that is above the horizontal plane, "below the horizon" only
   // when the whole disk is below that plane.
@@ -702,7 +722,8 @@ async function updateCard(rec) {
   syncFoot(rec, ride ? rideFoot(rideNote(it, ride)) : terrainFoot(it));
   footNote(rec);
   // Text alternative for screen readers, and the keys the view takes (C8 view: arrows turn, + and - zoom).
-  rec.viewEl.setAttribute("aria-label", `Sky from ${it.label} at ${formatUtc(t)}. ${ecl ? `${ecl}. ` : ""}${sunTxt}. ${earthTxt}. Drag or use the arrow keys to look around; plus and minus zoom.`);
+  const aria = `Sky from ${it.label} at ${formatUtc(t)}. ${ecl ? `${ecl}. ` : ""}${sunTxt}. ${earthTxt}. Drag or use the arrow keys to look around; plus and minus zoom.`;
+  if (rec.ariaText !== aria) rec.viewEl.setAttribute("aria-label", (rec.ariaText = aria));
 }
 
 /**
@@ -782,18 +803,22 @@ async function refresh() {
   }
 }
 
+let clockHtml = null;
 function syncSlider() {
   const slider = $("sky-slider");
-  slider.value = maxSpan > 0 ? String(Math.round((offsetMs / maxSpan) * 1000)) : "0";
+  const value = maxSpan > 0 ? String(Math.round((offsetMs / maxSpan) * 1000)) : "0";
+  if (slider.value !== value) slider.value = value;
   // Plain words for the time since the start (T+): "Start", "5 d 14 h after start".
   // On phones the words shorten to "T+5 d 14 h" (app.css).
   const clock = $("sky-clock");
-  if (!(maxSpan > 0)) clock.textContent = "Single instant: add an end time or a duration to play a timelapse";
-  else if (offsetMs < 30e3) clock.textContent = "Start";
-  else clock.innerHTML = `<span class="clk-num">${formatDuration(offsetMs)}</span><span class="clk-word"> after start</span>`;
-  clock.title = maxSpan > 0
+  const html = !(maxSpan > 0) ? "Single instant: add an end time or a duration to play a timelapse"
+    : offsetMs < 30e3 ? "Start"
+      : `<span class="clk-num">${formatDuration(offsetMs)}</span><span class="clk-word"> after start</span>`;
+  if (html !== clockHtml) clock.innerHTML = clockHtml = html;
+  const title = maxSpan > 0
     ? "Time since the start of each scenario (T+); missions are synchronised by it"
     : "Add an end time (or a duration) to a scenario to play a timelapse";
+  if (clock.title !== title) clock.title = title;
 }
 
 function play() {

@@ -759,6 +759,20 @@ export async function createSkyView(container, {
     autoFit = null;
     requestRender();
   }
+  /**
+   * Turn the camera with its local frame: add dAzDeg (deg) to the camera's azimuth and to the tracking target, so a view
+   * whose local horizon frame turns (a rover near the pole: the same physical direction gets a new azimuth) keeps
+   * looking the same way. No framing rule, no easing, no pause; feed-forward of the next update still works.
+   */
+  function turnFrame(dAzDeg) {
+    if (!Number.isFinite(dAzDeg) || dAzDeg === 0) return;
+    view.az = wrapAz(view.az + dAzDeg);
+    if (track) {
+      if (track.target) track.target = { ...track.target, az: wrapAz(track.target.az + dAzDeg) };
+      if (track.kind === 'dir') track.az = wrapAz(track.az + dAzDeg);
+    }
+    requestRender();
+  }
   function setFov(deg) {
     view.hfov = clampFov(deg);
     autoFit = null;
@@ -770,7 +784,7 @@ export async function createSkyView(container, {
     requestRender();
   }
 
-  function update(s) {
+  function update(s, { render = true } = {}) {
     const prev = state;
     state = s;
     sky.update(s);
@@ -808,7 +822,7 @@ export async function createSkyView(container, {
       const a = name && prev?.[name], b = name && s[name];
       retarget(a && b ? { az: azDelta(a.az_deg, b.az_deg), el: b.el_deg - a.el_deg } : null);
     }
-    renderNow();
+    if (render) renderNow(); else requestRender();
   }
 
   // --- Interaction: drag to look around (the sky follows the pointer), wheel to zoom ----------------------------
@@ -900,13 +914,16 @@ export async function createSkyView(container, {
     info.horizonSource = newHorizon ? 'site' : patch ? 'patch' : horizon.smooth ? 'smooth' : info.horizonSource;
     shadowDirty = true;
     if (state) {
-      update(state);   // terrain uniforms (Sun, earthshine) and the Sun's share above the new skyline (and a new track target)
-      if (autoFit && !(track && !track.paused)) lookAtBody(autoFit.name, autoFit.mode);
+      // Terrain uniforms (Sun, earthshine), the Sun's share above the new skyline and a new track target; drawn at the
+      // next animation frame (which a playing timelapse draws anyway), not twice in one frame.
+      update(state, { render: false });
+      // A static view keeps its framing of a body on the new terrain; a moving view (eye) keeps its camera.
+      if (autoFit && !eye && !(track && !track.paused)) lookAtBody(autoFit.name, autoFit.mode);
     } else requestRender();
   }
 
   return {
-    update, lookAt, lookAtBody, setFov, resize, dispose, setTerrain,
+    update, lookAt, lookAtBody, setFov, resize, dispose, setTerrain, turnFrame,
     /**
      * Moving view (built with terrainDetail): the eye at { east, north } m from the ground point of the terrain on
      * show, turn_deg = the change of azimuth from that point's frame to the eye's (sky_ride.js eyeOffset). Takes effect

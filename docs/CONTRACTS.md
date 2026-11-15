@@ -175,7 +175,8 @@ await createSkyView(container /* HTMLElement */, {
   earthTextureUrl = "assets/earth_daymap.jpg",
   fovDeg = 70,                // horizontal field of view; the aspect ratio follows the container (default 16:9 box)
 }) -> { update(skyState /* C6 */), lookAt(az_deg, el_deg), lookAtBody("earth" | "sun"), setFov(deg), resize(), dispose() }
-// extras below: setTerrain, setHudLevel, setOption/getOptions, setPixelBudget, setTallFrames, setTrack/getTrack
+// extras below: setTerrain, setHudLevel, setOption/getOptions, setPixelBudget, setTallFrames, setTrack/getTrack,
+// turnFrame
 ```
 - **Opening view:** the first `update()` always shows both the horizon and the Earth (Shay's vision: the view opens toward
   the Earth). Yaw = the Earth's azimuth. First the "photo" rule: the horizon line sits 20% of the frame height above the
@@ -252,6 +253,10 @@ await createSkyView(container /* HTMLElement */, {
   null)`, `getTrackMode()`, `onTrackModeChange(cb)`, `setLookAheadSource(fn(item, tMs, ride) → { az_deg, el_deg } |
   null)`): the last one chosen wins; pressing the one that is on turns it off (free look); a drag pauses it
   (`aria-pressed="mixed"`, "· paused") and pressing it then resumes.
+- **Turning frame** (added 2026-11-15, for a moving view): `turnFrame(dAzDeg)` adds `dAzDeg` (deg) to the camera's
+  azimuth and to the tracking target, so a view whose local horizon frame turns (a rover near the pole) keeps looking
+  the same physical way in free look, Follow and Driver's view; no framing rule, no easing, no pause. The 2D fallback
+  has none (call with `?.`).
 - **View-change hook** (added 2026-11-15, for the globe's view-direction wedge, C8b `setViewCone`):
   `onViewChange(cb)` → an unsubscribe function. `cb({ az_deg, el_deg, hfov_deg })` is called after each render that
   moved the camera (a drag, a zoom, `lookAt`/`lookAtBody`, tracking, a resize that reframes): at most once per render,
@@ -354,6 +359,18 @@ await globeReady()                                            // the globe objec
   the sunlit spots also get a small sun symbol in screen pixels (grouped when closer than 18 px). The page keeps the
   choice in `store.mapLayers` (a "ui" change) and in the share link as `ml=psr.sun`; the Layers button and panel are
   `web/js/app/map_layers.js`, which flies to the nearer pole when a layer is turned on and no pole is in view.
+- **Base map, grid and contour lines** (added 2026-11-15, Shay's request; data pipeline pending Shahar's review). The
+  globe object also has `setStyle({ base, grid, contours })` (returns a promise that resolves once the data has loaded)
+  and `getStyle()`. `base`: `"imagery"` (default; the WAC mosaic and LOLA polar relief), `"elevation"` (LOLA height as
+  a viridis tint from -8 to +8 km relative to 1737.4 km, times a hillshade) or `"plain"` (grey with a light hillshade);
+  `grid` (default on): the lat/lon graticule, its labels and the near/far side boundary; `contours` (default off): LOLA
+  contour lines every 1 km (index 5 km), and poleward of 80° every 250 m (index 1 km). Ids, wording, ramp and
+  intervals: `web/js/globe/layers.js` (`BASE_MAPS`, `ELEV_RAMP`, `CONTOURS`, `normalizeStyle`). Data:
+  `web/data/basemaps/basemaps.json` (+ JPEGs in the moonmap.json projections and cap geometry, and 2-bit contour PNGs;
+  about 3 MB in all, loaded on first use; `scripts/data/build_base_maps.py`). The page keeps the choice in
+  `store.mapStyle` and in the share link's `ml` words: `elev` or `plain`, `ct` (contours on), `nogrid` (grid off); the
+  default writes nothing, so older links open with Imagery, grid on and contours off. The Layers panel lists the base
+  map first (a radio group), then the overlays: Daylight, Grid lines, Contour lines, PSR, Most sunlit.
 - **Day and night** (added 2026-11-15, Shay: "the map doesnt show an accurate depiction of the lit areas on the moon at
   the mission selected time"; definitions pending Shay's review). The globe object has `setSunDir(dir | null, shadow)`:
   `dir` = unit vector toward the Sun from the Moon's centre (MOON_ME, C6 `subsolarPoint().dir_me`), null = the whole
@@ -481,7 +498,8 @@ tripKey(points, rover), tripProblems(points) -> [message]      // a 2-point trip
   shown while a trip is on screen) is the sky panel's "ahead" track mode (`setTrackMode`); `ui.js` gives the direction
   with `setLookAheadSource(sky_ride.js lookAheadDirection)`: the path's heading, the slope × 0.7 + 1.5° up; the view
   eases toward it (C8 `setTrack({az_deg, el_deg})`). Follow (body) and Driver's view are exclusive: the last one chosen
-  wins.
+  wins. In every camera mode, each frame first turns the camera with the rover's local frame (`rideCamera`, C8
+  `turnFrame`), so only real changes of aim are eased.
 - **Globe:** `globe_route.js` draws each trip's path (`showRoute`), its stops as lettered dots (`setMarker` with `text`:
   B, C …; the start and the end are the scenario's pins), the moving rover dot (`setMarker` with `ahead`), and fits the
   globe to a trip when it is planned or selected (`fitTo`), all through `web/js/app/globe_api.js` (C8b). The selected

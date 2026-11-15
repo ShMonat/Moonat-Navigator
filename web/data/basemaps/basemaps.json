@@ -1,0 +1,206 @@
+{
+ "_generated_by": "AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.",
+ "format": "moonat-basemaps/1",
+ "built_utc": "2026-11-15",
+ "frame": "MOON_ME (selenographic latitude, east-positive longitude)",
+ "heights": "LOLA heights above the 1737.4 km reference sphere (m)",
+ "projections": "global: equirectangular, column 0 = -180 E, row 0 = +90; caps: the globe's polar stereographic cap projection (web/data/moonmap/moonmap.json cap_projection)",
+ "elevation": {
+  "global": {
+   "url": "elev_global.jpg",
+   "width": 2048,
+   "height": 1024
+  },
+  "caps": [
+   {
+    "id": "north",
+    "pole": 1,
+    "psi_max_deg": 22.0,
+    "fade_psi_deg": [
+     20.0,
+     16.0
+    ],
+    "size": 1024,
+    "url": "elev_north.jpg"
+   },
+   {
+    "id": "south",
+    "pole": -1,
+    "psi_max_deg": 22.0,
+    "fade_psi_deg": [
+     20.0,
+     16.0
+    ],
+    "size": 1024,
+    "url": "elev_south.jpg"
+   },
+   {
+    "id": "south_inner",
+    "pole": -1,
+    "psi_max_deg": 6.5,
+    "fade_psi_deg": [
+     6.0,
+     5.0
+    ],
+    "size": 1024,
+    "url": "elev_south_inner.jpg"
+   }
+  ],
+  "ramp": {
+   "name": "viridis",
+   "range_km": [
+    -8.0,
+    8.0
+   ],
+   "reference_radius_km": 1737.4,
+   "stops": [
+    {
+     "km": -8.0,
+     "hex": "#440154"
+    },
+    {
+     "km": -6.0,
+     "hex": "#472d7b"
+    },
+    {
+     "km": -4.0,
+     "hex": "#3b528b"
+    },
+    {
+     "km": -2.0,
+     "hex": "#2c728e"
+    },
+    {
+     "km": 0.0,
+     "hex": "#21918c"
+    },
+    {
+     "km": 2.0,
+     "hex": "#28ae80"
+    },
+    {
+     "km": 4.0,
+     "hex": "#5ec962"
+    },
+    {
+     "km": 6.0,
+     "hex": "#addc30"
+    },
+    {
+     "km": 8.0,
+     "hex": "#fde725"
+    }
+   ],
+   "note": "heights beyond the range take the end colours"
+  },
+  "hillshade": {
+   "light_azimuth_image_deg": 315.0,
+   "light_elevation_deg": 40.0,
+   "z_global": 3.0,
+   "z_caps": 2.0
+  }
+ },
+ "plain": {
+  "global": {
+   "url": "plain_global.jpg",
+   "width": 2048,
+   "height": 1024
+  },
+  "caps": [
+   {
+    "id": "north",
+    "pole": 1,
+    "psi_max_deg": 22.0,
+    "fade_psi_deg": [
+     20.0,
+     16.0
+    ],
+    "size": 1024,
+    "url": "plain_north.jpg"
+   },
+   {
+    "id": "south",
+    "pole": -1,
+    "psi_max_deg": 22.0,
+    "fade_psi_deg": [
+     20.0,
+     16.0
+    ],
+    "size": 1024,
+    "url": "plain_south.jpg"
+   },
+   {
+    "id": "south_inner",
+    "pole": -1,
+    "psi_max_deg": 6.5,
+    "fade_psi_deg": [
+     6.0,
+     5.0
+    ],
+    "size": 1024,
+    "url": "plain_south_inner.jpg"
+   }
+  ],
+  "grey": 0.62
+ },
+ "contours": {
+  "global": {
+   "url": "contours_global.png",
+   "width": 4096,
+   "height": 2048,
+   "interval_m": 1000.0,
+   "index_every": 5
+  },
+  "caps": [
+   {
+    "id": "north",
+    "pole": 1,
+    "url": "contours_north.png",
+    "psi_max_deg": 10.2,
+    "size": 2048,
+    "interval_m": 250.0,
+    "index_every": 4
+   },
+   {
+    "id": "south",
+    "pole": -1,
+    "url": "contours_south.png",
+    "psi_max_deg": 10.2,
+    "size": 2048,
+    "interval_m": 250.0,
+    "index_every": 4
+   }
+  ],
+  "switch_lat_deg": 80.0,
+  "line_px": {
+   "minor": 1.2,
+   "index": 2.0
+  },
+  "smoothing_sigma_px": {
+   "global": 1.0,
+   "caps": 1.5
+  },
+  "encoding": "palette PNG; red = minor line coverage, green = index line coverage (0..1)",
+  "method": "distance to the nearest level |h - L| / |grad h| on the output grid, box-filtered"
+ },
+ "source": {
+  "name": "NASA LRO LOLA gridded data records LDEM_16 and LDEM_75S_240M (PDS)",
+  "page": "https://pds-geosciences.wustl.edu/missions/lro/lola.htm",
+  "credit": "NASA/GSFC LRO LOLA team",
+  "north_cap_contours": "LDEM_16 (about 1.9 km/px; no north polar DEM in the shared cache)",
+  "south_cap_contours": "LDEM_75S_240M (240 m/px)"
+ },
+ "bytes": {
+  "elev_global.jpg": 448163,
+  "plain_global.jpg": 293321,
+  "elev_north.jpg": 162887,
+  "plain_north.jpg": 114465,
+  "elev_south.jpg": 175686,
+  "plain_south.jpg": 123119,
+  "elev_south_inner.jpg": 109600,
+  "plain_south_inner.jpg": 73792,
+  "contours_global.png": 813832,
+  "contours_north.png": 317202,
+  "contours_south.png": 409515
+ }
+}

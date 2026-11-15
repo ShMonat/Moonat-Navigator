@@ -19,6 +19,8 @@ export const store = {
   body: "sun", // the Sun | Earth | Both switch: "sun" | "earth" (the views aim at it, its data shows) | "both" (both bodies' data)
   theme: "dark",
   mapLayers: [], // the globe's map layers that are on ("psr", "sun"; web/js/globe/layers.js)
+  // the globe's base map ("imagery" | "elevation" | "plain"), grid lines (on) and contour lines (off); link "ml"
+  mapStyle: { base: "imagery", grid: true, contours: false },
   daylight: true, // the globe shows day and night at the sky's moment (web/js/globe/daylight.js; link "ml=noday" when off)
 };
 

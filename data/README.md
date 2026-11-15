@@ -28,3 +28,11 @@ crop rows with HTTP multi-range requests (about 70 MB in all), caches them as `.
 worktree, the main checkout's folder) and logs the bytes in `data/raw/illumination/download_log.json` (cap 150 MB,
 separate from the DEM budget). It writes three 2-bit PNG layer images and `overlays.json` (about 280 kB) to
 `web/data/overlays/`, and the sanity checks to `docs/validation/map_layers.json`. A rerun downloads nothing.
+
+## Globe base maps and contour lines (LOLA, no download)
+`uv run python scripts/data/build_base_maps.py` reads LDEM_16 and LDEM_75S_240M from `data/raw/dem/` (run
+`build_terrain.py` first if they are missing) and writes the "Elevation" (viridis height tint times hillshade) and
+"Plain" (grey, light hillshade) base maps as JPEGs in the globe's projections (equirectangular 2048 x 1024 plus the polar
+caps of moonmap.json), the contour lines as 2-bit PNGs (global 4096 x 2048 every 1 km, index 5 km; polar caps 2048 x
+2048 poleward of 80°, every 250 m, index 1 km) and `basemaps.json` (with the AI note) to `web/data/basemaps/`, about
+3 MB in all. `--preview` also writes `outputs/base_maps_preview.png`. Browser check: `scripts/check_base_maps.py`.

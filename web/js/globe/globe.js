@@ -2,7 +2,8 @@
 // Moon globe location picker: a three.js sphere with the LRO WAC mosaic (NASA Moon Trek) and LOLA hillshade polar caps,
 // an orthographic camera, preset views, drag / wheel / pinch navigation, a lat/lon graticule, catalog-site markers,
 // scenario pins (click, and drag for the draggable ones), route lines, fly-to and fit-to-points animations, and day and
-// night at a given moment (a smooth-sphere terminator from the Sun's direction, daylight.js).
+// night at a given moment (a smooth-sphere terminator from the Sun's direction, daylight.js). Base maps (the imagery,
+// or LOLA "Elevation" and "Plain"), the graticule and LOLA contour lines are a map style (setStyle, layers.js).
 // Tapping or clicking the surface reports selenographic latitude and east longitude (MOON_ME).
 // Geometry lives in geo.js (tested in web/tests/globe_geo.test.mjs and globe_routes.test.mjs). The scene uses MOON_ME
 // coordinates directly.
@@ -14,7 +15,7 @@ import {
   radiusPx, frustumHalf, northUp, fitPoints, norm, dot, angleDeg, greatCirclePath, visibleRuns, fitView, flightZoom,
   flightMs, padBox, MIN_ZOOM, MAX_ZOOM, FIT_MAX_ZOOM, R_MOON_KM, snapTarget,
 } from "./geo.js";
-import { LAYERS, LIT_THRESHOLDS, normalizeLayers, capSamples } from "./layers.js";
+import { LAYERS, LIT_THRESHOLDS, normalizeLayers, capSamples, normalizeStyle } from "./layers.js";
 import { createConeLayer } from "./view_cone.js";
 import { DAYLIGHT_UNIFORMS_GLSL, DAYLIGHT_FUNCS_GLSL, NIGHT_RGB, LAYER_NIGHT_SHARE } from "./daylight.js";
 
@@ -62,6 +63,19 @@ uniform vec3 cPsr;
 uniform vec3 cLow;
 uniform vec3 cHigh;
 uniform vec3 aLay;          // blend weights of cPsr, cLow, cHigh
+// Base map style (layers.js BASE_MAPS): 0 imagery (grey, red channel, tone curve), 1 Elevation / Plain (colour as
+// stored). Grid lines on (0/1). Contour lines (web/data/basemaps/): global equirectangular image and polar caps
+// (stereographic, tan(psi_max / 2) in rCon), switching at psi psiCon; red = minor line, green = index line.
+uniform float uRgb;
+uniform float uGrid;
+uniform sampler2D tConG;
+uniform sampler2D tConN;
+uniform sampler2D tConS;
+uniform vec3 uConHas;       // global, north, south contour images loaded (0/1)
+uniform float uConOn;
+uniform float rCon;
+uniform float psiCon;
+uniform vec3 conSize;       // contour image sizes (px): global width, height; cap size
 // Day and night at the selected moment (daylight.js).
 ${DAYLIGHT_UNIFORMS_GLSL}
 varying vec3 vPos;
@@ -93,19 +107,23 @@ void main() {
   float psiS = 0.5 * PI + lat;
 
   // Base map (equirectangular, geometry UVs) and polar caps (stereographic, from the position).
-  float c = uHas.w > 0.5 ? texture2D(tBase, vUv).r : 0.42;
+  vec3 cb = uHas.w > 0.5 ? texture2D(tBase, vUv).rgb : vec3(0.42);
   float kN = 1.0 / max(1.0 + u.z, 0.02);
   float kS = 1.0 / max(1.0 - u.z, 0.02);
-  float cN = texture2D(tNorth, 0.5 + vec2(kN * u.y, -kN * u.x) / (2.0 * rOuter)).r;
-  float cS = texture2D(tSouth, 0.5 + vec2(kS * u.y, kS * u.x) / (2.0 * rOuter)).r;
-  float cI = texture2D(tInner, 0.5 + vec2(kS * u.y, kS * u.x) / (2.0 * rInner)).r;
-  c = mix(c, cN, uHas.x * capWeight(psiN, fadeOuter));
-  c = mix(c, cS, uHas.y * capWeight(psiS, fadeOuter));
-  c = mix(c, cI, uHas.z * capWeight(psiS, fadeInner));
+  vec3 cN = texture2D(tNorth, 0.5 + vec2(kN * u.y, -kN * u.x) / (2.0 * rOuter)).rgb;
+  vec3 cS = texture2D(tSouth, 0.5 + vec2(kS * u.y, kS * u.x) / (2.0 * rOuter)).rgb;
+  vec3 cI = texture2D(tInner, 0.5 + vec2(kS * u.y, kS * u.x) / (2.0 * rInner)).rgb;
+  cb = mix(cb, cN, uHas.x * capWeight(psiN, fadeOuter));
+  cb = mix(cb, cS, uHas.y * capWeight(psiS, fadeOuter));
+  cb = mix(cb, cI, uHas.z * capWeight(psiS, fadeInner));
 
-  // Tone: a gentle contrast curve, and limb darkening for the sense of a sphere.
-  c = clamp((pow(c, 0.9) - 0.4) * 1.18 + 0.44, 0.0, 1.0);
+  // Imagery: a gentle contrast curve on the grey (red channel). Elevation and Plain: the colours as built.
+  float c = clamp((pow(cb.r, 0.9) - 0.4) * 1.18 + 0.44, 0.0, 1.0);
   vec3 col = vec3(c) * vec3(1.0, 0.985, 0.955);
+  if (uRgb > 0.5) {
+    col = cb;
+    c = dot(cb, vec3(0.299, 0.587, 0.114));
+  }
 
   // Day and night, and the Earth's shadow in an eclipse: the ground dims on the night side; the layer colours dim
   // less, so they stay readable.
@@ -130,6 +148,31 @@ void main() {
     col = mix(col, cPsr * relief * layShade, aLay.x * psr);
     col = mix(col, cLow * relief * layShade, aLay.y * lo * (1.0 - hi));
     col = mix(col, cHigh * relief * layShade, aLay.z * hi);
+  }
+
+  // Contour lines: dark on lit ground, light on dark ground (night side, deep colours). Sampled every time (see above).
+  // Past about 12 screen pixels per contour-image pixel (deep zoom) the lines would be wide blurred bands: they fade out.
+  if (uConOn > 0.5) {
+    vec2 uvN = 0.5 + vec2(kN * u.y, -kN * u.x) / (2.0 * rCon);
+    vec2 uvS = 0.5 + vec2(kS * u.y, kS * u.x) / (2.0 * rCon);
+    vec2 lG = texture2D(tConG, vUv).rg;
+    vec2 lN = texture2D(tConN, uvN).rg;
+    vec2 lS = texture2D(tConS, uvS).rg;
+    float wN = uConHas.y * inCap(psiN, psiCon);
+    float wS = uConHas.z * inCap(psiS, psiCon);
+    vec2 l = lG * uConHas.x;
+    l = mix(l, lN, wN);
+    l = mix(l, lS, wS);
+    // Image pixels per screen pixel, for the image in use.
+    float tG = max(fwidth(vUv.x) * conSize.x, fwidth(vUv.y) * conSize.y);
+    float tN = max(fwidth(uvN.x), fwidth(uvN.y)) * conSize.z;
+    float tS = max(fwidth(uvS.x), fwidth(uvS.y)) * conSize.z;
+    float tpx = mix(mix(tG, tN, wN), tS, wS);
+    float a = max(0.7 * smoothstep(0.06, 0.5, l.r), 0.95 * smoothstep(0.06, 0.5, l.g));
+    a *= smoothstep(0.08, 0.25, tpx);
+    float lum = dot(col, vec3(0.299, 0.587, 0.114));
+    vec3 ink = mix(vec3(0.92), vec3(0.05, 0.04, 0.03), smoothstep(0.16, 0.32, lum));
+    col = mix(col, ink, a);
   }
 
   col *= mix(0.5, 1.0, pow(clamp(vNz, 0.0, 1.0), 0.45));
@@ -163,10 +206,10 @@ void main() {
   // Finest rings at 89 and 89.5 deg.
   float q = max(lineAA(abs(aLat - 89.0) * D2R, pxLat, w), lineAA(abs(aLat - 89.5) * D2R, pxLat, w));
   gl = max(gl, q * 0.28 * uUltra);
-  col = mix(col, vec3(1.0), gl);
+  col = mix(col, vec3(1.0), gl * uGrid);
   // Near side / far side boundary: the 90 E and 90 W meridians (the mean limb seen from Earth), fainter at the poles.
   float b = lineAA(abs(abs(lon) - 0.5 * PI), pxLon, 1.5 * uDpr) * (1.0 - 0.7 * smoothstep(55.0, 75.0, aLat));
-  col = mix(col, vec3(0.45, 0.74, 1.0), b * 0.7 * uBoundary);
+  col = mix(col, vec3(0.45, 0.74, 1.0), b * 0.7 * uBoundary * uGrid);
 
   gl_FragColor = vec4(col, 1.0);
 }`;
@@ -474,6 +517,16 @@ export async function createGlobe(container, opts = {}) {
     cLow: { value: v3(layerInfo.sun.rgb.low) },
     cHigh: { value: v3(layerInfo.sun.rgb.high) },
     aLay: { value: v3([layerInfo.psr.alpha.psr, layerInfo.sun.alpha.low, layerInfo.sun.alpha.high]) },
+    uRgb: { value: 0 },
+    uGrid: { value: 1 },
+    tConG: { value: noLayer },
+    tConN: { value: noLayer },
+    tConS: { value: noLayer },
+    uConHas: { value: new THREE.Vector3(0, 0, 0) },
+    uConOn: { value: 0 },
+    rCon: { value: Math.tan((10.2 * DEG) / 2) },
+    psiCon: { value: 10 * DEG },
+    conSize: { value: new THREE.Vector3(4096, 2048, 2048) },
     uSunDir: { value: new THREE.Vector3(1, 0, 0) },
     uDayOn: { value: 0 },
     cNight: { value: v3(NIGHT_RGB) },
@@ -1284,12 +1337,12 @@ export async function createGlobe(container, opts = {}) {
   const maxAniso = renderer.capabilities.getMaxAnisotropy();
   // The images are greyscale: on WebGL2 keep one 8-bit channel on the GPU (a quarter of the RGBA memory).
   const oneChannel = renderer.capabilities.isWebGL2;
-  function loadTex(url) {
+  function loadTex(url, rgb = false) {
     return new Promise((resolve, reject) => {
       loader.load(
         url,
         (t) => {
-          if (oneChannel) t.format = THREE.RedFormat;
+          if (oneChannel && !rgb) t.format = THREE.RedFormat; // rgb: colour images (Elevation, contours)
           t.anisotropy = Math.min(8, maxAniso);
           t.minFilter = THREE.LinearMipmapLinearFilter;
           t.magFilter = THREE.LinearFilter;
@@ -1301,6 +1354,111 @@ export async function createGlobe(container, opts = {}) {
         reject,
       );
     });
+  }
+
+  // ----- Base maps, grid and contour lines (layers.js BASE_MAPS, GRID_LAYER, CONTOUR_LAYER) -----
+  // A base map is a set of four textures in the same projections (global, north, south, south inner cap). The imagery
+  // set fills as it loads below; Elevation and Plain load on first use (web/data/basemaps/basemaps.json, built by
+  // scripts/data/build_base_maps.py, same cap geometry as moonmap.json). Until a chosen set's global image is in, the
+  // globe keeps showing the imagery.
+  const basemapUrl = opts.basemapUrl ?? "data/basemaps/";
+  const BASE_SLOTS = [["tBase", "w"], ["tNorth", "x"], ["tSouth", "y"], ["tInner", "z"]];
+  const newSet = () => ({ tBase: blank, tNorth: blank, tSouth: blank, tInner: blank, has: { x: 0, y: 0, z: 0, w: 0 } });
+  const baseSets = { imagery: newSet() };
+  let mapStyle = normalizeStyle(null);
+  let basemapsJson = null;
+  let conLoad = null;
+
+  function applyBase() {
+    const want = baseSets[mapStyle.base];
+    const s = want && want.has.w ? want : baseSets.imagery;
+    for (const [slot, flag] of BASE_SLOTS) {
+      uniforms[slot].value = s[slot];
+      uniforms.uHas.value[flag] = s.has[flag];
+    }
+    uniforms.uRgb.value = s === baseSets.imagery ? 0 : 1;
+    root.dataset.base = s === baseSets.imagery ? "imagery" : mapStyle.base; // for screenshots and tests
+    requestRender();
+  }
+
+  /** Texture `t` arrived for slot `slot` ("tBase", "tNorth", ...) of base map `id`. */
+  function putBase(id, slot, t) {
+    const s = baseSets[id];
+    s[slot] = t;
+    s.has[BASE_SLOTS.find((x) => x[0] === slot)[1]] = 1;
+    applyBase();
+  }
+
+  function loadBasemaps() {
+    basemapsJson ??= fetch(`${basemapUrl}basemaps.json`).then((r) => {
+      if (!r.ok) throw new Error(`basemaps.json: HTTP ${r.status}`);
+      return r.json();
+    });
+    basemapsJson.catch(() => (basemapsJson = null));
+    return basemapsJson;
+  }
+
+  /** Load base map `id` ("elevation", "plain"): the global image, then the south, south inner and north caps. */
+  function loadBaseSet(id) {
+    if (baseSets[id]) return baseSets[id].ready;
+    const set = newSet();
+    baseSets[id] = set;
+    const slotOf = { north: "tNorth", south: "tSouth", south_inner: "tInner" };
+    set.ready = loadBasemaps().then(async (m) => {
+      const spec = m[id];
+      putBase(id, "tBase", await loadTex(`${basemapUrl}${spec.global.url}`, true));
+      for (const cid of ["south", "south_inner", "north"]) {
+        const c = spec.caps.find((x) => x.id === cid);
+        if (c) putBase(id, slotOf[cid], await loadTex(`${basemapUrl}${c.url}`, true));
+      }
+    });
+    set.ready.catch((err) => {
+      console.warn("[moonat] base map failed to load", id, err);
+      if (!set.has.w) delete baseSets[id]; // the next choice tries again
+      applyBase();
+    });
+    return set.ready;
+  }
+
+  /** Load the contour images: the global one, then the south and north caps. */
+  function loadContours() {
+    conLoad ??= loadBasemaps().then(async (m) => {
+      const c = m.contours;
+      uniforms.rCon.value = Math.tan((c.caps[0].psi_max_deg * DEG) / 2);
+      uniforms.psiCon.value = (90 - c.switch_lat_deg) * DEG;
+      uniforms.conSize.value.set(c.global.width, c.global.height, c.caps[0].size);
+      const order = [["tConG", "x", c.global.url]];
+      for (const k of [...c.caps].sort((a, b) => a.pole - b.pole)) order.push(k.pole > 0 ? ["tConN", "y", k.url] : ["tConS", "z", k.url]);
+      for (const [slot, flag, url] of order) {
+        uniforms[slot].value = await loadTex(`${basemapUrl}${url}`, true);
+        uniforms.uConHas.value[flag] = 1;
+        requestRender();
+      }
+      root.dataset.contoursLoaded = "true"; // for screenshots and tests
+    });
+    conLoad.catch((err) => {
+      console.warn("[moonat] contour lines failed to load", err);
+      conLoad = null;
+    });
+    return conLoad;
+  }
+
+  /**
+   * The map style: { base: "imagery" | "elevation" | "plain", grid: bool, contours: bool } (layers.js normalizeStyle).
+   * The data load on first use; the promise resolves with the style once its images have arrived.
+   */
+  function setStyle(style) {
+    mapStyle = normalizeStyle(style);
+    uniforms.uGrid.value = mapStyle.grid ? 1 : 0;
+    gridLayer.style.display = mapStyle.grid ? "" : "none";
+    uniforms.uConOn.value = mapStyle.contours ? 1 : 0;
+    root.dataset.grid = mapStyle.grid ? "on" : "off";
+    root.dataset.contours = mapStyle.contours ? "on" : "off";
+    applyBase();
+    const jobs = [];
+    if (mapStyle.base !== "imagery") jobs.push(loadBaseSet(mapStyle.base));
+    if (mapStyle.contours) jobs.push(loadContours());
+    return Promise.all(jobs).then(() => ({ ...mapStyle }));
   }
 
   let manifest = null;
@@ -1325,12 +1483,10 @@ export async function createGlobe(container, opts = {}) {
   // opts.hiResAfter (a promise) holds the detail back further, e.g. until the app's first results are drawn.
   let fullBase = false;
   const showBase = (t) => {
-    const old = uniforms.tBase.value;
-    uniforms.tBase.value = t;
-    uniforms.uHas.value.w = 1;
+    const old = baseSets.imagery.tBase;
+    putBase("imagery", "tBase", t);
     loading.hidden = true;
     if (old !== blank) old.dispose();
-    requestRender();
   };
   const previewUrl = manifest?.base?.preview_url;
   const preview = previewUrl
@@ -1347,7 +1503,7 @@ export async function createGlobe(container, opts = {}) {
     });
   ready.catch((err) => {
     console.error("[moonat] globe base texture failed", err);
-    if (uniforms.uHas.value.w < 0.5) loading.textContent = "The Moon map image could not load.";
+    if (baseSets.imagery.has.w < 0.5) loading.textContent = "The Moon map image could not load.";
   });
   // The south caps first (the polar candidate sites), then the north cap.
   const capLoads = [
@@ -1358,11 +1514,7 @@ export async function createGlobe(container, opts = {}) {
     (prev, [c, u, flag]) =>
       prev.then(() =>
         loadTex(`${dataUrl}${c.url}`)
-          .then((t) => {
-            uniforms[u].value = t;
-            uniforms.uHas.value[flag] = 1;
-            requestRender();
-          })
+          .then((t) => putBase("imagery", u, t))
           .catch((err) => console.warn("[moonat] globe cap texture failed", c.url, err)),
       ),
     ready.catch(() => {}),
@@ -1575,6 +1727,9 @@ export async function createGlobe(container, opts = {}) {
     addTool,
     setLayers,
     getLayers: () => layerIds.slice(),
+    /** Base map, grid and contour lines: { base, grid, contours } (layers.js normalizeStyle). */
+    setStyle,
+    getStyle: () => ({ ...mapStyle }),
     layerPoleInView,
     slots: { top: slotTop, bottom: slotBottom, caption: slotCaption },
     setSunDir,

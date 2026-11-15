@@ -10,7 +10,7 @@
 //   - t_src (optional, not in links): where the times came from, "mission" (a catalog mission's landing),
 //     "user" (typed or picked) or "default" (set when the place changed); see hasMissionDates.
 
-import { formatMapLink, parseLayers, parseDaylight } from "../globe/layers.js";
+import { formatMapLink, parseLayers, parseDaylight, parseStyle } from "../globe/layers.js";
 
 /**
  * Categorical palette: six colours that stay apart for colour-blind readers in every pair (lines overlap, so all pairs
@@ -375,7 +375,8 @@ export function physicsKey(s) {
 //   both bodies' data; default "sun");
 //   x: the charts' time axis ("utc" | "dist", default time since start); t = the sky's moment, time since the
 //   scenarios' start (whole seconds); v = camera of the first sky view: azimuth, elevation, horizontal field of view
-//   (deg, local horizon frame); ml = the globe's map layers that are on ("psr.sun", web/js/globe/layers.js);
+//   (deg, local horizon frame); ml = the globe's map layers that are on ("psr.sun", web/js/globe/layers.js), plus
+//   words for what differs from the default map: "elev" | "plain" (base map), "ct" (contours), "noday", "nogrid";
 //   s = the scenarios.
 //   Links from the page's Compare and Sky tabs also hold tab ("sky") and look ("earth" | "sun", the last Look
 //   button); they still decode, and hashBody turns them into the body they showed. The page no longer writes them.
@@ -403,9 +404,10 @@ function b64urlDecode(str) {
  * Encode the app state into a URL hash string (with the leading "#"). `sky` (optional): { offsetMs, view: { az_deg,
  * el_deg, fov_deg } }, as returned by the sky panel; null fields are left out. `tab` and `sky.look` are written only
  * when given (the page of the tab era wrote them; tests rebuild such links). `layers`: the globe's map layers on;
- * `daylight`: its day/night shading (on by default; "noday" in "ml" when off).
+ * `daylight`: its day/night shading (on by default; "noday" in "ml" when off); `style`: its base map, grid and contour
+ * lines ({ base, grid, contours }; the default writes nothing).
  */
-export function encodeHash({ scenarios, tab = "compare", xaxis = "met", body = "sun", sky = null, layers = [], daylight = true }) {
+export function encodeHash({ scenarios, tab = "compare", xaxis = "met", body = "sun", sky = null, layers = [], daylight = true, style = undefined }) {
   const rows = scenarios.map((s) => [
     s.label || "",
     s.lat_deg === null ? null : round(s.lat_deg, 5),
@@ -429,7 +431,7 @@ export function encodeHash({ scenarios, tab = "compare", xaxis = "met", body = "
       p.set("v", [((v.az_deg % 360) + 360) % 360, v.el_deg, v.fov_deg].map((x) => String(round(x, 2))).join(","));
     }
   }
-  const ml = formatMapLink(layers, daylight);
+  const ml = formatMapLink(layers, daylight, style);
   if (ml) p.set("ml", ml);
   p.set("s", b64urlEncode(JSON.stringify(rows)));
   return "#" + p.toString();
@@ -437,7 +439,8 @@ export function encodeHash({ scenarios, tab = "compare", xaxis = "met", body = "
 
 /**
  * Decode a URL hash. Returns { scenarios, tab, tabGiven, xaxis, body, sky: { offsetMs, look, view }, layers,
- * daylight } (sky fields null when absent, layers [] when none, daylight true unless the link turns it off), with
+ * daylight, style } (sky fields null when absent, layers [] when none, daylight true unless the link turns it off,
+ * style the default map style unless the link says otherwise), with
  * scenarios = [] for a link without them (e.g. "#tab=sky"). Null when the hash holds nothing Moonat knows, or broken
  * scenarios.
  */
@@ -479,7 +482,8 @@ export function decodeHash(hash) {
     const view = v.length === 3 && v.every(Number.isFinite) && v[2] > 0 ? { az_deg: v[0], el_deg: v[1], fov_deg: v[2] } : null;
     const sky = { offsetMs: Number.isFinite(t) && t > 0 ? t * 1000 : null, look, view };
     const ml = p.get("ml");
-    return { scenarios, tab, tabGiven: p.has("tab"), xaxis, body, sky, layers: parseLayers(ml), daylight: parseDaylight(ml) };
+    return { scenarios, tab, tabGiven: p.has("tab"), xaxis, body, sky, layers: parseLayers(ml), daylight: parseDaylight(ml),
+      style: parseStyle(ml) };
   } catch {
     return null;
   }

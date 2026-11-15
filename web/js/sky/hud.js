@@ -72,10 +72,24 @@ export function createHud(container, { onLookAt = null, onToggleConstellations, 
   const topLeft = root.querySelector('.moonat-sky-tl');
   const labels = document.createElement('div');
   root.appendChild(labels);
-  labels.addEventListener('pointerdown', (e) => { if (e.target.closest('.moonat-sky-edge')) e.stopPropagation(); });
+  // A body's edge arrow is drawn again in each frame of a playing timelapse, so the button under the pointer at the
+  // release may be a new one and no "click" follows: a press and a release on the arrow of the same body turn the view.
+  // The keyboard (Enter or Space: a click without a pointer) works as usual.
+  let pressedBody = null;
+  labels.addEventListener('pointerdown', (e) => {
+    const b = e.target.closest('.moonat-sky-edge');
+    pressedBody = b ? b.dataset.body : null;
+    if (b) e.stopPropagation();
+  });
+  labels.addEventListener('pointerup', (e) => {
+    const b = e.target.closest('.moonat-sky-edge');
+    const body = pressedBody;
+    pressedBody = null;
+    if (b && body === b.dataset.body && onLookAt) onLookAt(body);
+  });
   labels.addEventListener('click', (e) => {
     const b = e.target.closest('.moonat-sky-edge');
-    if (b && onLookAt) onLookAt(b.dataset.body);
+    if (b && e.detail === 0 && onLookAt) onLookAt(b.dataset.body);
   });
   const bar = document.createElement('div');
   bar.className = 'moonat-sky-bar';
@@ -141,6 +155,23 @@ export function createHud(container, { onLookAt = null, onToggleConstellations, 
   };
   // Signed values with a true minus sign; positives get a figure space so the columns line up.
   let barBox = { w: -1 };
+  // While a timelapse plays the HUD is redrawn every frame: an element's HTML is written only when it changed, and the
+  // boxes of the readout and the note are measured again (a forced layout) only when their shape or the size changed.
+  const shown = new Map();
+  const setHtml = (el, html) => {
+    if (shown.get(el) === html) return;
+    shown.set(el, html);
+    el.innerHTML = html;
+  };
+  const boxCache = new Map();
+  const shapeOf = (html) => html.replace(/[0-9]/g, '0');   // tabular figures: new digits keep the box
+  const cachedBox = (el, key) => {
+    const c = boxCache.get(el);
+    if (c && c.key === key) return c.box;
+    const box = boxOf(el);
+    boxCache.set(el, { key, box });
+    return box;
+  };
   const fmt = (x, n = 1) => { const t = signed1(x, n); return t.startsWith('−') ? t : ' ' + t; };
 
   /**
@@ -160,7 +191,7 @@ export function createHud(container, { onLookAt = null, onToggleConstellations, 
     if (s && level === 'minimal') {
       // Minimal: the time and at most one short status line (the full numbers live in the page, e.g. a card footer).
       const st = eclipseStatus(s.sun);
-      info.innerHTML = `<b>${isoUtc(s.t_ms).replace('T', ' ').replace('Z', ' UTC')}</b>${st ? `\n<span style="color:#ffb27a">${st}</span>` : ''}`;
+      setHtml(info, `<b>${isoUtc(s.t_ms).replace('T', ' ').replace('Z', ' UTC')}</b>${st ? `\n<span style="color:#ffb27a">${st}</span>` : ''}`);
     } else if (s) {
       // Plain words with the precise numbers: "height" is the elevation above the flat horizon, "direction" the compass
       // point and the azimuth (clockwise from north).
@@ -172,15 +203,16 @@ export function createHud(container, { onLookAt = null, onToggleConstellations, 
       };
       const [cs, ce] = compassPair(s.sun.az_deg, s.earth.az_deg);
       const dir = (c, az) => `direction ${c} ${az.toFixed(1)}°`;
-      info.innerHTML = `<b>${isoUtc(s.t_ms).replace('T', ' ').replace('Z', ' UTC')}</b>\n`
+      setHtml(info, `<b>${isoUtc(s.t_ms).replace('T', ' ').replace('Z', ' UTC')}</b>\n`
         + `Sun    height ${fmt(s.sun.el_deg)}°  ${dir(cs, s.sun.az_deg)}${status(s.sun)}\n`
         + `Earth  height ${fmt(s.earth.el_deg)}°  ${dir(ce, s.earth.az_deg)}`
         + status(s.earth, s.earth.phase_frac != null ? `${Math.round(s.earth.phase_frac * 100)}% lit` : '')
-        + eclipseLine(s.sun);
+        + eclipseLine(s.sun));
     }
-    badge.hidden = !badgeHtml;
-    if (badgeHtml && badge.innerHTML !== badgeHtml) badge.innerHTML = badgeHtml;
-    note.innerHTML = (noteText || []).join('<br>');
+    if (badge.hidden !== !badgeHtml) badge.hidden = !badgeHtml;
+    if (badgeHtml) setHtml(badge, badgeHtml);
+    const noteHtml = (noteText || []).join('<br>');
+    setHtml(note, noteHtml);
     // Compass: azimuth ticks placed where that azimuth, at the elevation of the view centre, falls on screen.
     // Tick step: the finest of 1, 2, 5, 10, 15, 30, 45 deg whose labels stay at least ~64 px apart.
     let html = '';
@@ -195,14 +227,17 @@ export function createHud(container, { onLookAt = null, onToggleConstellations, 
       const card = CARDINALS[a];
       html += `<div class="moonat-sky-tick${card ? ' major' : ''}" style="left:${p.x.toFixed(1)}px">${card || a + '°'}</div>`;
     }
-    compass.innerHTML = html;
+    setHtml(compass, html);
     // Boxes labels and arrows must stay off: the button bar (measured again only when the view's width changes), the
     // caller's (close-up insets), the readout with its badge, the note, and the disks of the Sun and the Earth.
     if (barBox.w !== w) {
       barBox = { w, ...boxOf(bar) };
     }
     const boxes = [...avoid];
-    for (const b of [barBox, boxOf(topLeft), noteText?.length ? boxOf(note) : null]) if (b && b.x1 - b.x0 > 8) boxes.push(b);
+    const size = `${w}x${container.clientHeight}`;
+    const tlBox = cachedBox(topLeft, `${size}|${shapeOf(shown.get(info) ?? '')}|${badgeHtml}`);
+    const noteBox = noteText?.length ? cachedBox(note, `${size}|${noteHtml}`) : null;
+    for (const b of [barBox, tlBox, noteBox]) if (b && b.x1 - b.x0 > 8) boxes.push(b);
     for (const b of bodies) {
       if (b.kind === 'in' || b.kind === 'ghost') boxes.push({ x0: b.x - b.r - 4, y0: b.y - b.r - 4, x1: b.x + b.r + 4, y1: b.y + b.r + 4 });
     }
@@ -254,7 +289,7 @@ export function createHud(container, { onLookAt = null, onToggleConstellations, 
         lh += `<div class="moonat-sky-label const" style="left:${p.x.toFixed(1)}px;top:${p.y.toFixed(1)}px">${m.name}</div>`;
       }
     }
-    labels.innerHTML = lh;
+    setHtml(labels, lh);
   }
 
   /** Bounding box of an element relative to the HUD (CSS px), with a 4 px margin; null when it is not shown. */
@@ -278,10 +313,10 @@ export function createHud(container, { onLookAt = null, onToggleConstellations, 
    */
   function setCaptions(list) {
     capList = list;
-    caps.innerHTML = list.map((c) => {
+    setHtml(caps, list.map((c) => {
       const n = c.note ? `<br><span class="moonat-sky-illus${noteOpen ? ' open' : ''}" role="note" title="${c.note.title}">${noteOpen ? c.note.title : c.note.text}</span>` : '';
       return `<div class="moonat-sky-cap" style="left:${c.x.toFixed(1)}px;top:${c.y.toFixed(1)}px${c.maxW ? `;max-width:${Math.round(c.maxW)}px;white-space:normal` : ''}">${c.text}${n}</div>`;
-    }).join('');
+    }).join(''));
   }
   const setCloseUp = (on) => closeUpBtn.setAttribute('aria-pressed', String(on));
   const setConstellations = (on) => constellationsBtn?.setAttribute('aria-pressed', String(on));
