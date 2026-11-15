@@ -226,6 +226,14 @@ await createSkyView(container /* HTMLElement */, {
   null)`, `getTrackMode()`, `onTrackModeChange(cb)`, `setLookAheadSource(fn(item, tMs, ride) → { az_deg, el_deg } |
   null)`): the last one chosen wins; pressing the one that is on turns it off (free look); a drag pauses it
   (`aria-pressed="mixed"`, "· paused") and pressing it then resumes.
+- **View-change hook** (added 2026-11-15, for the globe's view-direction wedge, C8b `setViewCone`):
+  `onViewChange(cb)` → an unsubscribe function. `cb({ az_deg, el_deg, hfov_deg })` is called after each render that
+  moved the camera (a drag, a zoom, `lookAt`/`lookAtBody`, tracking, a resize that reframes): at most once per render,
+  so at most about once per animation frame, never for an unchanged camera and never before the first `update()`.
+  `az_deg`/`el_deg`: the frame centre, true azimuth and elevation in the ENU frame of the view's site (§0; for a rover
+  trip, the site the current sky state was computed for); `hfov_deg`: the frame's horizontal field of view (a tall
+  frame's own width). The next render tells a new listener the current camera. The 2D fallback does not have it: call
+  with `?.`.
 - **App layout (web-app, Shay 2026-11-15):** the sky fills the window like an app: one stage (`#sky-stage`) holds the
   "what to look for" line, the views, the timelapse bar with the camera group, and the Sun | Earth switch; the data
   starts under it. Each view's card has a "⋯" options menu and a small full-screen icon in its top-right corner (the
@@ -253,13 +261,14 @@ Route lines, fly-to and fit-to-points on the Moon globe (web/js/globe/). Import 
 imports of its own; calls made before the globe has loaded are kept and applied when it arrives: every route is drawn
 and the last move is played). Points are `{ lat_deg, lon_deg }` (MOON_ME, east-positive, §0).
 ```js
-import { showRoute, clearRoute, fitTo, flyTo, setMarker, clearMarker, globeReady } from "../app/globe_api.js";
+import { showRoute, clearRoute, fitTo, flyTo, setMarker, clearMarker, setViewCone, globeReady } from "../app/globe_api.js";
 showRoute(id, [{ lat_deg, lon_deg }, ...], { color, width })  // draw or replace route `id`
 clearRoute(id)
 fitTo([{ lat_deg, lon_deg }, ...], { padding, maxZoom })      // turn and zoom so all points are in view
 flyTo(lat_deg, lon_deg, zoom)                                 // zoom 1 = the whole disc; omitted = keep the zoom
 setMarker(id, { lat, lon, color, label, ahead: { lat, lon } | null, text })  // a moving dot, e.g. the rover
 clearMarker(id)
+setViewCone(id, { lat, lon, az_deg, hfov_deg, color } | null)  // view-direction wedge at a place; null removes it
 await globeReady()                                            // the globe object below, once it exists
 ```
 - `showRoute`: a polyline along the great circles between consecutive points (densified to ≤ 0.5° steps), drawn
@@ -277,7 +286,20 @@ await globeReady()                                            // the globe objec
   written in a slightly larger dot. Call it again to move it. `lat_deg`/`lon_deg` work too.
 - `flyTo`: a smooth turn and zoom (0.45–1.6 s, zooming out half-way on a long hop, `flightZoom`/`flightMs` in geo.js).
   `prefers-reduced-motion` jumps instead.
-- The globe object (`createGlobe` in web/js/globe/globe.js, also returned by `globeReady`) has the same six functions
+- `setViewCone` (added 2026-11-15, Shay: "like the Google Maps heading cone"): a semi-transparent sector at the place
+  `lat`, `lon` (deg) that fades outward, in `color` (CSS; default the theme accent). Its axis is the true azimuth
+  `az_deg` and its opening `hfov_deg`, both from the sky view (C8 `onViewChange`). Frame: the place's ENU frame from
+  the physics' own `siteFrame` (web/js/physics/frames.js, §0): up = radial, azimuth clockwise from local north;
+  exactly at a pole (|lat| > 89.9999°) north is the direction toward the 0° meridian. The sector is drawn on the
+  sphere: bearing `az` leaves the place along the great circle with direction cos(az)·north + sin(az)·east, and the arc
+  lies at angular radius ρ = asin(66 px / Moon radius in px). It is projected with the globe's orthographic view, so
+  it keeps about 66 CSS px on screen at every zoom and foreshortens toward the limb like the ground; points past the
+  limb sit on it, and the wedge fades out as its place reaches the limb (web/js/globe/view_cone.js; tests
+  web/tests/globe_view_cone.test.mjs). Drawn under the pins and markers. A call that changes nothing (within 0.01°)
+  does no work; changes are drawn once per animation frame as an SVG update, without re-rendering the globe's WebGL
+  scene. The app (web/js/app/view_cone_link.js, wired in sky_panel.js) keeps one wedge per scenario, keyed by its id,
+  at its pin; a rover trip's wedge sits at the rover's current position (the site its sky view is computed for).
+- The globe object (`createGlobe` in web/js/globe/globe.js, also returned by `globeReady`) has the same seven functions
   plus `setSites`, `setPins`, `showPoints`, `goTo`, `setPreset`, `addTool`, `slots` (top and bottom elements for the
   page's own controls), `getView`, `setView`. Its view is centred in the map frame below the top bar, so an overlay
   that projects points itself with geo.js `projectPx(view, v, width, height)` on the whole canvas is off by that inset:

@@ -9,6 +9,7 @@
 //   view.setTerrain({ horizon, patch })   // extra: swap in new terrain (e.g. live terrain of a custom point)
 //   view.setHudLevel('minimal' | 'full'); view.setOption(name, value); view.getOptions()   // extras for a page menu
 //   view.setTrack('sun' | 'earth' | { az_deg, el_deg } | null)   // extra: follow a body or a direction as time runs
+//   view.onViewChange(({ az_deg, el_deg, hfov_deg }) => ...)     // extra: the camera moved (e.g. the globe's wedge)
 // The C4 patch can also be passed in memory: createSkyView(container, { site, terrainPatch: { meta, data } }).
 // Body markers (math.js bodyMarker): a hidden Sun or Earth in the frame gets a dashed outline, one out of the frame an edge arrow.
 //
@@ -184,6 +185,10 @@ export async function createSkyView(container, {
   // stops it until setTrack is called again), zoomHfov (a field of view the user chose while following a body), target
   // (the camera the rule wants now, track.js) and lastStep (time of the last easing step; 0 when settled).
   let track = null;
+  // onViewChange listeners (C8 extra), told { az_deg, el_deg, hfov_deg } after a render that moved the camera; the
+  // camera they were last told.
+  const viewListeners = new Set();
+  let toldAz = NaN, toldEl = NaN, toldHfov = NaN;
 
   function project(enu) {
     const v = new THREE.Vector3(...enuToThree(enu)).multiplyScalar(1000).project(camera);
@@ -372,7 +377,18 @@ export async function createSkyView(container, {
     hud.update(state, view, project, marks, notes.length ? [notes.slice(0, 2).map((n) => n.text).join(' · ')] : [], insetRects, badgeHtml, bodies);
     const key = notes.map((n) => n.id).join('|');
     if (onNotes && key !== lastNotesKey) { lastNotesKey = key; onNotes(notes); }
+    notifyView();
     if (gliding) requestRender();
+  }
+
+  /** Tell the onViewChange listeners about a camera that moved (none before the first update(): no real camera yet). */
+  function notifyView() {
+    if (!viewListeners.size || !state || (view.az === toldAz && view.el === toldEl && view.hfov === toldHfov)) return;
+    toldAz = view.az; toldEl = view.el; toldHfov = view.hfov;
+    const v = { az_deg: view.az, el_deg: view.el, hfov_deg: view.hfov };
+    for (const cb of viewListeners) {
+      try { cb(v); } catch (err) { console.error('[moonat] sky view: onViewChange listener failed', err); }
+    }
   }
 
   /**
@@ -833,6 +849,7 @@ export async function createSkyView(container, {
   function dispose() {
     disposed = true;
     track = null;
+    viewListeners.clear();
     if (frame) cancelAnimationFrame(frame);
     ro?.disconnect();
     container.removeEventListener('keydown', onKey);
@@ -893,6 +910,19 @@ export async function createSkyView(container, {
     setCloseUp: (on) => setOption('closeUp', on),
     setExposure: (mode) => setOption('exposure', mode),
     getView: () => ({ az_deg: view.az, el_deg: view.el, fov_deg: view.hfov }),
+    /**
+     * Call cb({ az_deg, el_deg, hfov_deg }) after each render that moved the camera (a drag, a zoom, lookAt or
+     * lookAtBody, tracking, a resize that reframes): at most once per render, so at most about once per animation
+     * frame, and never before the first update(). az_deg: true azimuth of the frame centre, clockwise from local north;
+     * el_deg: its elevation; both in the ENU frame of the view's site (docs/CONTRACTS.md §0); hfov_deg: the frame's
+     * horizontal field of view. The next render tells a new listener the current camera. Returns an unsubscribe.
+     */
+    onViewChange: (cb) => {
+      viewListeners.add(cb);
+      toldAz = NaN;
+      if (state) requestRender();
+      return () => viewListeners.delete(cb);
+    },
     /** Drawing-buffer budget in device pixels (null = default); the pixel ratio never exceeds 2. */
     setPixelBudget: (px) => { pixelBudget = px > 0 ? px : DEFAULT_PIXELS; requestRender(); },
     /**

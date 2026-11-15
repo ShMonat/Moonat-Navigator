@@ -13,6 +13,7 @@ import {
   radiusPx, frustumHalf, northUp, fitPoints, norm, dot, angleDeg, greatCirclePath, visibleRuns, fitView, flightZoom,
   flightMs, padBox,
 } from "./geo.js";
+import { createConeLayer } from "./view_cone.js";
 
 const MIN_ZOOM = 0.9;
 const MAX_ZOOM = 60;
@@ -244,7 +245,7 @@ function levelOf(zoom) {
  * @param {string} [opts.ariaLabel]
  * @param {Promise} [opts.hiResAfter] the full-resolution textures load only after this settles (the preview first)
  * @returns {Promise<object>} the globe API (setSites, setPins, showPoints, goTo, flyTo, fitTo, showRoute, clearRoute,
- *   setMarker, clearMarker,
+ *   setMarker, clearMarker, setViewCone,
  *   setPreset, addTool, slots, resize, getView, setView)
  */
 export async function createGlobe(container, opts = {}) {
@@ -267,7 +268,9 @@ export async function createGlobe(container, opts = {}) {
   const siteLayer = el("div", "globe-sites");
   const pinLayer = el("div", "globe-pins");
   const markerLayer = el("div", "globe-markers");
-  overlay.append(gridLayer, routeLayer, siteLayer, pinLayer, markerLayer);
+  // View-direction wedges (view_cone.js), under the markers and pins; drawn with the overlay, or alone when only they change.
+  const cones = createConeLayer({ getCtx: () => (W < 2 || H < 2 ? null : { proj, dir: view.dir, rpx: rpx() }) });
+  overlay.append(gridLayer, routeLayer, cones.el, siteLayer, pinLayer, markerLayer);
   const tip = el("div", "globe-tip", { role: "tooltip" });
   tip.hidden = true;
   const loading = el("div", "globe-loading", { text: "Loading the Moon…" });
@@ -480,6 +483,7 @@ export async function createGlobe(container, opts = {}) {
       overlay.style.setProperty("--zs", String(zs));
     }
     drawRoutes();
+    cones.draw();
     for (const s of sites) if (!s.hidden) place(s, 0.03);
     for (const p of pins) if (p !== dragPin) place(p, 0.0);
     for (const m of markers.values()) placeMarker(m);
@@ -1201,6 +1205,8 @@ export async function createGlobe(container, opts = {}) {
     clearRoute,
     setMarker,
     clearMarker,
+    /** View-direction wedge `id`: { lat, lon, az_deg, hfov_deg, color } or null (view_cone.js; C8b). */
+    setViewCone: cones.set,
     addTool,
     slots: { top: slotTop, bottom: slotBottom },
     setPreset,

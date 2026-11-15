@@ -17,6 +17,7 @@ import { terrainStatusText } from "./terrain_live.js";
 import { bindPinchZoom, bindAxisLock } from "./gestures.js";
 import { rideAt, rideGround, rideNote, rideCamera, rideTerrain } from "../rover/sky_ride.js";
 import { autoSpeed } from "./playback.js";
+import { linkViewCone, syncViewCone, pruneViewCones } from "./view_cone_link.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -303,6 +304,7 @@ export function setSkyItems(newItems) {
     }
     const terrainChanged = rec.it.horizon !== it.horizon || rec.it.patch !== it.patch;
     rec.it = it;
+    syncViewCone(rec); // the globe's wedge: a moved place or a new theme colour
     if (terrainChanged) {
       // Real terrain arrived for a custom point (or went away): new skyline and 3D ground, same camera.
       rec.lastT = null;
@@ -321,6 +323,7 @@ export function setSkyItems(newItems) {
     rec.root.remove();
     cards.delete(key);
   }
+  pruneViewCones(items);
   grid.replaceChildren(...order);
   grid.dataset.n = String(Math.min(order.length, 7));
 
@@ -612,6 +615,7 @@ async function createView(rec) {
     }
     rec.view = view;
     rec.mode = mode;
+    linkViewCone(rec); // the view's camera drives its wedge on the globe
     // The terrain may have changed while the view was loading (live terrain of a custom point).
     if (rec.it.horizon !== it.horizon || rec.it.patch !== it.patch) swapTerrain(rec);
     setViewFull(view, rec === fullRec);
@@ -667,6 +671,7 @@ async function updateCard(rec) {
   if (ride) rideCamera(rec, ride, { ahead: trackMode === "ahead" });
   if (rec.view) rec.view.update(st);
   if (ride) rideTerrain(rec, it, ride);
+  if (ride) syncViewCone(rec); // the wedge rides with the rover even when the camera did not turn
   // Driver's view (rover traverses): a new direction of travel for every frame; the view eases toward it.
   if (trackMode === "ahead" && it.route && rec.view) applyTrack(rec, false, ride);
   const foot = rec.root.querySelector(".sky-card-foot");

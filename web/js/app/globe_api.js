@@ -1,6 +1,6 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
 // The Moon globe's API for other parts of the page (contract C8b `globe-view` in docs/CONTRACTS.md): route lines,
-// fly-to and fit-to-points. Import from here, not from web/js/globe/: the globe loads late (web/js/app/map.js, after
+// fly-to and fit-to-points, moving dots and view-direction wedges. Import from here, not from web/js/globe/: the globe loads late (web/js/app/map.js, after
 // the first sky view), and calls made before it exists are kept and applied when it arrives (every route is drawn;
 // the last flyTo or fitTo is played). This module has no imports, so it adds nothing to the page's first load.
 //
@@ -9,6 +9,7 @@
 let globe = null;
 const routes = new Map(); // id -> [points, opts]
 const dots = new Map(); // id -> marker
+const cones = new Map(); // id -> view-direction wedge
 let pendingMove = null; // ["flyTo" | "fitTo", ...args]
 const waiters = [];
 
@@ -17,6 +18,7 @@ export function attachGlobe(g) {
   globe = g;
   for (const [id, [points, opts]] of routes) g.showRoute(id, points, opts);
   for (const [id, m] of dots) g.setMarker(id, m);
+  for (const [id, c] of cones) g.setViewCone?.(id, c);
   if (pendingMove) {
     const [fn, ...args] = pendingMove;
     pendingMove = null;
@@ -70,6 +72,18 @@ export function setMarker(id, marker) {
 export function clearMarker(id) {
   dots.delete(String(id));
   globe?.clearMarker(id);
+}
+
+/**
+ * Show, move or remove (null) the view-direction wedge `id` (e.g. a scenario id), like a web map's heading cone:
+ * { lat, lon (deg, the place), az_deg (true azimuth of the view's centre in the place's ENU frame, docs/CONTRACTS.md
+ * §0), hfov_deg (the view's horizontal field of view: the wedge's opening), color (CSS; default the theme accent) }.
+ * Cheap to call every frame: an unchanged wedge does nothing, and changes are drawn once per animation frame.
+ */
+export function setViewCone(id, cone) {
+  if (cone) cones.set(String(id), cone);
+  else cones.delete(String(id));
+  globe?.setViewCone?.(id, cone ?? null);
 }
 
 /** Fly the globe to latitude, east longitude (deg) at `zoom` (1 = the whole disc; default: keep the zoom). */
