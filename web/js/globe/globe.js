@@ -13,6 +13,7 @@ import {
   radiusPx, frustumHalf, northUp, fitPoints, norm, dot, angleDeg, greatCirclePath, visibleRuns, fitView, flightZoom,
   flightMs, padBox,
 } from "./geo.js";
+import { LAYERS, LIT_THRESHOLDS, normalizeLayers, capSamples } from "./layers.js";
 import { createConeLayer } from "./view_cone.js";
 
 const MIN_ZOOM = 0.9;
@@ -47,6 +48,20 @@ uniform float uFine;        // 0..1 alpha of the fine polar graticule
 uniform float uUltra;       // 0..1 alpha of the finest polar rings
 uniform float uBoundary;    // 0..1 alpha of the near/far side boundary
 uniform float uDpr;
+// Map layers (globe/layers.js, web/data/overlays/overlays.json): polar caps in the same projection as the relief caps.
+// Red channel: permanent shadow (0/1); green: sunlight class (0; 0.5 lit >= 70 %; 1 lit >= 80 % of the time).
+uniform sampler2D tLayN;
+uniform sampler2D tLayS;
+uniform sampler2D tLayI;
+uniform vec3 uLayHas;       // north, south, south inner layer images loaded (0/1)
+uniform vec3 rLay;          // tan(psi_max / 2) of each
+uniform vec3 psiLay;        // psi_max (rad) of each: the layers are drawn inside this circle only
+uniform vec2 fadeLay;       // psi (rad): south inner image fully shown below x, the south image above y
+uniform vec2 uLayOn;        // permanent shadow, sunlight: 0..1
+uniform vec3 cPsr;
+uniform vec3 cLow;
+uniform vec3 cHigh;
+uniform vec3 aLay;          // blend weights of cPsr, cLow, cHigh
 varying vec3 vPos;
 varying vec2 vUv;
 varying float vNz;
@@ -55,6 +70,11 @@ const float PI = 3.14159265358979;
 const float D2R = 0.017453292519943;
 
 float capWeight(float psi, vec2 f) { return 1.0 - smoothstep(f.x, f.y, psi); }
+// 1 inside the circle psi < pmax, 0 outside, anti-aliased over one screen pixel.
+float inCap(float psi, float pmax) {
+  float fw = max(fwidth(psi), 1e-7);
+  return 1.0 - smoothstep(pmax - fw, pmax, psi);
+}
 
 // Coverage (0..1) of a line at angular distance d (rad) for an angular pixel size px (rad / device pixel).
 float lineAA(float d, float px, float widthPx) {
@@ -83,6 +103,24 @@ void main() {
   // Tone: a gentle contrast curve, and limb darkening for the sense of a sphere.
   c = clamp((pow(c, 0.9) - 0.4) * 1.18 + 0.44, 0.0, 1.0);
   vec3 col = vec3(c) * vec3(1.0, 0.985, 0.955);
+
+  // Map layers, tinted by the ground's grey so the relief stays readable. All three images are sampled every time
+  // (no texture reads in non-uniform branches: their mipmap level needs the neighbouring pixels).
+  if (uLayOn.x + uLayOn.y > 0.0) {
+    vec2 mN = texture2D(tLayN, 0.5 + vec2(kN * u.y, -kN * u.x) / (2.0 * rLay.x)).rg;
+    vec2 mS = texture2D(tLayS, 0.5 + vec2(kS * u.y, kS * u.x) / (2.0 * rLay.y)).rg;
+    vec2 mI = texture2D(tLayI, 0.5 + vec2(kS * u.y, kS * u.x) / (2.0 * rLay.z)).rg;
+    mS = mix(mS, mI, uLayHas.z * capWeight(psiS, fadeLay));
+    vec2 m = mN * (uLayHas.x * inCap(psiN, psiLay.x)) + mS * (uLayHas.y * inCap(psiS, psiLay.y));
+    float psr = m.r * uLayOn.x;
+    float lo = smoothstep(0.15, 0.4, m.g) * uLayOn.y;
+    float hi = smoothstep(0.62, 0.88, m.g) * uLayOn.y;
+    float relief = 0.55 + 0.45 * c;
+    col = mix(col, cPsr * relief, aLay.x * psr);
+    col = mix(col, cLow * relief, aLay.y * lo * (1.0 - hi));
+    col = mix(col, cHigh * relief, aLay.z * hi);
+  }
+
   col *= mix(0.5, 1.0, pow(clamp(vNz, 0.0, 1.0), 0.45));
 
   // Graticule: angular distance to the nearest line, scaled by the screen size of one radian. Latitude from atan
@@ -120,6 +158,62 @@ void main() {
   col = mix(col, vec3(0.45, 0.74, 1.0), b * 0.7 * uBoundary);
 
   gl_FragColor = vec4(col, 1.0);
+}`;
+
+// Sunlit spots of the sunlight layer: a small sun symbol (a disc with eight rays) on each spot, or group of nearby
+// spots, while it is smaller than a few screen pixels, so that it can be found; zoomed in, a thin ring around the spot
+// instead, and the layer image fills the spot itself. In screen pixels; hidden on the far side of the Moon.
+const SPOT_VERT = /* glsl */ `
+attribute vec2 aSpot;       // spot radius on the ground (rad), class (0: lit >= 70 %, 1: >= 80 % of the time)
+uniform float uPxPerRad;    // device px per radian (= per Moon radius)
+uniform float uDpr;
+varying float vR;           // ring radius, CSS px
+varying float vSize;        // point size, CSS px
+varying float vSym;         // 1: sun symbol, 0: ring
+varying float vHi;
+varying float vFade;
+void main() {
+  float nz = normalize(normalMatrix * position).z;
+  vFade = smoothstep(0.03, 0.2, nz);
+  gl_Position = nz > 0.0 ? projectionMatrix * modelViewMatrix * vec4(position, 1.0) : vec4(2.0, 2.0, 2.0, 1.0);
+  float rg = aSpot.x * uPxPerRad / uDpr;
+  vSym = 1.0 - smoothstep(3.0, 6.0, rg);
+  vR = rg + 3.0;
+  vSize = 2.0 * max(10.0, vR + 2.5);
+  vHi = aSpot.y;
+  gl_PointSize = vSize * uDpr;
+}`;
+
+const SPOT_FRAG = /* glsl */ `
+precision highp float;
+uniform vec3 cLow;
+uniform vec3 cHigh;
+uniform float uAlpha;
+varying float vR;
+varying float vSize;
+varying float vSym;
+varying float vHi;
+varying float vFade;
+// Coverage of a band of half-width h around 0, anti-aliased (x and h in CSS px).
+float band(float x, float h) { return 1.0 - smoothstep(h - 0.6, h + 0.6, abs(x)); }
+// The sun symbol grown by g px: a disc of radius 3 and eight rays from 4.5 to 8.2 px, 1.5 px wide.
+float sunSym(float d, float k, float g) {
+  float core = 1.0 - smoothstep(3.0 + g - 0.6, 3.0 + g + 0.6, d);
+  float along = smoothstep(4.5 - g - 0.6, 4.5 - g + 0.6, d) * (1.0 - smoothstep(8.2 + g - 0.6, 8.2 + g + 0.6, d));
+  return max(core, along * band(k * d, 0.75 + g));
+}
+void main() {
+  vec2 q = (gl_PointCoord - 0.5) * vSize;
+  float d = length(q);
+  float a = atan(q.y, q.x);
+  float k = abs(fract(a / 0.785398 + 0.5) - 0.5) * 0.785398; // angle to the nearest of eight rays (rad)
+  float fill = mix(band(d - vR, 0.9), sunSym(d, k, 0.0), vSym);
+  float edge = mix(band(d - vR, 2.2), sunSym(d, k, 1.3), vSym);
+  vec4 o = vec4(0.04, 0.04, 0.07, 0.85 * edge);
+  o = mix(o, vec4(mix(cLow, cHigh, vHi), 1.0), fill);
+  o.a *= uAlpha * vFade;
+  if (o.a < 0.01) discard;
+  gl_FragColor = o;
 }`;
 
 // ----- Small helpers -----
@@ -244,8 +338,9 @@ function levelOf(zoom) {
  * @param {(pin: any, lat: number, lon: number) => void} [opts.onPinDrag] a draggable pin was dropped at lat, lon (deg)
  * @param {string} [opts.ariaLabel]
  * @param {Promise} [opts.hiResAfter] the full-resolution textures load only after this settles (the preview first)
+ * @param {string} [opts.overlayUrl] folder of overlays.json and the map layer images (default "data/overlays/")
  * @returns {Promise<object>} the globe API (setSites, setPins, showPoints, goTo, flyTo, fitTo, showRoute, clearRoute,
- *   setMarker, clearMarker, setViewCone,
+ *   setMarker, clearMarker, setViewCone, setLayers, getLayers, layerPoleInView,
  *   setPreset, addTool, slots, resize, getView, setView)
  */
 export async function createGlobe(container, opts = {}) {
@@ -294,7 +389,8 @@ export async function createGlobe(container, opts = {}) {
   const credit = el("div", "globe-credit", {
     html:
       'Imagery: NASA/GSFC/ASU LRO WAC via <a href="https://trek.nasa.gov/moon/" target="_blank" rel="noopener">NASA Moon Trek</a>' +
-      " · Polar relief: NASA LRO LOLA",
+      " · Polar relief: NASA LRO LOLA" +
+      '<span class="globe-credit-layers" hidden> · Layers: NASA LOLA / <a href="https://pgda.gsfc.nasa.gov/products/69" target="_blank" rel="noopener">PGDA</a></span>',
   });
   // Slots for the page's own controls: the top one (above the preset chips) holds the search box, the bottom one
   // (above the credit line) a place card.
@@ -325,6 +421,10 @@ export async function createGlobe(container, opts = {}) {
   geo.applyMatrix4(new THREE.Matrix4().set(1, 0, 0, 0, 0, 0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 1));
   const blank = new THREE.DataTexture(new Uint8Array([107, 107, 107, 255]), 1, 1);
   blank.needsUpdate = true;
+  const noLayer = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
+  noLayer.needsUpdate = true;
+  const layerInfo = Object.fromEntries(LAYERS.map((l) => [l.id, l]));
+  const v3 = (a) => new THREE.Vector3(...a);
   const uniforms = {
     tBase: { value: blank },
     tNorth: { value: blank },
@@ -339,9 +439,43 @@ export async function createGlobe(container, opts = {}) {
     uUltra: { value: 0 },
     uBoundary: { value: 1 },
     uDpr: { value: dpr() },
+    tLayN: { value: noLayer },
+    tLayS: { value: noLayer },
+    tLayI: { value: noLayer },
+    uLayHas: { value: new THREE.Vector3(0, 0, 0) },
+    rLay: { value: new THREE.Vector3(1, 1, 1) },
+    psiLay: { value: new THREE.Vector3(0, 0, 0) },
+    fadeLay: { value: new THREE.Vector2(0, 0) },
+    uLayOn: { value: new THREE.Vector2(0, 0) },
+    cPsr: { value: v3(layerInfo.psr.rgb.psr) },
+    cLow: { value: v3(layerInfo.sun.rgb.low) },
+    cHigh: { value: v3(layerInfo.sun.rgb.high) },
+    aLay: { value: v3([layerInfo.psr.alpha.psr, layerInfo.sun.alpha.low, layerInfo.sun.alpha.high]) },
   };
   const mat = new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, uniforms });
   scene.add(new THREE.Mesh(geo, mat));
+
+  // Rings around the sunlit spots (sunlight layer), drawn after the sphere, without depth (the vertex shader hides
+  // the far side). Filled in when the layer data arrives.
+  const spotUniforms = {
+    uPxPerRad: { value: 1 },
+    uDpr: { value: dpr() },
+    uAlpha: { value: 0 },
+    cLow: uniforms.cLow,
+    cHigh: uniforms.cHigh,
+  };
+  const spotGeo = new THREE.BufferGeometry();
+  const spotPoints = new THREE.Points(
+    spotGeo,
+    new THREE.ShaderMaterial({
+      vertexShader: SPOT_VERT, fragmentShader: SPOT_FRAG, uniforms: spotUniforms, transparent: true, depthTest: false,
+      depthWrite: false,
+    }),
+  );
+  spotPoints.renderOrder = 1;
+  spotPoints.frustumCulled = false;
+  spotPoints.visible = false;
+  scene.add(spotPoints);
 
   // ----- State -----
   let view = { dir: [...PRESETS.near.dir], up: [...PRESETS.near.up], zoom: 1 };
@@ -409,6 +543,7 @@ export async function createGlobe(container, opts = {}) {
       H = h;
       renderer.setPixelRatio(dpr());
       uniforms.uDpr.value = dpr();
+      spotUniforms.uDpr.value = dpr();
       renderer.setSize(W, H, false);
     }
     measureFrame();
@@ -445,6 +580,11 @@ export async function createGlobe(container, opts = {}) {
     uniforms.uFine.value = smooth(2.2, 3.2, view.zoom);
     uniforms.uUltra.value = smooth(7, 10, view.zoom);
     uniforms.uBoundary.value = 1 - smooth(4, 8, view.zoom);
+    if (spotPoints.visible) {
+      spotUniforms.uPxPerRad.value = s * renderer.getPixelRatio();
+      spotUniforms.uAlpha.value = smooth(1.4, 2.4, view.zoom);
+      if (Math.abs(Math.log(view.zoom / clusterZoom)) > 0.08) clusterSpots(s, view.zoom);
+    }
     renderer.render(scene, camera);
     placeOverlay();
     syncPresetButtons();
@@ -973,7 +1113,8 @@ export async function createGlobe(container, opts = {}) {
       return;
     }
     const { lat, lon } = vecToLatLon(hit);
-    readout.textContent = fmtLatLon(lat, lon, view.zoom > 8 ? 3 : 2);
+    const spot = spotAt(x, y);
+    readout.textContent = fmtLatLon(lat, lon, view.zoom > 8 ? 3 : 2) + (spot ? ` · sunlit spot: lit up to ${spot.lit.toFixed(0)} % of the time` : "");
     readout.hidden = false;
   }
 
@@ -1183,6 +1324,153 @@ export async function createGlobe(container, opts = {}) {
   ro.observe(top);
   resize();
 
+  // ----- Map layers (permanent shadow, most sunlit ground) -----
+  // Loaded on first use: overlays.json, then the three layer images (about 270 kB) and the sunlit spots.
+  const overlayUrl = opts.overlayUrl ?? "data/overlays/";
+  const R_MOON_KM = 1737.4;
+  let layerIds = [];
+  let layerLoad = null;
+  let spots = []; // [{ v, r (rad), hi (0/1), lit (%) }], brightest first
+  let clusters = []; // spots grouped for the current zoom: { v, r, hi, lit }
+  let clusterZoom = 0;
+
+  /** A layer image: two channels on the GPU where WebGL2 allows it (red: shadow, green: sunlight class). */
+  function loadLayerTex(url) {
+    return loadTex(url).then((t) => {
+      t.format = oneChannel ? THREE.RGFormat : THREE.RGBAFormat;
+      return t;
+    });
+  }
+
+  function setSpots(table) {
+    const f = table?.fields ?? [];
+    const [iLat, iLon, iArea, iLit] = ["lat_deg", "lon_deg", "area_km2", "max_lit_pct"].map((k) => f.indexOf(k));
+    const hiPct = 100 * LIT_THRESHOLDS[1];
+    spots = (table?.rows ?? [])
+      .map((r) => ({ v: latLonToVec(r[iLat], r[iLon]), r: Math.sqrt(r[iArea] / Math.PI) / R_MOON_KM, lit: r[iLit], hi: r[iLit] >= hiPct ? 1 : 0 }))
+      .sort((a, b) => b.lit - a.lit);
+    const n = spots.length;
+    spotGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+    spotGeo.setAttribute("aSpot", new THREE.BufferAttribute(new Float32Array(n * 2), 2));
+    clusterZoom = 0;
+  }
+
+  /**
+   * Group the spots that would sit within 18 CSS px of a brighter one at this scale (px: CSS px per Moon radius) under
+   * the brighter one's symbol, as a web map clusters its markers (the group takes the best class of its spots).
+   */
+  function clusterSpots(px, zoom) {
+    clusterZoom = zoom;
+    const join = 18 / px;
+    clusters = [];
+    for (const s of spots) {
+      const c = clusters.find((k) => Math.hypot(k.v[0] - s.v[0], k.v[1] - s.v[1], k.v[2] - s.v[2]) < join);
+      if (c) c.hi = Math.max(c.hi, s.hi);
+      else clusters.push({ ...s });
+    }
+    const pos = spotGeo.getAttribute("position");
+    const att = spotGeo.getAttribute("aSpot");
+    clusters.forEach((c, i) => {
+      pos.setXYZ(i, c.v[0] * 1.0004, c.v[1] * 1.0004, c.v[2] * 1.0004);
+      att.setXY(i, c.r, c.hi);
+    });
+    pos.needsUpdate = true;
+    att.needsUpdate = true;
+    spotGeo.setDrawRange(0, clusters.length);
+  }
+
+  /** The ring (sunlit spot group) under a canvas position (CSS px), when the sunlight layer shows rings; else null. */
+  function spotAt(x, y) {
+    if (!spotPoints.visible || spotUniforms.uAlpha.value < 0.5) return null;
+    const s = rpx();
+    let best = null;
+    let bestD = Infinity;
+    for (const c of clusters) {
+      const p = proj(c.v);
+      const d = Math.hypot(p.x - x, p.y - y);
+      if (p.depth > 0.05 && d <= Math.max(9, c.r * s + 4) && d < bestD) {
+        best = c;
+        bestD = d;
+      }
+    }
+    return best;
+  }
+
+  function loadLayers() {
+    if (layerLoad) return layerLoad;
+    layerLoad = fetch(`${overlayUrl}overlays.json`)
+      .then((r) => {
+        if (!r.ok) throw new Error(`overlays.json: HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((m) => {
+        const tiers = Object.fromEntries((m.tiers ?? []).map((t) => [t.id, t]));
+        const slots = { north: ["tLayN", "x"], south: ["tLayS", "y"], south_inner: ["tLayI", "z"] };
+        for (const [id, [, k]] of Object.entries(slots)) {
+          const t = tiers[id];
+          if (!t) continue;
+          uniforms.rLay.value[k] = Math.tan((t.psi_max_deg * DEG) / 2);
+          uniforms.psiLay.value[k] = t.psi_max_deg * DEG;
+        }
+        const f = tiers.south_inner?.fade_psi_deg ?? [0, 0];
+        uniforms.fadeLay.value.set(Math.min(...f) * DEG, Math.max(...f) * DEG);
+        setSpots(m.sun_spots);
+        syncLayerUniforms();
+        return Promise.all(
+          Object.entries(slots)
+            .filter(([id]) => tiers[id])
+            .map(([id, [u, k]]) =>
+              loadLayerTex(`${overlayUrl}${tiers[id].url}`).then((t) => {
+                uniforms[u].value = t;
+                uniforms.uLayHas.value[k] = 1;
+                requestRender();
+              }),
+            ),
+        );
+      })
+      .then(() => {
+        root.dataset.layersLoaded = "true"; // for screenshots and tests
+      });
+    layerLoad.catch((err) => {
+      console.warn("[moonat] map layers failed to load", err);
+      layerLoad = null; // the next setLayers tries again
+    });
+    return layerLoad;
+  }
+
+  function syncLayerUniforms() {
+    uniforms.uLayOn.value.set(layerIds.includes("psr") ? 1 : 0, layerIds.includes("sun") ? 1 : 0);
+    spotPoints.visible = layerIds.includes("sun") && spots.length > 0;
+    clusterZoom = 0;
+    credit.querySelector(".globe-credit-layers").hidden = !layerIds.length;
+    requestRender();
+  }
+
+  /**
+   * Show exactly the map layers in `list` ("psr": permanently shadowed regions, "sun": the most sunlit ground; others
+   * off). The data loads on first use; the promise resolves with the layers shown once it has arrived.
+   */
+  function setLayers(list) {
+    layerIds = normalizeLayers(list);
+    root.dataset.layers = layerIds.join(" ");
+    syncLayerUniforms();
+    return layerIds.length ? loadLayers().then(() => layerIds.slice()) : Promise.resolve([]);
+  }
+
+  /**
+   * The pole ("south" or "north") whose layer area (poleward of 80°) is in view, facing the camera, or null (e.g. a
+   * near-side or far-side view): then the layers have nothing to show.
+   */
+  function layerPoleInView() {
+    for (const pole of ["south", "north"]) {
+      for (const p of capSamples(pole)) {
+        const q = proj(latLonToVec(p.lat, p.lon));
+        if (q.depth > 0.35 && q.x > 0 && q.x < W && q.y > FT && q.y < FT + FH()) return pole;
+      }
+    }
+    return null;
+  }
+
   /**
    * Add a round button to the tool column (above the zoom buttons): { html, label, title, onClick, className }.
    * Returns the button.
@@ -1208,6 +1496,9 @@ export async function createGlobe(container, opts = {}) {
     /** View-direction wedge `id`: { lat, lon, az_deg, hfov_deg, color } or null (view_cone.js; C8b). */
     setViewCone: cones.set,
     addTool,
+    setLayers,
+    getLayers: () => layerIds.slice(),
+    layerPoleInView,
     slots: { top: slotTop, bottom: slotBottom },
     setPreset,
     resize,

@@ -6,7 +6,7 @@
 //   "field"     - a location or time changed in place (physics recompute; the edited card is not rebuilt)
 //   "label"     - a label changed (outputs relabel, no recompute)
 //   "active"    - the selected scenario changed
-//   "ui"        - the Sun | Earth choice, the time axis or the theme changed
+//   "ui"        - the Sun | Earth choice, the time axis, the theme or the globe's map layers changed
 
 import { makeScenario, nextColorSlot, copyLabel } from "./state.js";
 
@@ -18,6 +18,7 @@ export const store = {
   xaxis: "met",
   body: "sun", // the Sun | Earth switch: the body the sky views aim at and whose data shows, "sun" | "earth"
   theme: "dark",
+  mapLayers: [], // the globe's map layers that are on ("psr", "sun"; web/js/globe/layers.js)
 };
 
 export function subscribe(fn) {

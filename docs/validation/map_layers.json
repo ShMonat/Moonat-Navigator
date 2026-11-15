@@ -1,0 +1,317 @@
+{
+ "_generated_by": "AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.",
+ "built_utc": "2026-11-15",
+ "script": "scripts/data/build_map_layers.py",
+ "thresholds": [
+  0.7,
+  0.8
+ ],
+ "psr_area_vs_mazarico2011": {
+  "north": {
+   "ours_km2_poleward_of_80": 15519.4,
+   "mazarico2011_km2": 12866.0,
+   "ratio": 1.206
+  },
+  "south": {
+   "ours_km2_poleward_of_80": 18316.2,
+   "mazarico2011_km2": 16055.0,
+   "ratio": 1.141
+  }
+ },
+ "lpsr_vs_avgvisib_zero": {
+  "north": {
+   "pixels": 6553600,
+   "lpsr_1": 309269,
+   "avgvisib_0": 315208,
+   "lpsr_1_and_avgvisib_0": 309269,
+   "max_lit_pct": 89.08
+  },
+  "south": {
+   "pixels": 6553600,
+   "lpsr_1": 344440,
+   "avgvisib_0": 350794,
+   "lpsr_1_and_avgvisib_0": 344440,
+   "max_lit_pct": 93.48
+  },
+  "south_inner": {
+   "pixels": 4194304,
+   "lpsr_1": 933818,
+   "avgvisib_0": 951728,
+   "lpsr_1_and_avgvisib_0": 933818,
+   "max_lit_pct": 88.44
+  }
+ },
+ "south_60m_vs_240m": {
+  "within_lat_deg": 87.974,
+  "psr_km2_60m": 2532.7,
+  "psr_km2_240m": 2420.2,
+  "lit_ge_low_km2_60m": 0.53,
+  "lit_ge_low_km2_240m": 5.01,
+  "lit_ge_high_km2_60m": 0.06,
+  "lit_ge_high_km2_240m": 0.92
+ },
+ "points": [
+  {
+   "id": "shackleton_floor",
+   "name": "Shackleton crater floor (centre)",
+   "lat_deg": -89.67,
+   "lon_deg": 129.78,
+   "expect": "psr",
+   "globe_shows": "85S_060M",
+   "85S_060M": {
+    "band": "85S_060M",
+    "lit_pct": 0.0,
+    "lit_pct_3x3_max": 0.0,
+    "psr": true,
+    "class": 1,
+    "nearest_lit_low_m": null,
+    "nearest_lit_high_m": null
+   },
+   "65S_240M": {
+    "band": "65S_240M",
+    "lit_pct": 0.0,
+    "lit_pct_3x3_max": 0.0,
+    "psr": true,
+    "class": 1,
+    "nearest_lit_low_m": null,
+    "nearest_lit_high_m": null
+   }
+  },
+  {
+   "id": "lcross_cabeus",
+   "name": "LCROSS impact point, Cabeus",
+   "lat_deg": -84.675,
+   "lon_deg": -48.725,
+   "expect": "psr",
+   "globe_shows": "65S_240M",
+   "85S_060M": {
+    "band": "85S_060M",
+    "lit_pct": 0.0,
+    "lit_pct_3x3_max": 0.0,
+    "psr": true,
+    "class": 1,
+    "nearest_lit_low_m": null,
+    "nearest_lit_high_m": null
+   },
+   "65S_240M": {
+    "band": "65S_240M",
+    "lit_pct": 0.0,
+    "lit_pct_3x3_max": 0.0,
+    "psr": true,
+    "class": 1,
+    "nearest_lit_low_m": null,
+    "nearest_lit_high_m": null
+   }
+  },
+  {
+   "id": "haworth_floor",
+   "name": "Haworth crater floor",
+   "lat_deg": -87.45,
+   "lon_deg": -5.0,
+   "expect": "psr",
+   "globe_shows": "65S_240M",
+   "85S_060M": {
+    "band": "85S_060M",
+    "lit_pct": 0.0,
+    "lit_pct_3x3_max": 0.0,
+    "psr": true,
+    "class": 1,
+    "nearest_lit_low_m": null,
+    "nearest_lit_high_m": null
+   },
+   "65S_240M": {
+    "band": "65S_240M",
+    "lit_pct": 0.0,
+    "lit_pct_3x3_max": 0.0,
+    "psr": true,
+    "class": 1,
+    "nearest_lit_low_m": null,
+    "nearest_lit_high_m": null
+   }
+  },
+  {
+   "id": "shoemaker_floor",
+   "name": "Shoemaker crater floor",
+   "lat_deg": -88.1,
+   "lon_deg": 44.9,
+   "expect": "psr",
+   "globe_shows": "85S_060M",
+   "85S_060M": {
+    "band": "85S_060M",
+    "lit_pct": 0.0,
+    "lit_pct_3x3_max": 0.0,
+    "psr": true,
+    "class": 1,
+    "nearest_lit_low_m": null,
+    "nearest_lit_high_m": null
+   },
+   "65S_240M": {
+    "band": "65S_240M",
+    "lit_pct": 0.0,
+    "lit_pct_3x3_max": 0.0,
+    "psr": true,
+    "class": 1,
+    "nearest_lit_low_m": null,
+    "nearest_lit_high_m": null
+   }
+  },
+  {
+   "id": "connecting_ridge_1",
+   "name": "Connecting ridge (Glaser 2014 CR1 spot 1)",
+   "lat_deg": -89.4395,
+   "lon_deg": -137.1934,
+   "expect": "lit",
+   "globe_shows": "85S_060M",
+   "85S_060M": {
+    "band": "85S_060M",
+    "lit_pct": 44.3,
+    "lit_pct_3x3_max": 75.5,
+    "psr": false,
+    "class": 0,
+    "nearest_lit_low_m": 72,
+    "nearest_lit_high_m": 353
+   },
+   "65S_240M": {
+    "band": "65S_240M",
+    "lit_pct": 74.7,
+    "lit_pct_3x3_max": 93.5,
+    "psr": false,
+    "class": 2,
+    "nearest_lit_low_m": 142,
+    "nearest_lit_high_m": 185
+   }
+  },
+  {
+   "id": "connecting_ridge_3",
+   "name": "Connecting ridge (Glaser 2014 CR1 spot 3)",
+   "lat_deg": -89.4516,
+   "lon_deg": -137.2419,
+   "expect": "lit",
+   "globe_shows": "85S_060M",
+   "85S_060M": {
+    "band": "85S_060M",
+    "lit_pct": 86.4,
+    "lit_pct_3x3_max": 86.4,
+    "psr": false,
+    "class": 3,
+    "nearest_lit_low_m": 20,
+    "nearest_lit_high_m": 20
+   },
+   "65S_240M": {
+    "band": "65S_240M",
+    "lit_pct": 63.1,
+    "lit_pct_3x3_max": 93.5,
+    "psr": false,
+    "class": 0,
+    "nearest_lit_low_m": 158,
+    "nearest_lit_high_m": 186
+   }
+  },
+  {
+   "id": "degerlache_rim",
+   "name": "de Gerlache rim (Moonat catalog)",
+   "lat_deg": -89.0056,
+   "lon_deg": -96.6455,
+   "expect": "lit",
+   "globe_shows": "85S_060M",
+   "85S_060M": {
+    "band": "85S_060M",
+    "lit_pct": 52.8,
+    "lit_pct_3x3_max": 69.1,
+    "psr": false,
+    "class": 0,
+    "nearest_lit_low_m": 101,
+    "nearest_lit_high_m": null
+   },
+   "65S_240M": {
+    "band": "65S_240M",
+    "lit_pct": 81.7,
+    "lit_pct_3x3_max": 81.7,
+    "psr": false,
+    "class": 3,
+    "nearest_lit_low_m": 72,
+    "nearest_lit_high_m": 72
+   }
+  },
+  {
+   "id": "malapert_crest",
+   "name": "Malapert massif crest (StarHab site)",
+   "lat_deg": -85.96775,
+   "lon_deg": -2.28748,
+   "expect": "lit",
+   "globe_shows": "65S_240M",
+   "85S_060M": {
+    "band": "85S_060M",
+    "lit_pct": 52.1,
+    "lit_pct_3x3_max": 77.6,
+    "psr": false,
+    "class": 0,
+    "nearest_lit_low_m": 35,
+    "nearest_lit_high_m": null
+   },
+   "65S_240M": {
+    "band": "65S_240M",
+    "lit_pct": 74.1,
+    "lit_pct_3x3_max": 79.3,
+    "psr": false,
+    "class": 2,
+    "nearest_lit_low_m": 67,
+    "nearest_lit_high_m": 479
+   }
+  },
+  {
+   "id": "malapert_catalog",
+   "name": "Malapert Massif (Moonat catalog point)",
+   "lat_deg": -85.99,
+   "lon_deg": 0.12,
+   "expect": "lit",
+   "globe_shows": "65S_240M",
+   "85S_060M": {
+    "band": "85S_060M",
+    "lit_pct": 43.9,
+    "lit_pct_3x3_max": 51.4,
+    "psr": false,
+    "class": 0,
+    "nearest_lit_low_m": null,
+    "nearest_lit_high_m": null
+   },
+   "65S_240M": {
+    "band": "65S_240M",
+    "lit_pct": 67.2,
+    "lit_pct_3x3_max": 67.2,
+    "psr": false,
+    "class": 0,
+    "nearest_lit_low_m": null,
+    "nearest_lit_high_m": null
+   }
+  }
+ ],
+ "areas_km2": {
+  "north": {
+   "within_lat_deg": 79.895,
+   "psr_km2": 15722.3,
+   "lit_ge_low_km2": 7.71,
+   "lit_ge_high_km2": 1.38,
+   "cap_km2": 294183.0
+  },
+  "south": {
+   "within_lat_deg": 79.895,
+   "psr_km2": 18439.5,
+   "lit_ge_low_km2": 9.15,
+   "lit_ge_high_km2": 1.21,
+   "cap_km2": 294183.0
+  },
+  "south_inner": {
+   "within_lat_deg": 87.974,
+   "psr_km2": 2532.7,
+   "lit_ge_low_km2": 0.53,
+   "lit_ge_high_km2": 0.06,
+   "cap_km2": 11856.0
+  }
+ },
+ "sun_spot_count": {
+  "north": 58,
+  "south": 39,
+  "south_inner": 48
+ }
+}

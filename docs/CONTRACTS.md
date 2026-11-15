@@ -307,6 +307,17 @@ await globeReady()                                            // the globe objec
   web/js/app/places.js (search box, place card, Home).
 - The view is centred in the **map frame**: the canvas minus the top bar (search box, preset chips) and the credit line;
   zoom 1 fits the whole disc in it.
+- **Map layers** (added 2026-11-15, Shay's request; data pipeline pending Shahar's review). The globe object also has
+  `setLayers(ids)` (show exactly these layers, others off; returns a promise that resolves once the data has loaded),
+  `getLayers()` and `layerPoleInView()` (`"south"`, `"north"` or `null` when no layer area faces the camera). Ids, colours
+  and wording: `web/js/globe/layers.js` (`"psr"`: NASA's permanently shadowed regions, the PGDA `LPSR` maps; `"sun"`: the
+  most sunlit ground, PGDA `AVGVISIB` ≥ 0.70 and ≥ 0.80 = share of hourly steps over 18.6 years with any part of the
+  Sun's disc above the terrain horizon, at ground level). Data: `web/data/overlays/overlays.json` (+ three 2-bit PNGs in
+  the cap projection of moonmap.json: 240 m to 79.9° N and S, 60 m to 87.97° S; `scripts/data/build_map_layers.py`).
+  Drawn in the sphere's shader under every overlay (routes, sites, pins and clicks are unchanged), poleward of 80° only;
+  the sunlit spots also get a small sun symbol in screen pixels (grouped when closer than 18 px). The page keeps the
+  choice in `store.mapLayers` (a "ui" change) and in the share link as `ml=psr.sun`; the Layers button and panel are
+  `web/js/app/map_layers.js`, which flies to the nearer pole when a layer is turned on and no pole is in view.
 
 ## C9 `terrain-at` (producer: `terrain-everywhere`; consumers: `web-app`, `sky-viewer`, `rover`) — **implemented**
 Real LOLA terrain for any point, computed in the browser. Research and validation: docs/research/terrain-everywhere.md,
@@ -363,7 +374,8 @@ No end time = a single instant. Scenarios may share or differ in times.
 - **Share links** (`web/js/app/state.js` encodeHash / decodeHash): `#b=earth&x=utc&t=5250&v=258.9,12.5,40&s=<rows>`,
   every key optional. `b` = the Sun | Earth switch (the body every sky view is aimed at and whose data shows; default
   Sun), `x` = the charts' time axis (`utc` | `dist`; default time since start), `t` = the sky's moment (s after the
-  scenarios' start), `v` = the first view's camera (az, el, horizontal FOV, deg), `s` = base64url JSON rows
+  scenarios' start), `v` = the first view's camera (az, el, horizontal FOV, deg), `ml` = the globe's map layers that
+  are on (`psr.sun`, added 2026-11-15; absent = none), `s` = base64url JSON rows
   `[label, lat, lon, start, end|0, site_id|0, color(, route)]`. **Changed 2026-11-14 (one-flow layout):** the page no
   longer writes `tab` and `look`. Links from the tab era still open: `tab=sky` opens on its `look` body (none: the
   Earth, the opening view it showed), any other link on its `b` (`hashBody`); `#tab=sky` without scenarios opens the

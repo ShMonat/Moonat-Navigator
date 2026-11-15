@@ -12,6 +12,7 @@ import { catalogSites, siteById } from "./catalog.js";
 import { consumeMapClick } from "../rover/pick.js";
 import { initPlaces, selectSite, dropPin, removePlace, movePlace, showPlaceCard } from "./places.js";
 import { attachGlobe } from "./globe_api.js";
+import { initMapLayers } from "./map_layers.js";
 
 let globe;
 let lastFitKey = "";
@@ -42,6 +43,7 @@ export async function initMap(opts = {}) {
     onPinDrag: (pin, lat, lon) => movePlace(pin.id, lat, lon),
   });
   initPlaces(globe);
+  initMapLayers(globe);
   attachGlobe(globe);
   drawSites();
   drawScenarios(true);

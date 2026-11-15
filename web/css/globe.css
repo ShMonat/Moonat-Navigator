@@ -331,6 +331,58 @@
 /* The tools and the readout move up above an open card. */
 .globe.has-card .globe-readout { bottom: calc(var(--card-h, 110px) + 34px); }
 
+/* ---------- Map layers (web/js/app/map_layers.js) ---------- */
+/* The Layers button shows a small dot while a layer is on; its panel opens beside the tool column (above the tool row
+   on a phone) and sits above the place card. */
+.globe-layers-btn { position: relative; }
+.globe-layers-btn.open { border-color: var(--accent); }
+.globe-layers-btn.has-layers::after {
+  content: ""; position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 0 1.5px var(--gs-bg);
+}
+.globe-tools:has(.glayers:not([hidden])) { z-index: 7; }
+.glayers {
+  position: absolute; right: calc(100% + 8px); bottom: 0; width: 300px; max-width: calc(100vw - 80px);
+  max-height: min(70vh, 460px); overflow: auto; overscroll-behavior: contain;
+  padding: 8px 4px 8px 4px; border-radius: 14px; text-align: left;
+  background: var(--gs-bg); color: var(--gs-ink); border: 1px solid var(--gs-line); box-shadow: var(--gs-shadow);
+  font-size: 13px; line-height: 1.35; user-select: text; -webkit-user-select: text;
+}
+.glayers[hidden] { display: none; }
+.glayers-head { display: flex; align-items: center; justify-content: space-between; padding: 0 4px 4px 12px; }
+.glayers-title { font-size: 14px; font-weight: 650; }
+.glayers-close {
+  width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--gs-muted);
+  display: grid; place-items: center; cursor: pointer;
+}
+.glayers-close:hover { background: var(--gs-hover); color: var(--gs-ink); }
+.glayers-close svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.glayer { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border-radius: 10px; cursor: pointer; }
+.glayer:hover { background: var(--gs-hover); }
+.glayer input { flex: none; width: 17px; height: 17px; margin: 1px 0 0; accent-color: var(--accent); cursor: pointer; }
+.glayer-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.glayer-name { font-weight: 600; }
+.glayer-keys { display: flex; flex-direction: column; gap: 2px; }
+.glayer-key { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; }
+.glayer-sw, .lg-area {
+  display: inline-block; flex: none; width: 14px; height: 10px; border-radius: 3px; background: var(--c);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+.lg-area { border: 0; }
+.glayer-note { font-size: 12px; color: var(--gs-muted); }
+.glayer-src { font-size: 11px; color: var(--gs-muted); font-style: italic; }
+.glayers-foot {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 4px 10px 0; padding-top: 8px;
+  border-top: 1px solid var(--gs-line); font-size: 12px; color: var(--gs-muted);
+}
+.glayers-pole {
+  padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; cursor: pointer;
+  border: 1px solid var(--gs-line); background: transparent; color: var(--accent);
+}
+.glayers-pole:hover { background: var(--gs-hover); }
+.glayers-status { margin: 6px 10px 0; font-size: 12px; color: var(--gs-ink); }
+.glayers-status:empty { display: none; }
+
 /* Whole-window mode */
 .globe.globe-full {
   position: fixed; inset: 0; z-index: 2500; width: auto; height: auto; max-height: none; min-height: 0;
@@ -366,6 +418,8 @@ html.globe-locked, html.globe-locked body { overflow: hidden; }
   .globe-slot-bottom { left: 8px; right: 8px; bottom: 32px; }
   .globe.has-card .globe-tools { bottom: calc(var(--card-h, 110px) + 40px); }
   .gplace { max-width: none; }
+  /* The tools are a row here: the layers panel opens above it, as wide as the map allows. */
+  .glayers { right: 0; bottom: calc(100% + 8px); width: min(300px, calc(100vw - 32px)); max-width: none; max-height: 52vh; }
 }
 /* Phones: pinch zooms, so the zoom buttons give their room to the Moon (the expand and Home buttons stay). */
 @media (max-width: 520px) and (pointer: coarse) {

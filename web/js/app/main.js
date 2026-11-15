@@ -265,7 +265,7 @@ let lastIds = "";
 
 /** The hash of the current state, with the sky's moment and camera. */
 function currentHash() {
-  return encodeHash({ scenarios: store.scenarios, xaxis: store.xaxis, body: store.body, sky: skyShareState() });
+  return encodeHash({ scenarios: store.scenarios, xaxis: store.xaxis, body: store.body, sky: skyShareState(), layers: store.mapLayers });
 }
 
 /** Record the state in the URL (debounced, so one story makes one entry). push: a new history entry. */
@@ -297,6 +297,9 @@ function applyHash() {
   pushPending = false;
   restoring = true;
   try {
+    // The globe's map layers (link key "ml"): a link or history step without it turns them off.
+    const layers = h?.layers ?? [];
+    if (layers.join() !== store.mapLayers.join()) setUi({ mapLayers: layers });
     if (!h || !h.scenarios.length) {
       runQuickStart(QUICK_STARTS[0].key);
       return;
