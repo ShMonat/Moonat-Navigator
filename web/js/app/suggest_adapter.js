@@ -27,6 +27,26 @@ export function suggestDates(site, opts) {
   return engineSuggest(site, { ...opts, limit: SUGGEST_LIMIT });
 }
 
+/**
+ * What a place's suggestions depend on beyond the dates: a catalog site's id, or a custom point's position and whether
+ * its horizon is the real NASA Moon Trek one ("ready"), the coarse fallback ("fallback") or still approximate while
+ * the terrain loads ("approx"). terrainStatus: terrain_live.js terrainState() of the point. The calendar searches
+ * again when this changes while it is open.
+ */
+export function suggestKey(s, terrainStatus) {
+  if (s.site_id) return `site:${s.site_id}`;
+  const t = terrainStatus === "ready" || terrainStatus === "fallback" ? terrainStatus : "approx";
+  return `${s.lat_deg},${s.lon_deg}:${t}`;
+}
+
+/** The caveat over a custom point's suggestions while its horizon is not the real terrain, else null. */
+export function suggestCaveat(s, terrainStatus) {
+  if (s.site_id || !Number.isFinite(s.lat_deg) || !Number.isFinite(s.lon_deg) || terrainStatus === "ready") return null;
+  return terrainStatus === "fallback"
+    ? "Approximate horizon (NASA Moon Trek could not be reached): hills nearby are missing."
+    : "Approximate horizon until NASA terrain arrives: these dates then update.";
+}
+
 /** Icon of a suggestion kind (✨ for a kind this page does not know). */
 export function suggestIcon(kind) {
   return SUGGEST_KINDS.find((k) => k.kind === kind)?.icon ?? "✨";

@@ -325,10 +325,12 @@ function buildSearch() {
       items.push({ type: "coords", lat, lon });
       nodes.push(option(0, "gs-coords", el("span", { class: "gs-ico k-pin", "aria-hidden": "true" }), `Go to ${fmtSigned(lat, lon)}`, `${fmtHemi(lat, lon)} · drop a pin here`, null));
     }
-    if (r.home) {
+    // Home leads the list when the query names it; found only through its description, it comes last.
+    const addHome = () => {
       items.push({ type: "site", site: r.home });
       nodes.push(option(items.length - 1, "gs-home", kindIco("home"), "Home", `${shortName(r.home)} · ${siteSubtitle(r.home)}`, selColor(r.home)));
-    }
+    };
+    if (r.home && r.homeFirst) addHome();
     for (const g of r.groups) {
       nodes.push(el("li", { class: "gs-group", role: "presentation", text: g.label }));
       for (const site of g.sites) {
@@ -336,10 +338,16 @@ function buildSearch() {
         nodes.push(option(items.length - 1, "", kindIco(site.kind), site.name, siteSubtitle(site), selColor(site)));
       }
     }
+    if (r.home && !r.homeFirst) {
+      nodes.push(el("li", { class: "gs-group", role: "presentation", text: KIND_ONE.home }));
+      addHome();
+    }
     if (!items.length) nodes.push(el("li", { class: "gs-empty", role: "presentation", text: "No match. Try “Apollo”, “pole”, a crew name, or coordinates like 89.5S 130E." }));
     list.replaceChildren(...nodes);
-    // Typed text: the first result is ready for Enter (as in a web map); the empty list waits for the arrow keys.
-    sel = input.value.trim() && items.length ? 0 : -1;
+    // Typed text: the best match (typed coordinates, else the first name match, placeResults `best`) is ready for
+    // Enter, as in a web map; the empty list waits for the arrow keys.
+    const best = r.coords || !r.best ? 0 : items.findIndex((it) => it.type === "site" && it.site === r.best);
+    sel = input.value.trim() && items.length ? Math.max(0, best) : -1;
     highlight();
     // The list fits inside the globe, under the box.
     const host = globe?.element;

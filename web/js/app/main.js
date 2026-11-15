@@ -93,19 +93,24 @@ let computed = false; // the first compute has finished (until then the page kee
 
 let busyTimer = 0;
 /**
- * Show that results are being computed. A compute that takes longer than a moment (a rover route is planned from
- * live terrain in several seconds) also dims the results still on screen, which belong to the previous scenarios,
- * and labels the sky, which has no other progress indicator.
+ * Show that results are being computed. `#busy` is not hidden while a compute runs (the demo recorder waits on it),
+ * but it shows only once the compute takes longer than a moment (class "shown"), so a quick one (a catalog place)
+ * does not make the line appear and the sky jump for one frame. A slow one (a rover route is planned from live
+ * terrain in several seconds) also dims the results still on screen, which belong to the previous scenarios, and
+ * labels the sky, which has no other progress indicator.
  */
 function setBusy(on, text = "Computing…") {
-  $("busy").hidden = !on;
+  const busy = $("busy");
+  busy.hidden = !on;
   clearTimeout(busyTimer);
   const els = [$("compare-body"), $("sky-grid")];
   if (!on) {
+    busy.classList.remove("shown");
     for (const e of els) delete e.dataset.busy;
     return;
   }
   busyTimer = setTimeout(() => {
+    busy.classList.add("shown");
     for (const e of els) e.dataset.busy = text;
   }, 400);
 }
@@ -353,7 +358,10 @@ function initQuickStarts() {
   document.addEventListener("click", (e) => {
     const b = e.target.closest("[data-qs]");
     if (!b) return;
+    // A keyboard choice in the empty state (which then hides) keeps the focus on the same story in the list.
+    const refocus = b.matches(":focus-visible") && !$("quickstarts").contains(b);
     runQuickStart(b.dataset.qs);
+    if (refocus) $("quickstarts").querySelector(`[data-qs="${b.dataset.qs}"]`)?.focus({ preventScroll: true });
     revealSky();
   });
 }

@@ -130,7 +130,10 @@ export async function fetchRouteTerrain(start, end, o = {}) {
   const fetchFn = o.fetchFn ?? ((u, init) => globalThis.fetch(u, init));
   const trekFetch = o.trekFetch ?? fetchFn;
   const { lat_deg, lon_deg } = plan.mid;
-  const get = (lv, tol) => fetchGrid(lv.key, lat_deg, lon_deg, lv.half_m, lv.n, { fetchFn: trekFetch, tolerance_m: tol, timeout_ms: 90000, base: o.trekBase });
+  // Moon Trek sometimes answers one request with a server error: one retry (a 90 s timeout is not retried).
+  const get = (lv, tol) => fetchGrid(lv.key, lat_deg, lon_deg, lv.half_m, lv.n, {
+    fetchFn: trekFetch, tolerance_m: tol, timeout_ms: 90000, base: o.trekBase, retries: 1, retryDelayMs: o.retryDelayMs ?? 800,
+  });
   const [fine, coarse, far] = await Promise.all([
     o.grids?.fine ?? get(plan.fine, 0.05),
     (o.grids ? Promise.resolve(o.grids.coarse ?? null) : get(plan.coarse, 0.1)).catch(() => null),

@@ -16,9 +16,9 @@ import {
 } from "./state.js";
 import { scenarioFieldsFromSite, siteById, catalogSites, isTrimmedMission, shortName } from "./catalog.js";
 import { physicsCoverage, siteFor } from "./physics_adapter.js";
-import { suggestDates } from "./suggest_adapter.js";
-import { terrainStatusText, onTerrainChange } from "./terrain_live.js";
-import { attachTimePicker, closeTimePicker } from "./time_picker.js";
+import { suggestDates, suggestKey, suggestCaveat } from "./suggest_adapter.js";
+import { terrainStatusText, terrainState, onTerrainChange } from "./terrain_live.js";
+import { attachTimePicker, closeTimePicker, refreshSuggestions } from "./time_picker.js";
 import { buildTripToggle, buildTripPanel } from "../rover/ui.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -77,6 +77,8 @@ export function initScenarioUI({ onSuggest } = {}) {
       const card = cardsEl.querySelector(`[data-id="${s.id}"]`);
       if (card && !s.site_id && !s.route) refreshCard(card, s);
     }
+    // An open calendar's suggested dates were searched with the approximate horizon: search again with the real one.
+    refreshSuggestions();
   });
 }
 
@@ -105,11 +107,44 @@ function scenarioColor(s) {
   return colorHex(s.color, store.theme);
 }
 
+const FOCUSABLE = "button, input, select, textarea, summary, a[href], [tabindex]:not([tabindex='-1'])";
+const focusables = (root) => [...root.querySelectorAll(FOCUSABLE)].filter((e) => !e.disabled && e.getClientRects().length > 0);
+
+/**
+ * Where the keyboard focus is in the card list, which a rebuild replaces: { id, index } of its card and its control.
+ * Only keyboard focus (:focus-visible) counts: a tap must not move the focus into a text field (a phone's keyboard).
+ */
+function cardFocus() {
+  const a = document.activeElement;
+  if (!a?.matches?.(":focus-visible")) return null;
+  if (a === clearBtn) return { id: null, index: 0, ctl: 0 };
+  const card = a && cardsEl.contains(a) ? a.closest("[data-id]") : null;
+  if (!card || card.parentElement !== cardsEl) return null;
+  return { id: card.dataset.id, index: [...cardsEl.children].indexOf(card), ctl: focusables(card).indexOf(a) };
+}
+
+/**
+ * Give the keyboard focus back after a rebuild: the same control of the same card; for a removed card (or after
+ * "Clear all") the first field of the card now in its place.
+ */
+function restoreCardFocus(f) {
+  const a = document.activeElement;
+  if (!f || (a && a !== document.body && a.isConnected && !(a === clearBtn && clearBtn.hidden))) return;
+  const cards = [...cardsEl.children];
+  if (!cards.length) return;
+  const same = f.id ? cards.find((c) => c.dataset.id === f.id) : null;
+  const list = focusables(same || cards[Math.min(Math.max(f.index, 0), cards.length - 1)]);
+  const target = same ? list[Math.min(Math.max(f.ctl, 0), list.length - 1)] : list[0];
+  target?.focus({ preventScroll: true });
+}
+
 function renderCards(focusId) {
   closeTimePicker();
+  const had = focusId ? null : cardFocus();
   cardsEl.replaceChildren(...store.scenarios.map((s, i) => buildCard(s, i)));
   markActive();
   updateAddButtons();
+  restoreCardFocus(had);
   if (focusId) {
     const card = cardsEl.querySelector(`[data-id="${focusId}"]`);
     if (card) {
@@ -309,6 +344,15 @@ function attachPickers(s, t0, t1) {
       const x = cur();
       const { horizon } = await siteFor(x);
       return suggestDates({ lat_deg: x.lat_deg, lon_deg: x.lon_deg, horizon }, o);
+    },
+    // A custom point's horizon changes when its NASA Moon Trek terrain arrives (or fails): the list follows it.
+    key: () => {
+      const x = cur();
+      return suggestKey(x, terrainState(x.lat_deg, x.lon_deg));
+    },
+    note: () => {
+      const x = cur();
+      return suggestCaveat(x, terrainState(x.lat_deg, x.lon_deg));
     },
     pick: (g) => onSuggestPick(cur(), g),
   };

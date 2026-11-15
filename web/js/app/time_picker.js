@@ -48,6 +48,14 @@ export function closeTimePicker(focusInput = false) {
 }
 
 /**
+ * Search the open picker's suggested dates again when what they were computed from has changed (its suggest.key(),
+ * e.g. a custom point's real terrain has arrived since). The searched span stays.
+ */
+export function refreshSuggestions() {
+  open?.refreshSuggest?.();
+}
+
+/**
  * Give a UTC text field a date-and-time picker.
  * @param {HTMLInputElement} input   the field (text "YYYY-MM-DD hh:mm:ss", parsed by state.js parseUtc)
  * @param {object} opts
@@ -59,7 +67,9 @@ export function closeTimePicker(focusInput = false) {
  *   rangeStart() -> epoch ms (optional): the start, marked in the End's calendar with the span up to the end
  *   defaultTime() -> epoch ms (optional): the time of day a first date gets (the End: the start's)
  *   suggest     (optional) { place() -> label | null, durationMs() -> ms | undefined,
- *                run({from, to, durationMs, signal, onProgress}) -> Promise<C11 list>, pick(suggestion) }
+ *                run({from, to, durationMs, signal, onProgress}) -> Promise<C11 list>, pick(suggestion),
+ *                key() -> string (optional: what the list depends on beyond the dates; refreshSuggestions() searches
+ *                again when it changes), note() -> string | null (optional: a caveat shown under the heading) }
  * @returns {{ button: HTMLButtonElement, open(focusGrid), close() }} `button` (📅) goes next to the field.
  */
 export function attachTimePicker(input, opts) {
@@ -524,12 +534,14 @@ function openPicker(input, button, opts, focusGrid) {
     }
     const { from, to } = sgRange(fromMs);
     const abort = new AbortController();
-    st.sg = { from, to, abort, list: null, byDay: null };
+    st.sg = { from, to, abort, list: null, byDay: null, key: opts.suggest.key?.() ?? null };
     const durationMs = opts.suggest.durationMs?.();
     const sub = el("small", { text: `${formatUtc(from).split(",")[0]} to ${formatUtc(to).split(",")[0]}${durationMs ? ` · ${formatDuration(durationMs)} windows` : ""}` });
     const status = el("p", { class: "suggest-status", role: "status" }, el("span", { class: "spinner", "aria-hidden": "true" }), el("span", { text: "Searching…" }));
     const list = el("div", { class: "suggest-list" });
-    sgPane.replaceChildren(el("div", { class: "tp-sg-head" }, el("strong", { text: `✨ Suggested for ${placeName}` }), sub), status, list);
+    const caveat = opts.suggest.note?.() || null;
+    const head = el("div", { class: "tp-sg-head" }, el("strong", { text: `✨ Suggested for ${placeName}` }), sub);
+    sgPane.replaceChildren(...[head, caveat ? el("p", { class: "suggest-status suggest-note", text: caveat }) : null, status, list].filter(Boolean));
     try {
       const progress = status.lastChild;
       const found = await opts.suggest.run({ from, to, durationMs, signal: abort.signal, onProgress: (f) => (progress.textContent = `Searching… ${Math.round(f * 100)}%`) });
@@ -607,6 +619,13 @@ function openPicker(input, button, opts, focusGrid) {
         if (sheet) button.focus();
         else input.focus();
       }
+    },
+    refreshSuggest() {
+      if (!opts.suggest || !st.sg || (opts.suggest.key?.() ?? null) === st.sg.key) return;
+      // A suggestion that had the keyboard focus is replaced: the focus moves to the picker's Done button.
+      const hadFocus = sgPane?.contains(document.activeElement);
+      runSuggest(st.sg.from);
+      if (hadFocus) doneBtn.focus({ preventScroll: true });
     },
     focusGrid: () => focusCursor(),
     focusFirst: () => focusables()[0]?.focus(),

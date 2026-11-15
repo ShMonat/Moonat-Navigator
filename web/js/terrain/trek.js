@@ -50,10 +50,24 @@ export function decodeBsq(buf, width, height) {
 }
 
 /**
- * Fetch one site-centred grid from Moon Trek.
+ * Fetch one site-centred grid from Moon Trek. retries: how many times a failed request is sent again after
+ * retryDelayMs (Moon Trek now and then answers HTTP 500 or drops a connection); a timeout or an abort is not retried.
  * @returns {Promise<{layer, half_m, cell_m, n, data: Float32Array, bytes, ms, url}>}
  */
-export async function fetchGrid(layerKey, lat_deg, lon_deg, half_m, n, { fetchFn, tolerance_m = 0.05, timeout_ms = 30000, base = TREK_BASE, signal = null } = {}) {
+export async function fetchGrid(layerKey, lat_deg, lon_deg, half_m, n, opts = {}) {
+  const { retries = 0, retryDelayMs = 800, signal = null } = opts;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fetchGridOnce(layerKey, lat_deg, lon_deg, half_m, n, opts);
+    } catch (e) {
+      if (attempt >= retries || e?.name === 'AbortError' || signal?.aborted) throw e;
+      await new Promise((r) => setTimeout(r, retryDelayMs));
+      if (signal?.aborted) throw e;
+    }
+  }
+}
+
+async function fetchGridOnce(layerKey, lat_deg, lon_deg, half_m, n, { fetchFn, tolerance_m = 0.05, timeout_ms = 30000, base = TREK_BASE, signal = null } = {}) {
   const layer = LAYERS[layerKey];
   const url = exportUrl(layer.id, lat_deg, lon_deg, half_m, n, { tolerance_m, base });
   const t0 = Date.now();

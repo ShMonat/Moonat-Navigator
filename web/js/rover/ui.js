@@ -260,7 +260,8 @@ export function buildTripPanel(s) {
       opts = [];
       const coord = parseLatLon(query);
       if (coord) opts.push({ kind: "coord", p: coord, name: `Use ${fmtLat(coord.lat_deg)}, ${fmtLon(coord.lon_deg)}`, meta: from ? `${km(greatCircle(from, coord).dist_m)} from ${waypointLetter(i - 1)}` : "" });
-      opts.push({ kind: "pick", name: "📍 Choose on the globe", meta: "the next click on the Moon sets it" });
+      const tap = window.matchMedia?.("(pointer: coarse)")?.matches;
+      opts.push({ kind: "pick", name: "📍 Choose on the globe", meta: `the next ${tap ? "tap" : "click"} on the Moon sets it` });
       // Places in reach of the previous point, nearest first; a search ranks an exact name first, then places in reach,
       // nearest first. The previous point itself is not offered.
       const ql = query.toLowerCase();
@@ -274,7 +275,9 @@ export function buildTripPanel(s) {
         const far = Number.isFinite(d) && d > MAX_ROUTE_KM * 1000;
         opts.push({
           kind: "site", p: { lat_deg: site.lat_deg, lon_deg: site.lon_deg }, name: site.name, disabled: far,
-          meta: Number.isFinite(d) ? `${km(d)} from ${waypointLetter(i - 1)}${far ? ` · too far for one leg (max ${MAX_ROUTE_KM} km)` : ""}` : "",
+          // The kind tells apart places of the same name (the Malapert Massif region and place of interest).
+          meta: [site.kind === "candidate" ? "Artemis III region" : site.kind === "home" ? "Home base" : "",
+            Number.isFinite(d) ? `${km(d)} from ${waypointLetter(i - 1)}${far ? ` · too far for one leg (max ${MAX_ROUTE_KM} km)` : ""}` : ""].filter(Boolean).join(" · "),
         });
       }
       sel = opts.findIndex((o) => !o.disabled && o.kind !== "pick");
@@ -431,8 +434,12 @@ export function buildTripPanel(s) {
   }
 
   // ---- planning and the summary
-  function setMsg(text, warn = false) {
+  /** The card's message line; retry (optional): a "Try again" button that plans again. */
+  function setMsg(text, warn = false, retry = null) {
     msgEl.textContent = text || "";
+    if (text && retry) {
+      msgEl.append(" ", el("button", { type: "button", class: "link-btn trip-retry", text: "Try again", onclick: retry }));
+    }
     msgEl.hidden = !text;
     msgEl.classList.toggle("warn", warn);
   }
@@ -494,7 +501,13 @@ export function buildTripPanel(s) {
       detailsEl.hidden = true;
       results.delete(id);
       clearTripRoute(id);
-      setMsg(err instanceof RouteError || err?.code ? err.message : `Planning failed: ${err?.message || err}`);
+      // A failure without a planner reason (code "error": Moon Trek did not answer, the network dropped) can pass on a
+      // second try: "Try again" plans the trip again, for this card and for the sky (a field change recomputes both).
+      const transient = !(err instanceof RouteError) || !err.code || err.code === "error";
+      const raw = String(err?.message || err);
+      const trek = transient ? /Moon Trek [^:]*: (.{1,80})$/.exec(raw) : null; // trek.js: "Moon Trek <layer>: HTTP 500"
+      const text = !transient ? raw : trek ? `${raw.slice(0, trek.index)}NASA Moon Trek did not send the terrain (${trek[1]}).` : `Planning failed: ${raw}`;
+      setMsg(text, false, transient ? () => updateScenario(id, { route: { ...cur().route } }, "field") : null);
     } finally {
       stop();
     }

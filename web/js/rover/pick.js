@@ -78,7 +78,8 @@ function showBanner() {
     host.classList.remove("rover-picking");
     return;
   }
-  banner.querySelector(".rover-pick-text").textContent = `Click the Moon, or search it, to set ${pending.label}`;
+  const tap = globalThis.matchMedia?.("(pointer: coarse)")?.matches;
+  banner.querySelector(".rover-pick-text").textContent = `${tap ? "Tap" : "Click"} the Moon, or search it, to set ${pending.label}`;
   host.classList.add("rover-picking");
   if (!banner.isConnected) host.prepend(banner);
 }

@@ -82,21 +82,31 @@ export const KIND_ONE = { home: "Home base", mission: "Mission", candidate: "Art
 
 const GROUP_KINDS = ["mission", "candidate", "poi"];
 
+const fold = (x) => String(x || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+
 /**
- * The search list for a query: typed coordinates (or null), the home site (first, when the query is empty or matches
- * it), and the other matches grouped by kind in a fixed order (missions, Artemis III regions, places of interest),
- * each group in searchSites order (name matches first, then by name).
- * @returns {{coords: {lat: number, lon: number}|null, home: object|null, groups: {kind: string, label: string, sites: object[]}[]}}
+ * The search list for a query: typed coordinates (or null), the home site when the query matches it, and the other
+ * matches grouped by kind in a fixed order (missions, Artemis III regions, places of interest), each group in
+ * searchSites order (name matches first, then by name). `homeFirst`: the home site leads the list (an empty query,
+ * or every typed word in its name or in "home base"); a home site found only through its description ("Luna 9"
+ * matches its "lunar base") follows the groups. `best`: the place Enter picks for a typed query, searchSites' first
+ * (a name match before a description match, whatever its group: "Shackleton" is the Shackleton rim, not the
+ * Artemis III region whose description mentions Shackleton); null without a query or a match.
+ * @returns {{coords: {lat: number, lon: number}|null, home: object|null, homeFirst: boolean, best: object|null,
+ *   groups: {kind: string, label: string, sites: object[]}[]}}
  */
 export function placeResults(query, sites) {
   const q = String(query ?? "").trim();
   const coords = parseLatLon(q);
   const found = coords ? [] : searchSites(q, sites);
   const home = found.find((s) => s.id === HOME_SITE_ID || s.kind === "home") || null;
+  const named = fold(`${home?.name} ${home?.id} home base`);
+  const homeFirst = !!home && fold(q).split(/\s+/).filter(Boolean).every((w) => named.includes(w));
   const groups = [];
   for (const kind of GROUP_KINDS) {
     const list = found.filter((s) => s.kind === kind);
     if (list.length) groups.push({ kind, label: KIND_LABEL[kind], sites: list });
   }
-  return { coords, home, groups };
+  const best = q && found.length ? found[0] : null;
+  return { coords, home, homeFirst, best, groups };
 }
