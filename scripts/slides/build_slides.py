@@ -128,7 +128,14 @@ def shot_plan() -> list[dict]:
             "zoom": 3,
             "pole_y": 0.615,
         },
-        {"name": "rover", "hash": link_hash(rover), "crop": "globe", "size": (760, 480)},
+        {
+            "name": "rover",
+            "hash": link_hash(rover),
+            "crop": "globe",
+            "size": (760, 480),
+            "wait": 4,
+            "ready_text": "Fastest route",
+        },
         {
             "name": "beresheet",
             "hash": link_hash(beresheet),
@@ -284,9 +291,27 @@ def capture(site: str, headed: bool) -> None:
             page.on("pageerror", lambda e, errors=errors: errors.append(str(e)))
             watch = Watch(page)
             t0 = time.time()
-            page.goto(site + item["hash"], wait_until="load")
-            time.sleep(3.0)
-            settle(page, watch)
+            for attempt in range(3):
+                page.goto(site + item["hash"], wait_until="load")
+                time.sleep(3.0)
+                if not item.get("ready_text"):
+                    settle(page, watch)
+                    break
+                # Wait for visible text that the page shows once its work is done (the rover's planned route); the
+                # live terrain service is sometimes slow, so load the page again if it does not come.
+                try:
+                    page.get_by_text(item["ready_text"]).first.wait_for(
+                        state="visible", timeout=60000
+                    )
+                    settle(page, watch, timeout=30)
+                    break
+                except Exception:  # noqa: BLE001 - not ready: try again
+                    print(
+                        f"  {item['name']}: '{item['ready_text']}' not shown (attempt {attempt + 1})",
+                        file=sys.stderr,
+                    )
+            # The globe's turn and zoom to the place (WebGL, not counted by settle).
+            time.sleep(item.get("wait", 0))
             rect = None
             if item.get("zoom"):
                 # The globe's "South pole" button (visible text), then wheel zoom about the pole, which sits at

@@ -15,7 +15,8 @@ point), and reports the sunlight and Earth contact a lander or base would get, i
 A first-person sky view shows it all, and the map shows where each view is looking and where it is day or night at that
 moment. Map layers show NASA's permanently shadowed regions and most sunlit ground at the poles, and many sites and dates compare side by side. A story shows what
 the tardigrades on Israel's Beresheet lander see from its crash site right now. We used Moonat to choose a site for a
-lunar base: the Malapert massif crest, with sunlight 82 % and Earth in view 98 % of the time over 2030–2040.
+lunar base: the Malapert massif crest, which over 2030–2040 gets 82 % of full sunlight on average and keeps 98 % of the
+Earth's disk in view on average (the Earth never fully sets there).
 
 ## Project Demo
 https://shmonat.github.io/Moonat-Navigator/video/moonat_demo.mp4 (30 s, 1080p, plays in the browser; every frame is a
@@ -50,7 +51,7 @@ https://shmonat.github.io/Moonat-Navigator/ — source code: https://github.com/
 6. Eclipses: the fraction of the Sun hidden by the Earth reproduces NASA's published contact times of the lunar eclipses of 14 March 2025 (seen by the Blue Ghost lander) and 24 April 1967 (seen by Surveyor 3) to 4.2 s or better.
 7. Rover trips: a shortest-time path search through every stop on a Moon Trek elevation grid, with VIPER-class (0.2 m/s, ≤ 15°) and Apollo LRV (2.5 m/s, ≤ 20°) presets from NASA sources.
 8. Suggested dates: a two-year scan of the place's sunlight, Earth visibility and eclipse geometry in a background thread (under 1 s at the poles). It finds every umbral lunar eclipse in NASA's 2025–2030 catalog.
-9. A base-siting study with the same physics: 80,648 south-polar points screened, the best refined at 20 m resolution over 2030–2040. The recommended StarHab site (Malapert massif crest, −85.968°, −2.287°) gets 82 % sunlight, the Earth in view 98 % of the time, and a longest night of 7 days on a 10 m mast. Our illumination matches Gläser et al. (2014) within 0.2 points, and our Earth visibility matches NASA's south-pole Earth-visibility map with r = 0.97.
+9. A base-siting study with the same physics: 80,648 south-polar points screened, the best refined at 20 m resolution over 2030–2040. The recommended StarHab site (Malapert massif crest, −85.968°, −2.287°) gets 82 % of full sunlight on average, 98 % of the Earth's disk in view on average with the Earth never fully hidden, and a longest night of 7 days, on a 10 m mast. Our illumination matches Gläser et al. (2014) within 0.2 points, and our Earth visibility matches NASA's south-pole Earth-visibility map with r = 0.97.
 
 **Tools**
 Python (skyfield, numpy), JavaScript (three.js, Plotly), GitHub Pages. Built with AI coding agents (see Use of AI).
