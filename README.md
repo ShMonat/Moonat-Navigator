@@ -26,9 +26,10 @@ One page, in the order you need it:
 2. **The sky from there:** a first-person 3D view from 2 m above the ground, with terrain lit by the Sun, the Earth with
    its true phase and orientation, stars and planets, and a timelapse; one view per scenario. The view fills the
    window like an app, with a full-screen button. While it plays, "Follow Sun" or "Follow Earth" keeps the body in
-   frame. A hint offers the eclipse or the Earthrise a mission window holds ("Show me").
+   frame. A hint offers the eclipse or the Earthrise a mission window holds ("Show me"). On the globe, a wedge at each
+   place shows where its view is looking, and the globe shows day and night at the view's time.
 3. **Sun | Earth:** one switch turns every view to the Sun or the Earth and shows that body's numbers: elevation,
-   visible fraction of the disk, solar flux (W/m²), phase, time to sunset or Earthset, a side-by-side ranking of the
+   visible fraction of the disk, solar flux (W/m²) on a Sun-facing, fixed-tilt turning or flat panel, phase, time to sunset or Earthset, a side-by-side ranking of the
    scenarios, and charts with a cursor at the sky's moment.
 
 More:
@@ -38,8 +39,11 @@ More:
 - **Rover trips:** switch on **Trip** next to a place and add an end point and stops, as in Google Maps directions
   (each leg up to 60 km); Moonat fetches LOLA terrain from NASA Moon Trek, finds the fastest drivable path for a
   VIPER-class rover or the Apollo LRV (slope limits), draws it on the globe, and charts the Sun and Earth along the
-  drive against time or distance travelled. The timelapse rides along the route, with an optional "Driver's view" facing the way the rover drives
-  ([validation](docs/validation/rover.md)).
+  drive against time or distance travelled. The travel time is coloured like traffic: green, orange or red by how much
+  slower the route is than a straight drive on flat ground (detours and slopes). The timelapse rides along the route,
+  with an optional "Driver's view" facing the way the rover drives ([validation](docs/validation/rover.md)).
+- **Map layers:** NASA's permanently shadowed regions and the ground lit at least 70 % of the time, at both poles
+  (NASA GSFC PGDA, Mazarico et al. 2011 method; [check](docs/validation/map_layers.md)).
 
 | Compare all Apollo landings | South pole (Shackleton rim) | Far side (Chang'e 4) |
 |---|---|---|

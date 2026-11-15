@@ -1,6 +1,6 @@
 # NASA Space Apps project page: draft texts (paste into the site)
 
-> Draft v0.7 (2026-11-15). Numbers come from docs/validation/ and docs/research/. Ready to paste; nothing open.
+> Draft v0.8 (2026-11-15). Numbers come from docs/validation/ and docs/research/. Ready to paste; nothing open.
 > Editor: Shay. Everything here is English, as the rules require.
 
 ## Project name
@@ -12,8 +12,8 @@ Moon: click places on a 3D globe or search for missions such as Apollo 11, pick 
 sunlight, Earth contact or a visible eclipse), and plan rover trips with stops. Moonat places the Sun and Earth with JPL
 ephemerides, checks whether a ridge or crater rim hides them using NASA LOLA terrain (fetched live from Moon Trek for any
 point), and reports the sunlight and Earth contact a lander or base would get, including eclipses of the Sun by the Earth.
-A first-person sky view shows it all, and the map shows where each view is looking. Map layers show NASA's permanently
-shadowed regions and most sunlit ground at the poles, and many sites and dates compare side by side. A story shows what
+A first-person sky view shows it all, and the map shows where each view is looking and where it is day or night at that
+moment. Map layers show NASA's permanently shadowed regions and most sunlit ground at the poles, and many sites and dates compare side by side. A story shows what
 the tardigrades on Israel's Beresheet lander see from its crash site right now. We used Moonat to choose a site for a
 lunar base: the Malapert massif crest, with sunlight 82 % and Earth in view 98 % of the time over 2030–2040.
 
@@ -30,11 +30,12 @@ https://shmonat.github.io/Moonat-Navigator/ — source code: https://github.com/
 **What it does**
 - Inputs, in the order a user thinks (like a map app): places, chosen by clicking the 3D Moon globe (near side, far side or either pole; click a selected pin to remove it), by dropping and dragging a pin, or by searching "Search the Moon" (missions from Apollo to Beresheet, each marked with the flag of the nation that flew it, potential Artemis sites, polar ridges, the home base, or coordinates). A Layers button shows the permanently shadowed regions and the most sunlit ground at both poles. Several places compare side by side. Each has a start time and an end time or a duration, picked from a calendar that also suggests the best dates for that place. Advanced: a rover trip from the place to an end point, with any number of stops, and a rover type as the "travel mode".
 - Outputs:
-  - Sun panel: elevation, azimuth, how much of the solar disk clears the terrain and the Earth, solar flux (W/m²), time to sunset, eclipses.
+  - Sun panel: elevation, azimuth, how much of the solar disk clears the terrain and the Earth, solar flux (W/m²) on a Sun-facing panel, on a panel that turns on a vertical mast at a fixed tilt, or on flat ground, time to sunset, eclipses.
   - Earth panel: elevation, azimuth, how much of the Earth is visible (a proxy for direct radio contact), its phase, time to Earthset.
   - Sky view: a first-person 3D view from 2 m above the ground that fills the window like an app, with a wedge on the map showing where it looks, real terrain lit by the Sun, the Earth with its true phase and orientation, the stars and the planets. During an eclipse, the Earth covers the Sun and its atmosphere glows as a red ring (an illustrative drawing; the eclipse geometry and timing are computed).
   - Suggested dates: for the chosen place, the best windows for solar power, for direct-to-Earth contact and for both, every eclipse of the Sun by the Earth visible from there, and Earthrises at polar and limb sites.
-  - Rover trip: the fastest route through all stops within the rover's slope limit, drawn on the globe, with elevation and slope profiles and the Sun and Earth along the drive, against time or distance travelled. Pressing play drives the route in the sky view, optionally in a driver's view.
+  - Rover trip: the fastest route through all stops within the rover's slope limit, drawn on the globe, with elevation and slope profiles and the Sun and Earth along the drive, against time or distance travelled. The travel time is coloured like traffic on a map app, by how much slower the route is than a straight drive on flat ground. Pressing play drives the route in the sky view, optionally in a driver's view.
+  - Map: day and night at the chosen moment, including the Earth's shadow during eclipses. The point under the Sun agrees with JPL Horizons to 0.7 arcseconds.
   - Map layers: NASA's permanently shadowed regions, and the ground lit at least 70 % of the time at both poles. Every spot on the Moon spends some time in darkness; the best ridges are lit about 89–93 % of the time.
 - Mission durations, from hours to years, become timelines with one line per scenario, so trade-offs are visible at a glance. Playback can follow the Sun or the Earth. Every view can be shared as a link.
 

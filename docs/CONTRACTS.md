@@ -502,7 +502,7 @@ tripKey(points, rover), tripProblems(points) -> [message]      // a 2-point trip
   typed coordinates or the map, with swap and "Add stop" (a stop before the end), editing logic in `trip_edit.js`; the
   route card; live position and ETA while the timelapse plays, `tripTime(offsetMs)` from main.js), the sky ride
   `sky_ride.js` (sky, skyline and ±8 km ground where the rover is).
-- **Traffic colour (added 2026-11-15, trip-ui; thresholds pending Shay's review):** `delay.js` `tripDelay(route, stops,
+- **Traffic colour (added 2026-11-15, trip-ui; Shay approved the time ratio with slopes and detours, 2026-11-15):** `delay.js` `tripDelay(route, stops,
   arrivalMs)`: ratio = the route's time (drive + rest stops) / the time of the same rover on flat ground along the great
   circles between consecutive waypoints (level speed, `speedFactor(0)`; the same rest-stop rule), so a straight flat
   route scores 1.0 and both detours and uphill slowdowns raise it. The route card colours the duration with
