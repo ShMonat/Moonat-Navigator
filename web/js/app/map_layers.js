@@ -5,7 +5,8 @@
 // web/js/globe/layers.js (NASA's permanently shadowed regions and the most sunlit ground). The choice lives in the store
 // (store.mapStyle, store.daylight, store.mapLayers; the share link keeps all three in "ml"). Turning a polar layer on while no pole is in
 // view flies to the nearer pole, since those layers only have data poleward of 80°. The legend under the map lists
-// what is on.
+// what is on. Each row is a name and one short line (colour keys or SHORT); the long notes and the sources sit behind
+// an "i" helper (web/js/app/info_tip.js).
 
 import { store, subscribe, setUi } from "./store.js";
 import {
@@ -22,6 +23,18 @@ import {
 } from "../globe/layers.js";
 import { DAYLIGHT_LAYER } from "../globe/daylight.js";
 import { sunSpotIcon } from "./icons.js";
+import { infoTip, setTipOpen } from "./info_tip.js";
+
+/**
+ * The one short muted line under a base map or an overlay without colour keys. The long note and the source of each
+ * sit behind the row's "i" helper (tipText).
+ */
+export const SHORT = {
+  imagery: "Photo mosaic (LRO)",
+  elevation: "Height colours (LOLA)",
+  plain: "Grey relief, so the overlays stand out",
+  grid: "Every 30°; every 10° near the poles",
+};
 
 /** The Elevation colour scale as a CSS gradient (left = low). */
 const RAMP_CSS = `linear-gradient(90deg, ${ELEV_RAMP.stops.join(", ")})`;
@@ -129,6 +142,10 @@ function buildPanel() {
   status.setAttribute("role", "status");
   status.setAttribute("aria-live", "polite");
   p.append(foot, status);
+  // The "i" popovers sit inside the rows' labels: a click on their text must not toggle the row's checkbox.
+  p.addEventListener("click", (e) => {
+    if (e.target.closest?.(".info-pop")) e.preventDefault();
+  });
   p.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       e.stopPropagation(); // the panel closes, not the full-window map
@@ -157,38 +174,70 @@ function rampBar() {
   const ticks = el("span", "glayer-ramp-ticks");
   const [lo, hi] = ELEV_RAMP.rangeKm;
   for (const km of [lo, lo / 2, 0, hi / 2, hi]) ticks.append(el("span", "", kmText(km)));
-  wrap.append(bar, ticks, el("span", "glayer-ramp-unit", "Height in km relative to the 1737.4 km reference sphere"));
+  wrap.append(bar, ticks, el("span", "glayer-ramp-unit", "km, relative to 1737.4 km"));
   return wrap;
 }
 
-/** A panel row: a checkbox, the layer's name, its colour keys, note and source. onChange(box) runs on a change. */
+/** The "i" helper text of a layer or base map: its note, then its source. */
+export function tipText(item) {
+  return item.source ? `${item.note} Source: ${item.source}.` : item.note;
+}
+
+/** A row's name with its "i" helper (the note and source live in the popover, not in the panel). */
+function nameLine(label, item) {
+  const line = el("span", "glayer-head");
+  line.append(el("span", "glayer-name", label));
+  line.insertAdjacentHTML("beforeend", infoTip(tipText(item), { label: `About ${label}`, end: true }));
+  return line;
+}
+
+/**
+ * A panel row: a checkbox, the layer's name with its "i", then one short muted line: the colour keys, or for a layer
+ * without keys its SHORT line. onChange(box) runs on a change.
+ */
 function layerRow(layer, onChange) {
   const row = el("label", "glayer");
   const box = el("input");
   box.type = "checkbox";
   box.addEventListener("change", () => onChange(box));
   const body = el("span", "glayer-body");
-  body.append(el("span", "glayer-name", layer.label));
-  const keys = el("span", "glayer-keys");
-  for (const [color, text] of layer.swatches) {
-    const k = el("span", "glayer-key");
-    const sw = el("i", "glayer-sw");
-    sw.style.setProperty("--c", color);
-    k.append(sw, text);
-    keys.append(k);
+  body.append(nameLine(layer.label, layer));
+  if (layer.swatches.length) {
+    const keys = el("span", "glayer-keys");
+    for (const [color, text] of layer.swatches) {
+      const k = el("span", "glayer-key");
+      const sw = el("i", "glayer-sw");
+      sw.style.setProperty("--c", color);
+      k.append(sw, text);
+      keys.append(k);
+    }
+    body.append(keys);
+  } else if (SHORT[layer.id]) {
+    body.append(el("span", "glayer-note", SHORT[layer.id]));
   }
-  if (layer.swatches.length) body.append(keys);
-  body.append(el("span", "glayer-note", layer.note));
-  if (layer.source) body.append(el("span", "glayer-src", layer.source));
   row.append(box, body);
   return row;
 }
 
+/**
+ * Keep the open panel inside the map: it grows up from the tool column and the map clips its overflow, so on a short
+ * map its head (title and close button) was cut off. The panel scrolls inside the height that is left instead.
+ */
+function fit() {
+  if (panel.hidden) return;
+  panel.style.maxHeight = "";
+  const map = panel.closest(".globe")?.getBoundingClientRect();
+  const r = panel.getBoundingClientRect();
+  if (map && r.top < map.top + 8) panel.style.maxHeight = `${Math.max(160, Math.floor(r.bottom - map.top - 8))}px`;
+}
+
 function open(on, focusButton = false) {
   panel.hidden = !on;
+  fit();
   btn.setAttribute("aria-expanded", String(on));
   btn.classList.toggle("open", on);
   if (!on) status.textContent = "";
+  if (!on) for (const w of panel.querySelectorAll(".info-tip.open")) setTipOpen(w, false);
   if (!on && focusButton) btn.focus({ preventScroll: true });
 }
 
@@ -203,9 +252,15 @@ function sync() {
   for (const r of panel.querySelectorAll("input[data-base]")) r.checked = r.dataset.base === style.base;
   const base = BASE_MAPS.find((b) => b.id === style.base);
   const note = panel.querySelector(".glayers-base-note");
-  note.replaceChildren(el("span", "glayer-note", base.note));
-  if (base.id === "elevation") note.append(rampBar());
-  note.append(el("span", "glayer-src", base.source));
+  if (note.dataset.base !== base.id) {
+    note.dataset.base = base.id;
+    const line = el("span", "glayer-head");
+    line.append(el("span", "glayer-note", SHORT[base.id] || ""));
+    line.insertAdjacentHTML("beforeend", infoTip(tipText(base), { label: `About the ${base.label} map`, end: true }));
+    note.replaceChildren(line);
+    if (base.id === "elevation") note.append(rampBar());
+    fit();
+  }
   const n = on.length + (style.contours ? 1 : 0) + (style.base !== "imagery" ? 1 : 0);
   btn.classList.toggle("has-layers", n > 0);
   btn.title = n ? `Map layers (${n} on)` : "Map layers";
@@ -265,6 +320,7 @@ export function initMapLayers(g) {
   document.addEventListener("pointerdown", (e) => {
     if (!panel.hidden && !panel.contains(e.target) && !btn.contains(e.target)) open(false);
   });
+  window.addEventListener("resize", fit); // a turned phone, the full-window map
   subscribe((kind, detail) => {
     if (kind === "ui" && ("mapLayers" in detail || "daylight" in detail || "mapStyle" in detail)) sync();
   });

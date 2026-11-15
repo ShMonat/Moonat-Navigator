@@ -152,12 +152,30 @@ function decorate(it) {
   return { ...it, label: it.s.label || `Scenario ${it.index + 1}`, color: colorHex(it.s.color, store.theme), dash: isWrappedSlot(it.s.color) };
 }
 
+/**
+ * The empty state's words. With no place yet (no card, or blank cards): "Pick a place…". With a place that cannot be
+ * shown yet (a trip leg too long, a field still being typed) it points at the card's message instead.
+ */
+const EMPTY_TEXT = {
+  none: ["Pick a place on the Moon and a time", "Search the Moon or click the globe, or type coordinates. A story is the fastest way in:"],
+  pending: ["Almost there: check the place and time", "The card's message says what is missing. Or start a story:"],
+};
+function emptyText(hasCards) {
+  const box = $("out-empty");
+  const [h, p] = EMPTY_TEXT[hasCards ? "pending" : "none"];
+  const hEl = box.querySelector("h2");
+  const pEl = box.querySelector("p");
+  if (hEl && hEl.textContent !== h) hEl.textContent = h;
+  if (pEl && pEl.textContent !== p) pEl.textContent = p;
+}
+
 function render() {
   const items = lastItems.map(decorate);
   const ok = items.filter((it) => !it.error);
   const any = ok.length > 0;
   // Nothing to show (no complete scenario): one empty state with the stories instead of the sky and the data.
   $("out-empty").hidden = any || !computed;
+  if (!any && computed) emptyText(store.scenarios.some((s) => s.site_id || s.route || s.lat_deg !== null || s.lon_deg !== null));
   $("sky-panel").hidden = !any && computed;
   renderCompare(items, { xaxis: store.xaxis });
   setSkyItems(ok);

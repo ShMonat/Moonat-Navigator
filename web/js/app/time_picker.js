@@ -8,6 +8,7 @@
 import { parseUtc, toUtcText, formatUtc, formatDuration, describeYears, coverageEnd, DAY_MS } from "./state.js";
 import { SUGGEST_KINDS, suggestIcon } from "./suggest_adapter.js";
 import { icon, iconNode } from "./icons.js";
+import { infoTip } from "./info_tip.js";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
@@ -548,6 +549,17 @@ function openPicker(input, button, opts, focusGrid) {
     const sub = el("small", { text: `${formatUtc(from).split(",")[0]} to ${formatUtc(to).split(",")[0]}${durationMs ? ` · ${formatDuration(durationMs)} windows` : ""}` });
     const status = el("p", { class: "suggest-status", role: "status" }, el("span", { class: "spinner", "aria-hidden": "true" }), el("span", { text: "Searching…" }));
     const list = el("div", { class: "suggest-list" });
+    // A note's "i" opens below it, inside the scrolling list: scroll the list (only the list) to show the popover.
+    list.addEventListener("click", (e) => {
+      const b = e.target.closest?.(".info-btn");
+      if (!b) return;
+      requestAnimationFrame(() => {
+        const pop = b.closest(".info-tip")?.querySelector(".info-pop");
+        if (!pop || !pop.offsetParent) return;
+        const below = pop.getBoundingClientRect().bottom - list.getBoundingClientRect().bottom;
+        if (below > 0) list.scrollTop += below + 4;
+      });
+    });
     const caveat = opts.suggest.note?.() || null;
     const head = el("div", { class: "tp-sg-head" }, el("strong", {}, iconNode("suggest"), `Suggested for ${placeName}`), sub);
     sgPane.replaceChildren(...[head, caveat ? el("p", { class: "suggest-status suggest-note", text: caveat }) : null, status, list].filter(Boolean));
@@ -594,9 +606,13 @@ function openPicker(input, button, opts, focusGrid) {
     const tip = [when, g.detail].filter(Boolean).join(" · ");
     // The title says what; the line under it when (two windows can share a title); the detail is in the tooltip.
     const text = el("span", { class: "si-text" }, el("b", { text: g.title || "Suggested dates" }),
-      g.note && g.detail ? el("small", { class: "si-detail", text: g.detail }) : when ? el("small", { text: when }) : null);
+      !g.note && when ? el("small", { text: when }) : null);
     const ico = kindIcon(g.kind, "si-icon");
-    if (g.note || !Number.isFinite(t0)) return el("div", { class: "suggest-item note" }, ico, text);
+    if (g.note || !Number.isFinite(t0)) {
+      // A note (no window to open): its title, with the long explanation behind an "i".
+      if (g.detail) text.firstChild.insertAdjacentHTML("beforeend", ` ${infoTip(g.detail, { label: "More about this" })}`);
+      return el("div", { class: "suggest-item note" }, ico, text);
+    }
     const item = el("button", { type: "button", class: "suggest-item", title: tip }, ico, text);
     if (tip) item.setAttribute("aria-description", tip);
     item.addEventListener("click", () => {
