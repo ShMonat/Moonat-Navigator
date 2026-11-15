@@ -17,7 +17,8 @@ LROC = "https://www.lroc.asu.edu/"
 ART = "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/"
 
 
-def m(id, name, agency, lander, crew, lat, lon, t0, t1, blurb, src, notes=None):
+def m(id, name, agency, lander, crew, lat, lon, t0, t1, blurb, src, notes=None, outcome=None):
+    """A mission. outcome "crash": an impact site (t0 = the crash), shown as "crash site" in the search list."""
     d = dict(
         id=id,
         name=name,
@@ -34,6 +35,8 @@ def m(id, name, agency, lander, crew, lat, lon, t0, t1, blurb, src, notes=None):
     )
     if notes:
         d["notes"] = notes
+    if outcome:
+        d["outcome"] = outcome
     return d
 
 
@@ -452,6 +455,35 @@ sites = [
         "The closest any lander has gotten to the lunar south pole, on a tall plateau; it tipped over.",
         [W + "IM-2", LOLA],
         "End approximate (power lost within a day).",
+    ),
+    m(
+        "beresheet",
+        "Beresheet (SpaceIL)",
+        "SpaceIL",
+        "Beresheet",
+        None,
+        32.5956,
+        19.3496,
+        "2019-04-11T19:23:00Z",
+        "2019-05-11T08:07:00Z",
+        "Israel's first Moon mission, by SpaceIL and Israel Aerospace Industries, crashed here in Mare Serenitatis "
+        "in 2019. It carried a tiny library with dehydrated tardigrades, which probably did not survive the impact.",
+        [
+            LROC + "images/1101",
+            "https://www.planetary.org/articles/beresheet-comes-close-crashes",
+            "https://www.archmission.org/spaceil",
+            "https://earthsky.org/human-world/tardigrades-lunar-library-beresheet-spacecraft-crash-moon",
+            "https://doi.org/10.1089/ast.2020.2405",
+            W + "Beresheet",
+        ],
+        "Crash site, not a landing. Position: the darkest pixel of the impact smudge (LROC, M. Robinson, 15 May 2019; "
+        "95 % confidence 20 m in latitude by 8 m in longitude). Start = loss of signal, about 19:23 UTC on 11 Apr 2019, "
+        "during the landing burn after an IMU reset and a main-engine shutdown (last telemetry: 149 m up, 134 m/s down, "
+        "947 m/s across). End = one lunar day-night cycle (29.5 days) later, so the sky can be played; nothing worked on "
+        "the surface. The Arch Mission Foundation's Lunar Library on board held dehydrated tardigrades (water bears). "
+        "Traspas & Burchell (2021, Astrobiology 21(7) 845-852) found that they do not survive impacts above about "
+        "0.9 km/s (1.14 GPa), and the authors conclude that Beresheet's tardigrades probably did not survive.",
+        outcome="crash",
     ),
     c(
         "art_cabeusb",

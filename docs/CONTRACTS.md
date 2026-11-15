@@ -51,6 +51,10 @@ Precomputed solar-system state for the browser, one binary file per year.
   set by the one constant `STARHAB_LAT_LON` in scripts/catalog/build_sites.py (`PLACEHOLDER[starhab-coords]`); after a
   change, run that script and `scripts/data/build_terrain.py starhab`.
 - Every coordinate and time is sourced (NSSDCA, LROC, mission pages). Coordinates in MOON_ME (LROC-measured where available).
+- **Added 2026-11-15 (beresheet):** optional `"outcome": "crash"` on a mission that crashed (Beresheet, SpaceIL 2019): its
+  position is the LROC impact point, `t_start_utc` the crash, `t_end_utc` one lunar day-night cycle later (29.5 d) so the
+  sky can be played. The search list and the place card say "crash site" in place of the lander. Pending review by
+  Shahar (data format; additive, existing readers ignore it).
 
 ## C3 `horizon-profile` (producer: `terrain`; consumers: `physics-js`, `sky-viewer`)
 - `web/data/horizons/<site_id>.json`:

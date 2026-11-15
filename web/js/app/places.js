@@ -227,7 +227,8 @@ function cardKind(s, site) {
   if (site) {
     const year = site.t_start_utc ? ` · ${site.t_start_utc.slice(0, 4)}` : "";
     const agency = site.kind === "mission" && site.agency ? ` · ${site.agency}` : "";
-    return `${KIND_ONE[site.kind] || "Place"}${agency}${year}${site.kind === "candidate" ? " · approximate point" : ""}`;
+    const crash = site.outcome === "crash" ? " · crash site" : "";
+    return `${KIND_ONE[site.kind] || "Place"}${agency}${year}${crash}${site.kind === "candidate" ? " · approximate point" : ""}`;
   }
   if (s?.route) return "Rover traverse (start)";
   return "Dropped pin · drag it to move";

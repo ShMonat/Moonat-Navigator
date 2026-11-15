@@ -66,6 +66,14 @@ test("typing filters (searchSites); 'home' and 'starhab' find the home base; coo
     searchSites("malapert", SITES).filter((s) => s.kind !== "home").map((s) => s.id).sort());
 });
 
+test("'beresheet', 'spaceil' and 'tardigrades' find the Beresheet crash site; Enter picks it", () => {
+  for (const q of ["beresheet", "Beresheet", "spaceil", "SpaceIL", "tardigrades", "israel"]) {
+    const r = placeResults(q, SITES);
+    assert.equal(r.best?.id, "beresheet", q);
+    assert.deepEqual(r.groups.map((g) => g.kind), ["mission"], q);
+  }
+});
+
 test("the home base is StarHab, kind home, at the site chosen by the siting study (Malapert massif crest)", () => {
   const home = SITES.find((s) => s.id === HOME_SITE_ID);
   assert.equal(home.kind, "home");
@@ -87,6 +95,8 @@ test("subtitles: agency, year and crew for missions; region for candidates; wher
   const cand = SITES.find((s) => s.kind === "candidate");
   assert.match(siteSubtitle(cand), /^Artemis III region · south pole · approximate point$/);
   assert.equal(siteSubtitle(SITES.find((s) => s.id === HOME_SITE_ID)), "Lunar base concept (IAC 2021) · south pole");
+  // A crash site says so in place of the lander.
+  assert.equal(siteSubtitle(SITES.find((s) => s.id === "beresheet")), "SpaceIL · 2019 · crash site");
   assert.equal(areaOf(0, 23), "near side");
   assert.equal(areaOf(-45, 177.6), "far side");
   assert.equal(areaOf(-45, -95), "far side");

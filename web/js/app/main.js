@@ -6,7 +6,7 @@
 import { store, subscribe, setScenarios, setUi, updateScenario } from "./store.js";
 import {
   colorHex, isWrappedSlot, validateScenario, scenarioTimes, physicsKey, encodeHash, decodeHash, hashBody, coverageEnd, makeScenario,
-  DAY_MS, HOUR_MS,
+  parseUtc, DAY_MS, HOUR_MS,
 } from "./state.js";
 import { missionSeries } from "./playback.js";
 import { loadCatalog, QUICK_STARTS, catalogSites } from "./catalog.js";
@@ -161,6 +161,7 @@ function render() {
   renderCompare(items, { xaxis: store.xaxis });
   setSkyItems(ok);
   syncHint();
+  syncQuickStartUi(); // a live story's caption is written from these results
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -368,16 +369,28 @@ function initQuickStarts() {
   });
 }
 
+let storySeq = 0;
+
 /**
  * Load a story: its scenarios, its Sun | Earth choice (the views are built aimed at it), its time axis and its
- * opening moment.
+ * opening moment. A story with `opening` (the live Beresheet story) has its first scenario computed first, and its
+ * sky at the start chooses the Sun | Earth switch and the timelapse speed; computeCore caches that result, so the
+ * recompute that follows the load reuses it.
  */
 function runQuickStart(key) {
   const q = QUICK_STARTS.find((x) => x.key === key);
   if (!q) return;
-  applyView({ xaxis: q.xaxis || "met", body: q.body || "sun" }, { aim: false });
-  queueSkyStart({ offsetMs: q.offsetMs || 0, view: null });
-  setScenarios(q.resolve(catalogSites()));
+  const seq = ++storySeq;
+  const parts = q.resolve(catalogSites());
+  const open = ({ body = null, speedMs = null } = {}) => {
+    if (seq !== storySeq) return; // another story was chosen meanwhile
+    applyView({ xaxis: q.xaxis || "met", body: body || q.body || "sun" }, { aim: false });
+    queueSkyStart({ offsetMs: q.offsetMs || 0, view: null, speedMs });
+    setScenarios(parts);
+  };
+  if (!q.opening) return open();
+  setBusy(true);
+  computeCore(makeScenario(parts[0])).then((core) => open(q.opening(core.error ? null : core)));
 }
 
 /**
@@ -405,16 +418,29 @@ function applyView({ xaxis, body }, { aim = true } = {}) {
 }
 
 let qsSigs = null;
-/** The scenario signature (the hash rows) of each story, against the loaded catalog. */
+/** The scenario signature (the hash rows) of a story's partial scenarios. */
+function storySig(partials) {
+  const list = [];
+  for (const p of partials) list.push(makeScenario(p, list));
+  return encodeHash({ scenarios: list });
+}
+
+/**
+ * The scenario signature of each story, against the loaded catalog. A live story (it opens at the current time) is
+ * resolved again at the start of the scenarios shown, so it is recognised however it was loaded (chip, link, Back).
+ */
 function quickStartSigs() {
-  if (!qsSigs) {
-    qsSigs = QUICK_STARTS.map((q) => {
-      const list = [];
-      for (const p of q.resolve(catalogSites())) list.push(makeScenario(p, list));
-      return [q, encodeHash({ scenarios: list })];
-    });
-  }
-  return qsSigs;
+  if (!qsSigs) qsSigs = QUICK_STARTS.filter((q) => !q.live).map((q) => [q, storySig(q.resolve(catalogSites()))]);
+  const t0 = parseUtc(store.scenarios[0]?.t_start_utc || "");
+  if (!Number.isFinite(t0)) return qsSigs;
+  return [...qsSigs, ...QUICK_STARTS.filter((q) => q.live).map((q) => [q, storySig(q.resolve(catalogSites(), t0))])];
+}
+
+/** The computed result of the first scenario, when it is up to date (else null): what a live caption describes. */
+function firstResult() {
+  const s = store.scenarios[0];
+  const it = s && lastItems.find((x) => x.s.id === s.id);
+  return it && !it.error && it.key === physicsKey(s) ? it : null;
 }
 
 /**
@@ -429,9 +455,11 @@ function syncQuickStartUi() {
     c.classList.toggle("active", on);
     c.setAttribute("aria-pressed", String(on));
   }
+  const text = typeof q?.caption === "function" ? q.caption(firstResult(), Date.now()) : q?.caption;
   const cap = $("qs-caption");
-  cap.hidden = !q?.caption;
-  if (q?.caption) cap.querySelector(".qs-cap-text").textContent = q.caption;
+  cap.hidden = !text;
+  const span = cap.querySelector(".qs-cap-text");
+  if (text && span.textContent !== text) span.textContent = text;
 }
 
 /** The introduction line: hidden for good with its ✕ (remembered in localStorage; <head> applies it before paint). */

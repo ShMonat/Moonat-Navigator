@@ -17,11 +17,12 @@ can hide either one. Moonat computes both against the real terrain and lets you 
 ## What it does
 One page, in the order you need it:
 1. **Place and time:** click the Moon globe (missions, Artemis III candidate regions and places of interest are marked
-   in their own colours), type coordinates or search 40 catalog sites (Apollo, Luna, Surveyor, Chang'e, Chandrayaan-3,
-   Artemis III regions), and give a time or a mission span in the date picker, where **Suggested for this place**
-   proposes the windows with the most sunlight, the best Earth contact or both, and the eclipses and Earthrises seen
-   from that place. Or start with a story: Apollo 11, all Apollo landings, the south pole, the far side, an eclipse, a
-   rover drive.
+   in their own colours), type coordinates or search 41 catalog sites (Apollo, Luna, Surveyor, Chang'e, Chandrayaan-3,
+   the Beresheet crash site, Artemis III regions), and give a time or a mission span in the date picker, where
+   **Suggested for this place** proposes the windows with the most sunlight, the best Earth contact or both, and the
+   eclipses and Earthrises seen from that place. Or start with a story: Apollo 11, all Apollo landings, the south pole,
+   the far side, an eclipse, a rover drive, or the sky right now at the Beresheet crash site (Israel's first Moon
+   mission, 2019), where its tardigrades lie.
 2. **The sky from there:** a first-person 3D view from 2 m above the ground, with terrain lit by the Sun, the Earth with
    its true phase and orientation, stars and planets, and a timelapse; one view per scenario. The view fills the
    window like an app, with a full-screen button. While it plays, "Follow Sun" or "Follow Earth" keeps the body in

@@ -56,7 +56,8 @@ const viewOpts = { closeUp: true, constellations: true, exposure: "eye", hudLeve
 /**
  * Open the next completely new set of scenarios (the one main.js is about to load) at a given moment and view:
  * offsetMs = time since the scenarios' start (ms); view = the camera of the first view ({ az_deg, el_deg, fov_deg },
- * deg, local horizon frame). Null fields keep the defaults (T+0, the views aimed at the selected body).
+ * deg, local horizon frame); speedMs (optional) = the timelapse speed (ms per s, a value of the speed menu). Null
+ * fields keep the defaults (T+0, the views aimed at the selected body, the speed that follows the longest span).
  */
 export function queueSkyStart(start = null) {
   pendingStart = start;
@@ -283,7 +284,12 @@ export function setSkyItems(newItems) {
     pendingStart = null;
     offsetMs = Math.max(0, Number(start.offsetMs) || 0);
     pendingCamera = start.view || null;
+    // A story may choose the speed (start.speedMs, one of the menu's); it then holds like one the user picked.
     speedTouched = false;
+    if (start.speedMs && [...$("sky-speed").options].some((o) => Number(o.value) === start.speedMs)) {
+      $("sky-speed").value = String(start.speedMs);
+      speedTouched = true;
+    }
     stop();
   }
   for (const it of items) {

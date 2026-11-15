@@ -525,6 +525,29 @@
    "notes": "End approximate (power lost within a day)."
   },
   {
+   "id": "beresheet",
+   "name": "Beresheet (SpaceIL)",
+   "kind": "mission",
+   "agency": "SpaceIL",
+   "lander": "Beresheet",
+   "crew": null,
+   "lat_deg": 32.5956,
+   "lon_deg": 19.3496,
+   "t_start_utc": "2019-04-11T19:23:00Z",
+   "t_end_utc": "2019-05-11T08:07:00Z",
+   "blurb": "Israel's first Moon mission, by SpaceIL and Israel Aerospace Industries, crashed here in Mare Serenitatis in 2019. It carried a tiny library with dehydrated tardigrades, which probably did not survive the impact.",
+   "sources": [
+    "https://www.lroc.asu.edu/images/1101",
+    "https://www.planetary.org/articles/beresheet-comes-close-crashes",
+    "https://www.archmission.org/spaceil",
+    "https://earthsky.org/human-world/tardigrades-lunar-library-beresheet-spacecraft-crash-moon",
+    "https://doi.org/10.1089/ast.2020.2405",
+    "https://en.wikipedia.org/wiki/Beresheet"
+   ],
+   "notes": "Crash site, not a landing. Position: the darkest pixel of the impact smudge (LROC, M. Robinson, 15 May 2019; 95 % confidence 20 m in latitude by 8 m in longitude). Start = loss of signal, about 19:23 UTC on 11 Apr 2019, during the landing burn after an IMU reset and a main-engine shutdown (last telemetry: 149 m up, 134 m/s down, 947 m/s across). End = one lunar day-night cycle (29.5 days) later, so the sky can be played; nothing worked on the surface. The Arch Mission Foundation's Lunar Library on board held dehydrated tardigrades (water bears). Traspas & Burchell (2021, Astrobiology 21(7) 845-852) found that they do not survive impacts above about 0.9 km/s (1.14 GPa), and the authors conclude that Beresheet's tardigrades probably did not survive.",
+   "outcome": "crash"
+  },
+  {
    "id": "art_cabeusb",
    "name": "Peak near Cabeus B",
    "kind": "candidate",

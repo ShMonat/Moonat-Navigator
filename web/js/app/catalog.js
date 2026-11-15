@@ -1,7 +1,9 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
 // Site catalog (contract C2, web/data/sites.json), search, and the quick-start presets.
 
-import { DAY_MS, isoUtc, parseUtc } from "./state.js";
+import { DAY_MS, isoUtc, parseUtc, formatUtc, formatDuration } from "./state.js";
+import { horizonElAt } from "./derive.js";
+import { SPEEDS } from "./playback.js";
 
 const GEN = "AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.";
 
@@ -134,6 +136,11 @@ const POLE_END = "2027-03-22T00:00:00Z";
 //   body: "sun" | "earth" (the page's Sun | Earth switch: every sky view is aimed at that body and its data is shown;
 //   default "sun"), xaxis: "met" | "utc" | "dist" (the charts' time axis, default "met"), offsetMs: the moment the sky
 //   opens at, ms after the start (default 0), caption: one "what to look for" line shown while the story is loaded.
+// A live story (live: true) opens at the current time: resolve(list, nowMs) starts at nowMs, and its caption is a
+// function (item, nowMs) -> text of the computed sky (item: main.js's result for the story's scenario, or null while it
+// is computed). The page recognises a live story by resolving it again at the start time of the scenarios shown.
+// opening(item) -> { body, speedMs } (optional): the page computes the story's first scenario before opening it, and
+// this chooses the Sun | Earth switch and the timelapse speed from that sky (in place of `body` and the default speed).
 export const QUICK_STARTS = [
   {
     key: "apollo11",
@@ -203,7 +210,134 @@ export const QUICK_STARTS = [
       },
     }],
   },
+  {
+    // Live: the sky at the Beresheet crash site from the moment the chip is pressed, for one lunar day-night cycle, so
+    // play shows the next sunset or sunrise. It opens on the Earth at night and on the Sun by day, at a speed that
+    // brings that event within seconds (beresheetOpening). Always the last chip (the demo video clicks the others by
+    // position).
+    key: "beresheet-now",
+    label: "Beresheet: the sky now",
+    title: "The sky right now at the Beresheet crash site in Mare Serenitatis, where Israel's first Moon lander came down in 2019 with a library of dehydrated tardigrades",
+    live: true,
+    caption: beresheetCaption,
+    opening: beresheetOpening,
+    resolve: (list, nowMs = Date.now()) => {
+      const s = matchSite(["beresheet"], /beresheet/i, null, list) || BERESHEET;
+      const t0 = Math.floor(nowMs / 60e3) * 60e3;
+      return [{ ...scenarioFieldsFromSite(s, { start: isoUtc(t0), end: isoUtc(t0 + SYNODIC_MS) }), label: "Beresheet crash site" }];
+    },
+  },
 ];
+
+/** One lunar day-night cycle (synodic month, 29.530589 d), to the whole minute: 29 d 12 h 44 min. */
+export const SYNODIC_MS = Math.round((29.530589 * DAY_MS) / 60e3) * 60e3;
+
+// Used only if web/data/sites.json cannot be loaded (same values as the catalog entry).
+const BERESHEET = {
+  id: "beresheet", name: "Beresheet (SpaceIL)", kind: "mission", agency: "SpaceIL", lander: "Beresheet", crew: null,
+  lat_deg: 32.5956, lon_deg: 19.3496, t_start_utc: "2019-04-11T19:23:00Z", t_end_utc: "2019-05-11T08:07:00Z", outcome: "crash",
+  blurb: "Israel's first Moon mission, by SpaceIL and Israel Aerospace Industries, crashed here in Mare Serenitatis in 2019.",
+};
+
+const DIR8 = ["north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west"];
+/** Eight-point compass word of a true azimuth (deg, clockwise from north): "south-west". */
+export function dirWord(azDeg) {
+  return DIR8[Math.round((((azDeg % 360) + 360) % 360) / 45) % 8];
+}
+
+/** "20 Nov, 14:10 UTC" (the year left out: the events are within a month of the story's start). */
+const dayTime = (ms) => formatUtc(ms).replace(/ \d{4},/, ",");
+
+/** The Sun counts as up when this share of its disk clears the skyline (as the sky view's labels, sky/words.js). */
+const SUN_UP_FRAC = 0.001;
+
+/**
+ * The next sunrise and sunset in a C6 series (epoch ms, UTC; null when none). The samples bracket each event, and the
+ * time inside the bracket is where the height of the Sun's upper limb above the skyline, sun_el + r - skyline(sun_az)
+ * (deg), crosses zero, interpolated linearly: near the horizon the Sun's height changes by less than 0.01° a minute,
+ * almost linearly, so this is good to a minute or two with a 20 min step (checked against a bisection on the sky state
+ * in web/tests/app_quickstarts.test.mjs; the disk itself takes over an hour to clear the skyline).
+ * horizon: the C3 profile (null: the flat horizon); rDeg: the Sun's angular radius (deg).
+ */
+export function sunEvents(series, horizon, rDeg) {
+  const out = { nextRise: null, nextSet: null };
+  const t = series?.t_ms, vis = series?.sun_vis;
+  if (!t || !vis) return out;
+  const h = (i) => series.sun_el[i] + rDeg - horizonElAt(horizon, series.sun_az[i]);
+  for (let k = 1; k < t.length && (out.nextRise === null || out.nextSet === null); k++) {
+    const a = vis[k - 1] > SUN_UP_FRAC, b = vis[k] > SUN_UP_FRAC;
+    if (a === b) continue;
+    const ha = h(k - 1), hb = h(k);
+    const f = ha !== hb ? Math.min(1, Math.max(0, ha / (ha - hb))) : 0.5;
+    const te = t[k - 1] + f * (t[k] - t[k - 1]);
+    if (b && out.nextRise === null) out.nextRise = te;
+    if (a && out.nextSet === null) out.nextSet = te;
+  }
+  return out;
+}
+
+/**
+ * The "what to look for" line of the Beresheet story, from the computed sky at its start. item: { t0 (epoch ms, UTC),
+ * state0 (C6 skyState at t0), series (C6 series over the window), horizon (C3 profile) } or null while it is computed;
+ * nowMs: the current time ("Right now" when the start is within 30 min of it, else the start's date, for a link opened
+ * later). The Sun is up when part of its disk clears the LOLA skyline (C6 vis_frac > 0.001); the next sunrise or sunset
+ * comes from sunEvents. Returns plain text.
+ */
+export function beresheetCaption(item, nowMs = Date.now()) {
+  const where = "where Beresheet's tardigrades lie";
+  if (!item?.state0) return `Working out the sky ${where}…`;
+  const { sun, earth } = item.state0;
+  const t0 = item.t0;
+  const now = Math.abs(t0 - nowMs) < 30 * 60e3;
+  const when = now ? "Right now" : `On ${formatUtc(t0)}`;
+  const ev = sunEvents(item.series, item.horizon ?? null, sun.ang_radius_deg);
+  const at = (t) => `in ${formatDuration(t - t0)} (${dayTime(t)})`;
+  const deg = (x) => (x < 10 ? x.toFixed(1) : String(Math.round(x)));
+  const earthText = `Earth is ${deg(earth.el_deg)}° up in the ${dirWord(earth.az_deg)}, ${Math.round(earth.phase_frac * 100)} % lit`;
+  if (sun.vis_frac > SUN_UP_FRAC) {
+    // Day: the story opens on the Sun (beresheetOpening). Seen over a skyline below the horizontal plane, the Sun can
+    // show while its centre is a little below 0°.
+    const pos = sun.el_deg >= 0.05 ? `${deg(sun.el_deg)}° up` : "on the skyline";
+    const part = sun.vis_frac < 0.999 ? ` (${Math.round(sun.vis_frac * 100)} % of its disk showing)` : "";
+    const set = ev.nextSet ? ` and sets ${at(ev.nextSet)}` : "";
+    return `${when}, ${where}, the Sun is ${pos} in the ${dirWord(sun.az_deg)}${part}${set}; ${earthText}.` +
+      (ev.nextSet ? " Press play to watch the sunset." : "");
+  }
+  // Night: the story opens on the Earth, the brightest thing in the sky; the sunrise is one switch away.
+  const rise = ev.nextRise ? ` The Sun rises ${at(ev.nextRise)}: switch to Sun and press play to watch it.` : "";
+  return `${when}${now ? "" : ","} it is night ${where}: ${earthText}.${rise}`;
+}
+
+/**
+ * The timelapse speed (ms of sky time per second, one of SPEEDS) that brings an event `dtMs` after the start on screen
+ * after 5–15 s of playback: the one closest on a log scale to sqrt(5 × 15) ≈ 8.7 s. Without an event (null), 1 day/s.
+ * Example: a sunrise 1 h 21 min away plays at 10 min/s and arrives after 8 s; the disk then takes about an hour (6 s)
+ * to clear the skyline.
+ */
+export function eventSpeed(dtMs) {
+  if (!(dtMs > 0)) return DAY_MS;
+  const target = Math.sqrt(5 * 15);
+  let best = SPEEDS[0].ms, err = Infinity;
+  for (const { ms } of SPEEDS) {
+    const e = Math.abs(Math.log(dtMs / ms / target));
+    if (e < err - 1e-12) { best = ms; err = e; }
+  }
+  return best;
+}
+
+/**
+ * How the Beresheet story opens, from its computed start (item as for beresheetCaption, or null): `body` is "earth"
+ * when the Sun is fully hidden by the terrain-aware horizon (C6 vis_frac <= 0.001: night; the view shows the Earth and
+ * the horizon, as C8's opening view) and "sun" by day; `speedMs` (eventSpeed) brings the next sunrise (at night) or
+ * sunset (by day) after 5–15 s of playback, or 1 day/s when there is none in the window.
+ */
+export function beresheetOpening(item) {
+  if (!item?.state0) return { body: "sun", speedMs: DAY_MS };
+  const day = item.state0.sun.vis_frac > SUN_UP_FRAC;
+  const ev = sunEvents(item.series, item.horizon ?? null, item.state0.sun.ang_radius_deg);
+  const next = day ? ev.nextSet : ev.nextRise;
+  return { body: day ? "sun" : "earth", speedMs: eventSpeed(next === null ? null : next - item.t0) };
+}
 
 // Rover quick start: from the exact south pole (on the Shackleton rim) to the Shackleton rim / connecting-ridge point of
 // the catalog (Gläser et al. 2014). Start time from a scan of Dec 2026 to Nov 2027 every 6 h (the planned 19.3 km path,

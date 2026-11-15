@@ -39,6 +39,34 @@ test("every quick start resolves to valid scenarios against the real catalog", (
   assert.equal(QUICK_STARTS.find((q) => q.key === "apollo-all").resolve(SITES).length, 6);
 });
 
+test("Beresheet is in the catalog: the LROC impact point, the crash time, sourced, with its LOLA terrain files", () => {
+  const b = matchSite(["beresheet"], null, null, SITES);
+  assert.equal(b.kind, "mission");
+  assert.equal(b.name, "Beresheet (SpaceIL)");
+  assert.equal(b.agency, "SpaceIL");
+  assert.equal(b.outcome, "crash");
+  assert.equal(b.lat_deg, 32.5956); // LROC: darkest pixel of the impact smudge
+  assert.equal(b.lon_deg, 19.3496);
+  assert.equal(b.t_start_utc, "2019-04-11T19:23:00Z"); // loss of signal
+  // One lunar day-night cycle after the crash (29.53 d), inside the 2013-2040 sky tables; not trimmed.
+  const span = parseUtc(b.t_end_utc) - parseUtc(b.t_start_utc);
+  assert.ok(Math.abs(span / DAY_MS - 29.53) < 0.01, span);
+  assert.ok(validateScenario(makeScenario(scenarioFieldsFromSite(b)), physicsCoverage() || [2019]).ok);
+  assert.match(b.blurb, /tardigrades/);
+  assert.ok(b.sources.some((u) => u.endsWith("/images/1101")), "LROC impact-site release");
+  assert.ok(b.sources.includes("https://doi.org/10.1089/ast.2020.2405"), "Traspas & Burchell 2021");
+  const h = JSON.parse(readFileSync(fileURLToPath(new URL("../data/horizons/beresheet.json", import.meta.url)), "utf8"));
+  assert.equal(h.el_deg.length, 1440);
+  assert.equal(h.lat_deg, b.lat_deg);
+  assert.equal(h.lon_deg, b.lon_deg);
+  assert.match(h.dem_sources[0], /SLDEM2015/);
+  // A flat mare: the skyline stays within about a degree of the horizontal everywhere.
+  assert.ok(Math.max(...h.el_deg) < 1.5 && Math.min(...h.el_deg) > -1);
+  const t = JSON.parse(readFileSync(fileURLToPath(new URL("../data/terrain/beresheet.json", import.meta.url)), "utf8"));
+  assert.equal(t.lat_deg, b.lat_deg);
+  assert.equal(t.ground_elev_m, h.ground_elev_m);
+});
+
 test("long catalog missions load trimmed to 30 days", () => {
   const lunokhod = matchSite(["luna17"], null, null, SITES);
   const f = scenarioFieldsFromSite(lunokhod);

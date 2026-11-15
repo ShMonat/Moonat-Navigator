@@ -71,7 +71,9 @@ export function siteSubtitle(site) {
   if (site.kind === "candidate") return `Artemis III region · ${area} · approximate point`;
   if (site.kind === "mission") {
     const year = site.t_start_utc ? site.t_start_utc.slice(0, 4) : null;
-    const who = site.crew && site.crew.length ? site.crew.join(" & ") : site.lander && site.lander !== site.name ? site.lander : null;
+    // A crash (C2 outcome "crash", e.g. Beresheet) is named as such in place of the lander.
+    const who = site.outcome === "crash" ? "crash site"
+      : site.crew && site.crew.length ? site.crew.join(" & ") : site.lander && site.lander !== site.name ? site.lander : null;
     return [site.agency, year, who].filter(Boolean).join(" · ");
   }
   return site.blurb || area;

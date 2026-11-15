@@ -50,9 +50,9 @@ test("planning request: preset values, custom overrides, completeness", () => {
   assert.equal(routeKey(r.start, r.end, r.rover), routeKey(noStops.start, noStops.end, noStops.rover));
 });
 
-test("rover quick start: appended last, a complete VIPER-class traverse from the south pole", () => {
+test("rover quick start: the sixth story (the live Beresheet story follows it), a complete VIPER-class traverse from the south pole", () => {
   assert.deepEqual(QUICK_STARTS.slice(0, 5).map((q) => q.key), ["apollo11", "apollo-all", "pole", "farside", "eclipse"]);
-  const q = QUICK_STARTS[QUICK_STARTS.length - 1];
+  const q = QUICK_STARTS[5];
   assert.equal(q.key, "rover");
   const [p] = q.resolve([]);
   const s = makeScenario(p);
