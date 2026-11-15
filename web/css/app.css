@@ -107,6 +107,8 @@ button { cursor: pointer; }
 .logo-pin { fill: var(--accent); }
 .brand h1 { font-size: 20px; line-height: 1.1; }
 .tagline { margin: 2px 0 0; color: var(--text-2); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tagline-sub { color: var(--text-3, var(--text-2)); opacity: 0.8; }
+.tagline-sub::before { content: "· "; }
 .top-actions { display: flex; justify-content: flex-end; align-items: center; gap: 6px; flex: none; }
 .banner {
   margin: 0 0 14px; padding: 10px 14px; border-radius: 10px; font-size: 14px;
