@@ -37,5 +37,19 @@ research AI model is used to survey algorithms for terrain visibility (docs/rese
   (live NASA Moon Trek elevation), `rover` (path planning), `physics-xcheck` (an independent check of the browser code
   against JPL Horizons), `qa2` (a judge's-eye audit) and two QA fix agents. Shay decided the public release (a clean copy
   without the development history).
+- 2026-11-14 (night) and 2026-11-15: Shay reviewed the app on his laptop and phone and asked for further changes:
+  - the map works like a map app, with several pins, search, trips with stops and a home base;
+  - suggested dates;
+  - Follow during playback, with longer speeds;
+  - a siting study for the StarHab base;
+  - a view window that fills the screen like an app, with one camera group;
+  - no emojis;
+  - the Beresheet crash site;
+  - map layers for permanently shadowed and most sunlit ground;
+  - a view-direction wedge on the map.
+
+  Agents built each item on its own branch: `suggest`, `starhab`, `qa4`, `view-ux`, `beresheet`, `map-layers`, `view-cone`
+  and `rover-perf`. Each branch passed the same test gate before merging. The `video` agent re-recorded the demo on the
+  final interface.
 - 2026-11-14: screenshots in docs/figures are computed renders captured with a scripted browser. No AI-generated images or
   video are used, and no NASA logos or insignia appear.
