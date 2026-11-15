@@ -28,7 +28,7 @@ https://shmonat.github.io/Moonat-Navigator/ — source code: https://github.com/
 
 ## Project Details
 **What it does**
-- Inputs, in the order a user thinks (like a map app): places, chosen by clicking the 3D Moon globe (near side, far side or either pole; click a selected pin to remove it), by dropping and dragging a pin, or by searching "Search the Moon" (missions from Apollo to Beresheet, Artemis III candidate regions, polar ridges, the home base, or coordinates). A Layers button shows the permanently shadowed regions and the most sunlit ground at both poles. Several places compare side by side. Each has a start time and an end time or a duration, picked from a calendar that also suggests the best dates for that place. Advanced: a rover trip from the place to an end point, with any number of stops, and a rover type as the "travel mode".
+- Inputs, in the order a user thinks (like a map app): places, chosen by clicking the 3D Moon globe (near side, far side or either pole; click a selected pin to remove it), by dropping and dragging a pin, or by searching "Search the Moon" (missions from Apollo to Beresheet, each marked with the flag of the nation that flew it, potential Artemis sites, polar ridges, the home base, or coordinates). A Layers button shows the permanently shadowed regions and the most sunlit ground at both poles. Several places compare side by side. Each has a start time and an end time or a duration, picked from a calendar that also suggests the best dates for that place. Advanced: a rover trip from the place to an end point, with any number of stops, and a rover type as the "travel mode".
 - Outputs:
   - Sun panel: elevation, azimuth, how much of the solar disk clears the terrain and the Earth, solar flux (W/m²), time to sunset, eclipses.
   - Earth panel: elevation, azimuth, how much of the Earth is visible (a proxy for direct radio contact), its phase, time to Earthset.
@@ -71,7 +71,7 @@ docs/AI_USE.md in the repository.
 - **LRO LOLA** gridded elevation data (NASA PDS): polar stereographic DEMs at 20 m (LDEM_80S_20M), 30 m, 60 m and 240 m; global LDEM_64 (about 474 m) and LDEM_16 (about 1.9 km) for the far field; and SLDEM2015 (LOLA + SELENE Terrain Camera, about 59 m) within ±60° latitude. They give the horizon at every catalog site.
 - **JPL/NAIF SPICE kernels**: DE421 ephemeris, lunar principal-axes orientation kernel and the MOON_ME frame kernel.
 - **NASA Visible Earth**: Blue Marble and Earth City Lights textures for the Earth in the sky.
-- **LROC (ASU/NASA LRO)** NAC mosaics, the Beresheet impact site, and the NASA Artemis III candidate regions (October 2024): site placement.
+- **LROC (ASU/NASA LRO)** NAC mosaics, the Beresheet impact site, and the candidate landing regions NASA announced in October 2024 (shown as potential Artemis sites): site placement.
 - Mission coordinates and times from NASA NSSDCA and the Apollo Lunar Surface Journal.
 
 These data let us answer a simple question, "will we see the Sun and Earth?", with real precision.

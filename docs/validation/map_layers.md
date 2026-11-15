@@ -77,7 +77,7 @@ south 84 kB, south inner 71 kB) plus `overlays.json` (12 kB). Download: about 70
 
 All four PSR floors are permanent shadow in both maps. The brightest spots the layer finds in the south are the known
 ones: the connecting ridge (88.4 %, 89.47° S 137.40° W), the Shackleton rim (87.1 %, 89.69° S 162.75° W), Gläser's
-CR1 spot 3 (86.4 %), the de Gerlache rim next to the Artemis III "de Gerlache Rim 2" region (82.7 %, 88.67° S
+CR1 spot 3 (86.4 %), the de Gerlache rim next to the potential Artemis site "de Gerlache Rim 2" (82.7 %, 88.67° S
 68.38° W) and the Malapert massif (83.4 %, 85.95° S 3.42° W). North: 89.1 % at 89.35° N 130.2° E.
 
 **Ground level makes crests fragile.** On a ridge the share changes by 30–40 points from one 60 m pixel to the next

@@ -62,7 +62,7 @@ T0, T1, STEP_H = datetime(2027, 1, 1, tzinfo=UTC), datetime(2028, 1, 1, tzinfo=U
 # id: (centre lat, centre lon, r_min_m, r_max_m)
 LROC = "https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_"
 # id: (centre lat, centre lon, r_min_m, r_max_m, source of the centre)
-# Artemis III region centres come from the LROC NAC low-Sun mosaics made for each candidate region
+# The centres of the potential Artemis sites come from the LROC NAC low-Sun mosaics made for each NASA candidate region
 # (product id P<lat*10>S<lon*10>, e.g. P836S2912 = 83.6 S, 291.2 E).
 REGIONS = {
     "degerlache_rim": (-88.5, -87.1, 12_000.0, 22_000.0, "crater centre; rim annulus searched"),

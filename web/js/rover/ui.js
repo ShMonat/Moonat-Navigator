@@ -278,7 +278,7 @@ export function buildTripPanel(s) {
         opts.push({
           kind: "site", p: { lat_deg: site.lat_deg, lon_deg: site.lon_deg }, name: site.name, disabled: far,
           // The kind tells apart places of the same name (the Malapert Massif region and place of interest).
-          meta: [site.kind === "candidate" ? "Artemis III region" : site.kind === "home" ? "Home base" : "",
+          meta: [site.kind === "candidate" ? "Potential Artemis site" : site.kind === "home" ? "Home base" : "",
             Number.isFinite(d) ? `${km(d)} from ${waypointLetter(i - 1)}${far ? ` · too far for one leg (max ${MAX_ROUTE_KM} km)` : ""}` : ""].filter(Boolean).join(" · "),
         });
       }

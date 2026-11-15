@@ -8,7 +8,7 @@
 > Tests: `tests/test_starhab_geometry.py`.
 
 ## Answer
-**Malapert massif, on the summit crest 9 km west of the catalog point of NASA's Artemis III "Malapert Massif" region: 85.96775° S, 2.28748° W
+**Malapert massif, on the summit crest 9 km west of the catalog point of NASA's "Malapert Massif" candidate region (a potential Artemis site): 85.96775° S, 2.28748° W
 (MOON_ME lat −85.96775, lon −2.28748), ground +4988 m** (LOLA 20 m), 122 km from the pole on the Earth-facing side.
 With the arrays and the direct-to-Earth (DTE) antenna at **10 m** (StarHab's buried 9 m hull is itself a ~10 m mound),
 over 2030–2040:
@@ -39,7 +39,7 @@ ridge near Shackleton wins (alternative 1: 92 % Sun, but the Earth is hidden 42 
     representative.
 - **Why the south pole:**
   - **Water ice:** it lies in the permanently shadowed craters (LCROSS, Cabeus 2009).
-  - **Missions:** all of NASA's Artemis III candidate regions are there.
+  - **Missions:** all of NASA's candidate Artemis landing regions (the potential Artemis sites) are there.
   - **Light:** the near-continuously lit ridges are there.
   - **The north pole (footnote §5):** on the same coarse DEM, no north-polar point beats the south on either metric.
 - **Physics:** the same chain as the app (CONTRACTS C1/C3/C6).
@@ -87,7 +87,7 @@ Values are given as eye 2 m / mast 10 m.
 | **★ Malapert crest (recommended)** | −85.96775, −2.28748 | 4988 m | 76.7 / **82.0** | 82.3 / 85.1 | 13.0 / **7.0** | 67.4 / **98.3** | 73.1 / **100** | 8.4 / **0.0** | 57.1 / **85.1** | 72.1 / **90.2** |
 | Alt 1: connecting ridge (Shackleton–de Gerlache) | −89.45281, −137.19807 | 1956 m | 85.5 / **92.3** | 90.3 / 95.7 | 4.8 / **3.0** | 53.4 / 53.4 | 58.2 / 58.3 | 12.3 / 12.3 | 52.8 / 57.4 | 69.4 / 72.8 |
 | Alt 2: Mons Mouton, north flank | −85.08104, 36.32507 | 6793 m | 57.5 / 69.2 | 59.0 / 70.8 | 14.8 / 10.8 | 93.9 / **97.0** | 100 / 100 | 0 / 0 | 59.0 / 70.8 | 75.7 / 83.1 |
-| Alt 3: Malapert east summit (next to the Artemis III region) | −86.01181, 2.94589 | 5142 m | 72.0 / 78.4 | 75.9 / 83.5 | 17.9 / 12.0 | 78.4 / 85.0 | 87.9 / 96.5 | 5.5 / 4.0 | 64.2 / 80.0 | 75.2 / 81.7 |
+| Alt 3: Malapert east summit (next to the potential Artemis site) | −86.01181, 2.94589 | 5142 m | 72.0 / 78.4 | 75.9 / 83.5 | 17.9 / 12.0 | 78.4 / 85.0 | 87.9 / 96.5 | 5.5 / 4.0 | 64.2 / 80.0 | 75.2 / 81.7 |
 | *Shackleton rim (for context)* | −89.6866, −162.7124 | 1730 m | 85.2 / 85.8 | – | 2.8 / 2.7 | 49.1 / 49.8 | – | 13.5 / 13.2 | 49.4 / 50.2 | 67.1 / 67.8 |
 
 The other 22 candidates are in `data/cache/starhab/report_table.md`, which `report.py` writes.
@@ -135,7 +135,7 @@ azimuth ~95°.*
     up to 12.3 d. It needs a relay: a lunar relay satellite, or a repeater on an Earth-facing peak.
   - **Choose it** if energy matters about 4.5 times more than comms (weight sweep w_sun ≥ 0.82).
 - **Alt 2, Mons Mouton:** the Earth is in view continuously, but the Sun only 69 % and the longest night is 11 days.
-- **Alt 3, Malapert east summit:** it is 1 km from Bussey's point M1 and next to NASA's Artemis III Malapert region.
+- **Alt 3, Malapert east summit:** it is 1 km from Bussey's point M1 and next to NASA's Malapert candidate region (a potential Artemis site).
   - **Gains:** balanced numbers (Sun 78 %, Earth 85 %, both 80 %).
   - **Costs:** a rougher 100 m box (6° mean slope, 2 m RMS) and a 12-day night.
 - **Siting tolerance:** the position matters at the 100 m scale. Across the ±400 m polish window around the

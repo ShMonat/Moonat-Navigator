@@ -52,7 +52,7 @@ PLACES = [
     ("Shackleton-vicinity peak", -88.8247, 124.1359, 0.0, 6.0),  # De Rosa SV1
     ("de Gerlache rim", -88.5, -87.1, 16.5, 6.0),  # crater centre, diameter ~33 km
     ("Malapert massif", -86.0, 1.0, 0.0, 25.0),
-    # Artemis III candidate regions (catalog points, docs/validation/terrain.md §9)
+    # Potential Artemis sites (NASA's candidate regions; catalog points, docs/validation/terrain.md §9)
     ("Mons Mouton", -85.4798, 31.3216, 0.0, 30.0),
     ("Mons Mouton plateau", -84.2237, 29.0434, 0.0, 12.0),
     ("Nobile rim 1", -84.3661, 44.35, 0.0, 15.0),

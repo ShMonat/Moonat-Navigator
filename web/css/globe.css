@@ -88,11 +88,11 @@
 .route-casing { stroke: rgba(8, 9, 12, 0.78); stroke-width: calc(var(--route-w) + 3.5px); }
 .route-line { stroke: var(--route-c); stroke-width: var(--route-w); }
 
-/* Catalog sites, by kind: colour and shape (missions: amber circles; Artemis III candidate regions: aqua diamonds;
-   places of interest: orchid squares; the home base: a white house on blue). Each has a dark outline, a thin light
-   halo and a shadow, so it stands out on the bright highlands, the dark maria and the grey polar relief alike. The
-   size grows a little with the zoom (--zs, set by the globe). The legend under the globe (app.css) uses the same
-   colours. */
+/* Catalog sites, by kind: colour and shape (missions: the flag of the nation that flew it in an amber frame;
+   potential Artemis sites: aqua diamonds; places of interest: orchid squares; the home base: a white house on blue).
+   Each has a dark outline, a thin light halo and a shadow, so it stands out on the bright highlands, the dark maria and
+   the grey polar relief alike. The size grows a little with the zoom (--zs, set by the globe). The legend under the
+   globe (app.css) uses the same colours. */
 :root {
   --site-mission: #ffb22e;
   --site-candidate: #2ee6d2;
@@ -121,6 +121,19 @@
 .globe-site.k-home svg {
   position: absolute; z-index: 1; left: 20%; top: 18%; width: 60%; height: 60%;
   fill: none; stroke: #fff; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round;
+}
+/* A mission's marker: the flag (third-party artwork, unaltered: only sized here, at its own aspect ratio --fa, set by
+   the globe) in a 1.5 px amber frame, the mission colour of the legend, with a dark 1 px edge outside it so light
+   flags and the frame read on bright ground in both themes. At most 15 x 9.5 px of flag (about 18 x 14 px in all),
+   growing a little with the zoom. */
+.globe-site.has-flag {
+  --fh: calc(min(9.5px, 15px / var(--fa, 1.3333)) * (0.75 + 0.25 * var(--zs, 1)));
+  width: calc(var(--fh) * var(--fa, 1.3333) + 5px); height: calc(var(--fh) + 5px);
+}
+.globe-site.has-flag::after { border-radius: 3px; border-width: 1px; box-shadow: 0 1px 3px 0.5px rgba(0, 0, 0, 0.55); }
+.globe-site .site-flag {
+  position: absolute; z-index: 1; left: 2.5px; top: 2.5px; width: calc(100% - 5px); height: calc(100% - 5px);
+  display: block; pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-user-drag: none;
 }
 .globe-site::before { content: ""; position: absolute; inset: -5px; border-radius: 50%; }
 .globe-site:hover::after { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.95), 0 0 9px 3px rgba(255, 255, 255, 0.5); }
@@ -262,6 +275,17 @@
 .gs-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .gs-name, .gs-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gs-name { font-size: 14px; font-weight: 600; }
+/* A mission's name with the flag of the nation that flew it (places.js nameWithFlag): the name shortens, the flag
+   stays. The flag keeps its own aspect ratio (--fa), at most 18 x 12 px, with a faint edge so white flags read on the
+   white light-theme panel. */
+.has-flag.gs-name, .has-flag.gplace-name { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.has-flag > .name-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.name-flag {
+  flex: none; display: block; --fh: min(12px, 18px / var(--fa, 1.3333));
+  height: var(--fh); width: calc(var(--fh) * var(--fa, 1.3333));
+  box-shadow: 0 0 0 1px var(--flag-edge, rgba(255, 255, 255, 0.28));
+}
+:root[data-theme="light"] .name-flag { --flag-edge: rgba(0, 0, 0, 0.22); }
 .gs-sub { font-size: 12px; color: var(--gs-muted); }
 .gs-on { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--c); }
 .gs-on svg { width: 14px; height: 14px; fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
@@ -276,6 +300,11 @@
   content: ""; width: 11px; height: 11px; border-radius: 50%; background: var(--k); border: 1.5px solid rgba(8, 9, 12, 0.85);
 }
 .k-mission { --k: var(--site-mission); }
+/* A mission: the marker's amber frame (its flag is next to the name). */
+.gs-ico.k-mission::after, .gplace-ico.k-mission::after {
+  width: 14px; height: 10.5px; border-width: 1px; border-radius: 2.5px;
+  box-shadow: inset 0 0 0 1.5px var(--k), inset 0 0 0 9px #9aa1ad;
+}
 .k-candidate { --k: var(--site-candidate); }
 .gs-ico.k-candidate::after, .gplace-ico.k-candidate::after { border-radius: 2px; transform: rotate(45deg) scale(0.9); }
 .k-poi { --k: var(--site-poi); }

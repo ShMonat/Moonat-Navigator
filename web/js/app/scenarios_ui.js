@@ -520,7 +520,7 @@ function refreshCard(card, s) {
     } else {
       parts.push(span ? `Mission: ${formatDuration(span)}` : s.route ? "Ends when the rover arrives" : "Single instant (add an end time for a mission)");
     }
-    if (site && site.kind === "candidate") parts.push("· approximate location (Artemis III candidate region)");
+    if (site && site.kind === "candidate") parts.push("· approximate location (potential Artemis site)");
     if (!s.site_id && !s.route) parts.push(`· ${terrainStatusText(s.lat_deg, s.lon_deg)}`);
   }
   meta.textContent = parts.join(" ");

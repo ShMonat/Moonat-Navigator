@@ -2,8 +2,9 @@
 // Moon map: the globe picker (web/js/globe/) wired to the app store, Google Maps style. Several places can be selected:
 // a click on a catalog marker adds that site, a click on a selected pin removes it, a click on the ground drops a new
 // pin, and a dropped pin can be dragged. Selected places are pins in their scenario colours; the other catalog sites
-// are small markers in their kind colours. The search box, the place card and Home: places.js. Other modules reach
-// the globe through globe_api.js (routes, fly-to, fit-to-points).
+// are small markers in their kind colours (a mission's marker holds the flag of the nation that flew it, flags.js).
+// The search box, the place card and Home: places.js. Other modules reach the globe through globe_api.js (routes,
+// fly-to, fit-to-points).
 
 import { createGlobe } from "../globe/globe.js";
 import { store, subscribe, setActive } from "./store.js";
@@ -13,6 +14,7 @@ import { consumeMapClick } from "../rover/pick.js";
 import { initPlaces, selectSite, dropPin, removePlace, movePlace, showPlaceCard } from "./places.js";
 import { attachGlobe } from "./globe_api.js";
 import { initMapLayers } from "./map_layers.js";
+import { siteFlag } from "./flags.js";
 
 let globe;
 let lastFitKey = "";
@@ -76,6 +78,7 @@ function drawSites() {
         name: site.name,
         sub: `${who}${when}${approx} · click to add`.replace(/^ · /, ""),
         kind: site.kind,
+        flag: siteFlag(site),
         data: site,
         hidden: selected.has(site.id),
       };

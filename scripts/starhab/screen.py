@@ -8,7 +8,7 @@ Candidate points (south polar stereographic map, x toward 90 E, y toward lon 0 =
   above the ring's terrain is the first-order predictor of a low skyline);
 - named massifs and rims (Malapert, Leibnitz beta / Mons Mouton and its plateau, Nobile rim,
   Haworth, de Gerlache rim, Shackleton vicinity, Cabeus B, Slater): every point of a 500 m grid
-  in a box around each (some reach 83.6-84 S, the Artemis III regions there).
+  in a box around each (some reach 83.6-84 S, the potential Artemis sites there).
 
 Each point gets a screening horizon (starhab_core.PolarPyramid: LOLA 240 m with pooled far field,
 1 deg azimuth step, eye 2 m) and the straight-edge Sun/Earth fractions every 2 h over

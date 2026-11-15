@@ -1,6 +1,6 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
 // "Search the Moon" (the search box on the globe), pure part: typed coordinates, the grouped result list (Home, then
-// missions, Artemis III candidate regions and places of interest) and the one-line subtitle of each place.
+// missions, potential Artemis sites and places of interest) and the one-line subtitle of each place.
 // No DOM, so node tests can import it (web/tests/app_places.test.mjs). The box itself: web/js/app/places.js.
 //
 // Coordinates are selenographic (MOON_ME): latitude -90..90 deg, east-positive longitude -180..180 deg (CONTRACTS §0).
@@ -68,7 +68,7 @@ export function areaOf(lat, lon) {
 export function siteSubtitle(site) {
   const area = areaOf(site.lat_deg, site.lon_deg);
   if (site.kind === "home") return `Lunar base concept (IAC 2021) · ${area}`;
-  if (site.kind === "candidate") return `Artemis III region · ${area} · approximate point`;
+  if (site.kind === "candidate") return `Potential Artemis site · ${area} · approximate point`;
   if (site.kind === "mission") {
     const year = site.t_start_utc ? site.t_start_utc.slice(0, 4) : null;
     // A crash (C2 outcome "crash", e.g. Beresheet) is named as such in place of the lander.
@@ -79,8 +79,8 @@ export function siteSubtitle(site) {
   return site.blurb || area;
 }
 
-/** Kind name of a place for the place card: "Mission", "Artemis III candidate region", "Place of interest", "Home". */
-export const KIND_ONE = { home: "Home base", mission: "Mission", candidate: "Artemis III candidate region", poi: "Place of interest" };
+/** Kind name of a place for the place card: "Mission", "Potential Artemis site", "Place of interest", "Home base". */
+export const KIND_ONE = { home: "Home base", mission: "Mission", candidate: "Potential Artemis site", poi: "Place of interest" };
 
 const GROUP_KINDS = ["mission", "candidate", "poi"];
 
@@ -88,12 +88,12 @@ const fold = (x) => String(x || "").toLowerCase().normalize("NFD").replace(/[̀-
 
 /**
  * The search list for a query: typed coordinates (or null), the home site when the query matches it, and the other
- * matches grouped by kind in a fixed order (missions, Artemis III regions, places of interest), each group in
+ * matches grouped by kind in a fixed order (missions, potential Artemis sites, places of interest), each group in
  * searchSites order (name matches first, then by name). `homeFirst`: the home site leads the list (an empty query,
  * or every typed word in its name or in "home base"); a home site found only through its description ("Luna 9"
  * matches its "lunar base") follows the groups. `best`: the place Enter picks for a typed query, searchSites' first
  * (a name match before a description match, whatever its group: "Shackleton" is the Shackleton rim, not the
- * Artemis III region whose description mentions Shackleton); null without a query or a match.
+ * potential Artemis site whose description mentions Shackleton); null without a query or a match.
  * @returns {{coords: {lat: number, lon: number}|null, home: object|null, homeFirst: boolean, best: object|null,
  *   groups: {kind: string, label: string, sites: object[]}[]}}
  */

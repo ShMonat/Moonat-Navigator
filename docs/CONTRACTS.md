@@ -39,7 +39,7 @@ Precomputed solar-system state for the browser, one binary file per year.
 ## C2 `site-catalog` (producer: `catalog`; consumers: `web-app`, `terrain`)
 - `web/data/sites.json`: `{ "_generated_by": "...", "sites": [ {
     "id": "apollo11", "name": "Apollo 11 (Tranquility Base)", "kind": "mission" | "candidate" | "poi" | "home",
-    "agency": "NASA", "lander": "Eagle", "crew": ["Neil Armstrong", "Buzz Aldrin"] | null,
+    "agency": "NASA", "nation": "US" (missions only), "lander": "Eagle", "crew": ["Neil Armstrong", "Buzz Aldrin"] | null,
     "lat_deg": 0.67416, "lon_deg": 23.47314,
     "t_start_utc": "1969-07-20T20:17:40Z", "t_end_utc": "1969-07-21T17:54:00Z" | null,
     "blurb": "one or two plain sentences for the public",
@@ -55,6 +55,14 @@ Precomputed solar-system state for the browser, one binary file per year.
   position is the LROC impact point, `t_start_utc` the crash, `t_end_utc` one lunar day-night cycle later (29.5 d) so the
   sky can be played. The search list and the place card say "crash site" in place of the lander. Pending review by
   Shahar (data format; additive, existing readers ignore it).
+- **Added 2026-11-15 (flags-artemis):** `"nation"` on every mission: the nation that flew it, as an ISO 3166-style
+  upper-case code: `"US"`, `"SU"` (the Soviet Union, the code ISO 3166 reserves for it), `"CN"`, `"IN"`, `"JP"`, `"IL"`.
+  Set from the agency in scripts/catalog/build_sites.py (`NATION`; a commercial US lander is `"US"`). The app shows that
+  nation's flag on the mission's globe marker, in the search list and on the place card (web/js/app/flags.js; a code
+  without a flag file shows none). Other kinds have no `nation`. Pending review by Shahar (data format; additive,
+  existing readers ignore it).
+- The group of kind `"candidate"` is labelled "Potential Artemis sites" in the app (NASA's October 2024 candidate
+  landing regions; Shay, 2026-11-15).
 
 ## C3 `horizon-profile` (producer: `terrain`; consumers: `physics-js`, `sky-viewer`)
 - `web/data/horizons/<site_id>.json`:

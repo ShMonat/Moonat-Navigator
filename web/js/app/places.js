@@ -1,8 +1,9 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
 // Places on the Moon globe, the Google Maps way:
 //   - "Search the Moon": one search box floating on the globe. Focused and empty it lists Home (StarHab), the missions,
-//     the Artemis III candidate regions and the places of interest; typing filters them; typed coordinates offer
-//     "Go to …". A choice flies the globe there, selects the place and opens its place card.
+//     the potential Artemis sites and the places of interest; typing filters them; typed coordinates offer
+//     "Go to …". A choice flies the globe there, selects the place and opens its place card. A mission's name has the
+//     flag of the nation that flew it next to it (flags.js), in the list and on the card.
 //   - The place card (bottom of the map): name, kind, coordinates, blurb, and Remove (or Add).
 //   - The Home button (house icon) flies to the home base.
 //   - The selection actions the map uses: a catalog pin or a search result adds a place, a selected pin removes it, a
@@ -18,6 +19,7 @@ import { placeResults, siteSubtitle, fmtSigned, fmtHemi, KIND_ONE } from "./plac
 import { HOUSE_PATH } from "../globe/globe.js";
 import { consumeMapClick } from "../rover/pick.js";
 import { icon as svgIcon } from "./icons.js";
+import { siteFlag } from "./flags.js";
 
 /** Most places the map selects at once (one per palette colour). "+ Add location" in the cards has no limit. */
 export const MAX_PLACES = PALETTE.dark.length;
@@ -40,6 +42,18 @@ function el(tag, attrs = {}, ...children) {
 const hasPlace = (s) => Number.isFinite(s.lat_deg) && Number.isFinite(s.lon_deg);
 const round4 = (x) => Math.round(x * 1e4) / 1e4;
 const houseSvg = (cls = "") => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${HOUSE_PATH}"/></svg>`;
+
+/**
+ * A place's name for the search list and the place card: the text, then, for a mission, the flag of the nation that
+ * flew it (flags.js; the image at its own aspect ratio, sized by CSS).
+ */
+function nameWithFlag(tag, cls, name, site) {
+  const flag = siteFlag(site);
+  if (!flag) return el(tag, { class: cls, text: name });
+  const img = el("img", { class: "name-flag", src: flag.src, alt: flag.title, title: flag.title, draggable: "false", decoding: "async" });
+  img.style.setProperty("--fa", String(flag.aspect));
+  return el(tag, { class: `${cls} has-flag` }, el("span", { class: "name-text", text: name }), img);
+}
 
 // ---------------------------------------------------------------------------------------------
 // Selection actions
@@ -266,7 +280,7 @@ function renderCard() {
   cardEl.replaceChildren(
     el("div", { class: "gplace-head" }, ico,
       el("div", { class: "gplace-title" },
-        el("h3", { class: "gplace-name", text: name }),
+        nameWithFlag("h3", "gplace-name", name, site),
         el("p", { class: "gplace-kind", text: cardKind(s, site) })),
       close),
     el("div", { class: "gplace-row" },
@@ -289,7 +303,7 @@ function buildSearch() {
   const input = el("input", {
     type: "search", id: "globe-search", class: "gsearch-input", placeholder: "Search the Moon", autocomplete: "off", spellcheck: "false",
     role: "combobox", "aria-expanded": "false", "aria-controls": id, "aria-autocomplete": "list",
-    "aria-label": "Search the Moon: missions, Artemis III regions, places, or coordinates such as 89.5S 130E",
+    "aria-label": "Search the Moon: missions, potential Artemis sites, places, or coordinates such as 89.5S 130E",
     enterkeyhint: "go",
   });
   const icon = el("span", { class: "gsearch-ico", "aria-hidden": "true", html: '<svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.2"/><path d="M15.2 15.2 20 20"/></svg>' });
@@ -300,10 +314,10 @@ function buildSearch() {
   let items = [];
   let sel = -1;
 
-  const option = (i, cls, ico, name, sub, selected) => {
+  const option = (i, cls, ico, name, sub, selected, site = null) => {
     const li = el("li", { class: `gs-item ${cls}`, role: "option", id: `${id}-${i}`, "aria-selected": "false" },
       ico,
-      el("span", { class: "gs-text" }, el("span", { class: "gs-name", text: name }), sub ? el("span", { class: "gs-sub", text: sub }) : null),
+      el("span", { class: "gs-text" }, nameWithFlag("span", "gs-name", name, site), sub ? el("span", { class: "gs-sub", text: sub }) : null),
       selected ? el("span", { class: "gs-on", title: "On the map", "aria-label": "selected", html: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 8.4l3 3 6.6-7"/></svg>' }) : null);
     if (selected) li.style.setProperty("--c", selected);
     li.addEventListener("mousedown", (e) => {
@@ -337,7 +351,7 @@ function buildSearch() {
       nodes.push(el("li", { class: "gs-group", role: "presentation", text: g.label }));
       for (const site of g.sites) {
         items.push({ type: "site", site });
-        nodes.push(option(items.length - 1, "", kindIco(site.kind), site.name, siteSubtitle(site), selColor(site)));
+        nodes.push(option(items.length - 1, "", kindIco(site.kind), site.name, siteSubtitle(site), selColor(site), site));
       }
     }
     if (r.home && !r.homeFirst) {

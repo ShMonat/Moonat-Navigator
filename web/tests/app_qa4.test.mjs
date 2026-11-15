@@ -31,7 +31,7 @@ test("search: Enter (the first result) picks the place typed, not Home found thr
 
 test("search: Enter picks the best match, a name match before a description match of an earlier group", () => {
   const best = (q) => placeResults(q, SITES).best?.id ?? null;
-  // "de Gerlache Rim 2" (an Artemis III region, listed before the places of interest) only mentions Shackleton.
+  // "de Gerlache Rim 2" (a potential Artemis site, listed before the places of interest) only mentions Shackleton.
   assert.equal(best("Shackleton"), "shackleton_rim");
   assert.equal(best("pole"), "south_pole");
   assert.equal(best("Luna 9"), "luna9");

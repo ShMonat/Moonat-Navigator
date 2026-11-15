@@ -207,7 +207,11 @@ button { cursor: pointer; }
 }
 .map-legend li { display: inline-flex; align-items: center; gap: 6px; }
 .lg { display: inline-block; flex: none; width: 10px; height: 10px; border: 1.5px solid rgba(8, 9, 12, 0.85); background: var(--k); }
-.lg-mission { --k: var(--site-mission); border-radius: 50%; }
+/* Missions: the marker's amber frame around a flag (here a plain grey field, not a nation's flag). */
+.lg-mission {
+  --k: var(--site-mission); width: 14px; height: 10.5px; border-width: 1px; border-radius: 2.5px;
+  box-shadow: inset 0 0 0 1.5px var(--k), inset 0 0 0 9px #9aa1ad;
+}
 .lg-candidate { --k: var(--site-candidate); border-radius: 2px; transform: rotate(45deg) scale(0.88); }
 .lg-poi { --k: var(--site-poi); border-radius: 2px; transform: scale(0.88); }
 .lg-home { --k: var(--site-home); width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45); position: relative; }

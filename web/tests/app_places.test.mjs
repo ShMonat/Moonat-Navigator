@@ -36,7 +36,7 @@ test("coordinate formats: signed with a true minus, and with hemispheres", () =>
   assert.equal(fmtHemi(0.674, 23.473, 3), "0.674° N, 23.473° E");
 });
 
-test("the empty search lists Home first, then missions, Artemis III regions and places of interest", () => {
+test("the empty search lists Home first, then missions, potential Artemis sites and places of interest", () => {
   const r = placeResults("", SITES);
   assert.equal(r.coords, null);
   assert.equal(r.home?.id, HOME_SITE_ID);
@@ -45,7 +45,7 @@ test("the empty search lists Home first, then missions, Artemis III regions and 
   assert.equal(listed, SITES.length, "every catalog place is listed once");
   assert.ok(r.groups.every((g) => g.sites.every((s) => s.kind === g.kind && s.kind !== "home")));
   assert.equal(r.groups[0].label, "Missions");
-  assert.equal(r.groups[1].label, "Artemis III candidate regions");
+  assert.equal(r.groups[1].label, "Potential Artemis sites");
 });
 
 test("typing filters (searchSites); 'home' and 'starhab' find the home base; coordinates offer Go to", () => {
@@ -93,7 +93,7 @@ test("subtitles: agency, year and crew for missions; region for candidates; wher
   const a11 = SITES.find((s) => s.id === "apollo11");
   assert.equal(siteSubtitle(a11), "NASA · 1969 · Neil Armstrong & Buzz Aldrin");
   const cand = SITES.find((s) => s.kind === "candidate");
-  assert.match(siteSubtitle(cand), /^Artemis III region · south pole · approximate point$/);
+  assert.match(siteSubtitle(cand), /^Potential Artemis site · south pole · approximate point$/);
   assert.equal(siteSubtitle(SITES.find((s) => s.id === HOME_SITE_ID)), "Lunar base concept (IAC 2021) · south pole");
   // A crash site says so in place of the lander.
   assert.equal(siteSubtitle(SITES.find((s) => s.id === "beresheet")), "SpaceIL · 2019 · crash site");

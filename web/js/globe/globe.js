@@ -1153,16 +1153,21 @@ export async function createGlobe(container, opts = {}) {
   // ----- Markers -----
 
   /**
-   * Catalog sites: [{lat, lon, name, sub, kind, data, hidden}]. `data` is passed back to onSite. kind ("mission",
+   * Catalog sites: [{lat, lon, name, sub, kind, flag, data, hidden}]. `data` is passed back to onSite. kind ("mission",
    * "candidate", "poi", "home") sets the marker's colour and shape; a hidden site has no marker (a pin stands there).
-   * The home marker is drawn on top.
+   * flag (optional, missions): { src, aspect } of an image drawn inside the marker at its own aspect ratio (width /
+   * height), framed in the kind colour. The home marker is drawn on top.
    */
   function setSites(list) {
     siteLayer.replaceChildren();
     const nodes = [];
     sites = list.map((s, i) => {
-      const e = el("div", `globe-site${s.kind ? ` k-${s.kind}` : ""}`, { "data-site": String(i) });
+      const e = el("div", `globe-site${s.kind ? ` k-${s.kind}` : ""}${s.flag ? " has-flag" : ""}`, { "data-site": String(i) });
       if (s.kind === "home") e.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${HOUSE_PATH}"/></svg>`;
+      else if (s.flag) {
+        e.style.setProperty("--fa", String(s.flag.aspect));
+        e.append(el("img", "site-flag", { src: s.flag.src, alt: "", draggable: "false", decoding: "async" }));
+      }
       // Drawn in reverse list order, so where two markers overlap the one listed first is on top (Apollo 12 over
       // Surveyor 3, 180 m apart); the home marker above all.
       if (s.hidden) e.style.display = "none";

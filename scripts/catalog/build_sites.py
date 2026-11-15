@@ -16,6 +16,19 @@ NSS = "https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_landing_sites.html"
 LROC = "https://www.lroc.asu.edu/"
 ART = "https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/"
 
+# The nation that flew each mission, by agency or company (C2 "nation", ISO 3166-style code; "SU" = the Soviet Union,
+# the code ISO 3166 reserves for it). The app shows that nation's flag on the mission's marker (web/js/app/flags.js).
+NATION = {
+    "NASA": "US",
+    "Intuitive Machines": "US",
+    "Firefly Aerospace": "US",
+    "USSR": "SU",
+    "CNSA": "CN",
+    "ISRO": "IN",
+    "JAXA": "JP",
+    "SpaceIL": "IL",
+}
+
 
 def m(id, name, agency, lander, crew, lat, lon, t0, t1, blurb, src, notes=None, outcome=None):
     """A mission. outcome "crash": an impact site (t0 = the crash), shown as "crash site" in the search list."""
@@ -24,6 +37,7 @@ def m(id, name, agency, lander, crew, lat, lon, t0, t1, blurb, src, notes=None, 
         name=name,
         kind="mission",
         agency=agency,
+        nation=NATION[agency],
         lander=lander,
         crew=crew,
         lat_deg=lat,

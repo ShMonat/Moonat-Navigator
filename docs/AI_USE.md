@@ -53,3 +53,10 @@ research AI model is used to survey algorithms for terrain visibility (docs/rese
   final interface.
 - 2026-11-14: screenshots in docs/figures are computed renders captured with a scripted browser. No AI-generated images or
   video are used, and no NASA logos or insignia appear.
+- 2026-11-15: at Shay's request, each real mission's marker shows the flag of the nation that flew it. The flags are
+  **unaltered third-party artwork**, not AI-generated: flag-icons (MIT) for the United States, China, India, Japan and
+  Israel, and the public-domain Wikimedia Commons file for the Soviet Union, vendored byte-identical in web/assets/flags/
+  (a test checks their SHA-256 against the source files) and only sized with CSS at their own aspect ratio. No AI drew,
+  recoloured or cropped a flag. Sources and licences: docs/REFERENCES.md. The same change renamed "Artemis III candidate
+  regions" to "Potential Artemis sites" (Shay: Artemis III is a mission in low Earth orbit; the landings are Artemis IV
+  and later).

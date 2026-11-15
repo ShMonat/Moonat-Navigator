@@ -10,15 +10,15 @@ const GEN = "AI-generated with Claude Code (Anthropic), directed and reviewed by
 // Fallback used only if web/data/sites.json cannot be loaded. Coordinates and times are the commonly
 // published NSSDCA/LROC values, rounded; the catalog layer provides the sourced, authoritative list.
 const FALLBACK_SITES = [
-  { id: "apollo11", name: "Apollo 11 (Tranquility Base)", kind: "mission", agency: "NASA", lander: "Eagle", crew: ["Neil Armstrong", "Buzz Aldrin"], lat_deg: 0.67416, lon_deg: 23.47314, t_start_utc: "1969-07-20T20:17:40Z", t_end_utc: "1969-07-21T17:54:00Z", blurb: "The first crewed landing on the Moon, in the Sea of Tranquility." },
-  { id: "apollo12", name: "Apollo 12 (Ocean of Storms)", kind: "mission", agency: "NASA", lander: "Intrepid", crew: ["Pete Conrad", "Alan Bean"], lat_deg: -3.01239, lon_deg: -23.42157, t_start_utc: "1969-11-19T06:54:35Z", t_end_utc: "1969-11-20T14:25:47Z", blurb: "A precision landing next to the Surveyor 3 probe." },
-  { id: "apollo14", name: "Apollo 14 (Fra Mauro)", kind: "mission", agency: "NASA", lander: "Antares", crew: ["Alan Shepard", "Edgar Mitchell"], lat_deg: -3.6453, lon_deg: -17.47136, t_start_utc: "1971-02-05T09:18:11Z", t_end_utc: "1971-02-06T18:48:42Z", blurb: "Landed in the Fra Mauro highlands, the original target of Apollo 13." },
-  { id: "apollo15", name: "Apollo 15 (Hadley–Apennine)", kind: "mission", agency: "NASA", lander: "Falcon", crew: ["David Scott", "James Irwin"], lat_deg: 26.13222, lon_deg: 3.63386, t_start_utc: "1971-07-30T22:16:29Z", t_end_utc: "1971-08-02T17:11:23Z", blurb: "The first mission with the Lunar Roving Vehicle, beside Hadley Rille." },
-  { id: "apollo16", name: "Apollo 16 (Descartes Highlands)", kind: "mission", agency: "NASA", lander: "Orion", crew: ["John Young", "Charles Duke"], lat_deg: -8.97301, lon_deg: 15.50019, t_start_utc: "1972-04-21T02:23:35Z", t_end_utc: "1972-04-24T01:25:47Z", blurb: "The only Apollo landing in the central lunar highlands." },
-  { id: "apollo17", name: "Apollo 17 (Taurus–Littrow)", kind: "mission", agency: "NASA", lander: "Challenger", crew: ["Eugene Cernan", "Harrison Schmitt"], lat_deg: 20.1908, lon_deg: 30.77168, t_start_utc: "1972-12-11T19:54:57Z", t_end_utc: "1972-12-14T22:54:37Z", blurb: "The last crewed landing so far, in a deep valley on the edge of the Sea of Serenity." },
-  { id: "change4", name: "Chang'e 4 (Von Kármán crater)", kind: "mission", agency: "CNSA", lander: "Chang'e 4", crew: null, lat_deg: -45.4446, lon_deg: 177.5991, t_start_utc: "2019-01-03T02:26:00Z", t_end_utc: null, blurb: "The first soft landing on the far side of the Moon." },
-  { id: "chandrayaan3", name: "Chandrayaan-3 (Shiv Shakti point)", kind: "mission", agency: "ISRO", lander: "Vikram", crew: null, lat_deg: -69.373, lon_deg: 32.319, t_start_utc: "2023-08-23T12:33:00Z", t_end_utc: "2023-09-03T00:00:00Z", blurb: "India's first landing, the closest to the south pole at the time." },
-  { id: "connecting_ridge", name: "Shackleton–de Gerlache connecting ridge", kind: "candidate", agency: "NASA", lander: null, crew: null, lat_deg: -89.45, lon_deg: -137.3, t_start_utc: null, t_end_utc: null, blurb: "A high ridge near the south pole with long periods of sunlight: an Artemis candidate region." },
+  { id: "apollo11", name: "Apollo 11 (Tranquility Base)", kind: "mission", agency: "NASA", nation: "US", lander: "Eagle", crew: ["Neil Armstrong", "Buzz Aldrin"], lat_deg: 0.67416, lon_deg: 23.47314, t_start_utc: "1969-07-20T20:17:40Z", t_end_utc: "1969-07-21T17:54:00Z", blurb: "The first crewed landing on the Moon, in the Sea of Tranquility." },
+  { id: "apollo12", name: "Apollo 12 (Ocean of Storms)", kind: "mission", agency: "NASA", nation: "US", lander: "Intrepid", crew: ["Pete Conrad", "Alan Bean"], lat_deg: -3.01239, lon_deg: -23.42157, t_start_utc: "1969-11-19T06:54:35Z", t_end_utc: "1969-11-20T14:25:47Z", blurb: "A precision landing next to the Surveyor 3 probe." },
+  { id: "apollo14", name: "Apollo 14 (Fra Mauro)", kind: "mission", agency: "NASA", nation: "US", lander: "Antares", crew: ["Alan Shepard", "Edgar Mitchell"], lat_deg: -3.6453, lon_deg: -17.47136, t_start_utc: "1971-02-05T09:18:11Z", t_end_utc: "1971-02-06T18:48:42Z", blurb: "Landed in the Fra Mauro highlands, the original target of Apollo 13." },
+  { id: "apollo15", name: "Apollo 15 (Hadley–Apennine)", kind: "mission", agency: "NASA", nation: "US", lander: "Falcon", crew: ["David Scott", "James Irwin"], lat_deg: 26.13222, lon_deg: 3.63386, t_start_utc: "1971-07-30T22:16:29Z", t_end_utc: "1971-08-02T17:11:23Z", blurb: "The first mission with the Lunar Roving Vehicle, beside Hadley Rille." },
+  { id: "apollo16", name: "Apollo 16 (Descartes Highlands)", kind: "mission", agency: "NASA", nation: "US", lander: "Orion", crew: ["John Young", "Charles Duke"], lat_deg: -8.97301, lon_deg: 15.50019, t_start_utc: "1972-04-21T02:23:35Z", t_end_utc: "1972-04-24T01:25:47Z", blurb: "The only Apollo landing in the central lunar highlands." },
+  { id: "apollo17", name: "Apollo 17 (Taurus–Littrow)", kind: "mission", agency: "NASA", nation: "US", lander: "Challenger", crew: ["Eugene Cernan", "Harrison Schmitt"], lat_deg: 20.1908, lon_deg: 30.77168, t_start_utc: "1972-12-11T19:54:57Z", t_end_utc: "1972-12-14T22:54:37Z", blurb: "The last crewed landing so far, in a deep valley on the edge of the Sea of Serenity." },
+  { id: "change4", name: "Chang'e 4 (Von Kármán crater)", kind: "mission", agency: "CNSA", nation: "CN", lander: "Chang'e 4", crew: null, lat_deg: -45.4446, lon_deg: 177.5991, t_start_utc: "2019-01-03T02:26:00Z", t_end_utc: null, blurb: "The first soft landing on the far side of the Moon." },
+  { id: "chandrayaan3", name: "Chandrayaan-3 (Shiv Shakti point)", kind: "mission", agency: "ISRO", nation: "IN", lander: "Vikram", crew: null, lat_deg: -69.373, lon_deg: 32.319, t_start_utc: "2023-08-23T12:33:00Z", t_end_utc: "2023-09-03T00:00:00Z", blurb: "India's first landing, the closest to the south pole at the time." },
+  { id: "connecting_ridge", name: "Shackleton–de Gerlache connecting ridge", kind: "candidate", agency: "NASA", lander: null, crew: null, lat_deg: -89.45, lon_deg: -137.3, t_start_utc: null, t_end_utc: null, blurb: "A high ridge near the south pole with long periods of sunlight: a potential Artemis site." },
 ];
 
 let sites = [];
@@ -57,13 +57,13 @@ export function shortName(site) {
 }
 
 const KIND_ORDER = { home: -1, mission: 0, candidate: 1, poi: 2 };
-export const KIND_LABEL = { home: "Home", mission: "Missions", candidate: "Artemis III candidate regions", poi: "Places of interest" };
+export const KIND_LABEL = { home: "Home", mission: "Missions", candidate: "Potential Artemis sites", poi: "Places of interest" };
 /** The catalog id of the home base (kind "home"): StarHab. Its coordinates come from web/data/sites.json. */
 export const HOME_SITE_ID = "starhab";
 
 /**
- * Search sites by free text over name, agency, lander, crew, blurb and group name (so "Artemis" finds the candidate
- * regions). All query words must match.
+ * Search sites by free text over name, agency, lander, crew, blurb and group name (so "Artemis" finds the potential
+ * Artemis sites). All query words must match.
  * Returns sites ranked: name-prefix matches first, then by kind and name.
  */
 export function searchSites(query, list = sites) {
@@ -234,7 +234,7 @@ export const SYNODIC_MS = Math.round((29.530589 * DAY_MS) / 60e3) * 60e3;
 
 // Used only if web/data/sites.json cannot be loaded (same values as the catalog entry).
 const BERESHEET = {
-  id: "beresheet", name: "Beresheet (SpaceIL)", kind: "mission", agency: "SpaceIL", lander: "Beresheet", crew: null,
+  id: "beresheet", name: "Beresheet (SpaceIL)", kind: "mission", agency: "SpaceIL", nation: "IL", lander: "Beresheet", crew: null,
   lat_deg: 32.5956, lon_deg: 19.3496, t_start_utc: "2019-04-11T19:23:00Z", t_end_utc: "2019-05-11T08:07:00Z", outcome: "crash",
   blurb: "Israel's first Moon mission, by SpaceIL and Israel Aerospace Industries, crashed here in Mare Serenitatis in 2019.",
 };
@@ -353,7 +353,7 @@ const ECLIPSE_START = "2025-03-14T04:30:00Z";
 const ECLIPSE_END = "2025-03-14T10:20:00Z";
 // Used only if web/data/sites.json cannot be loaded (same values as the catalog entry).
 const BLUE_GHOST = {
-  id: "blueghost1", name: "Blue Ghost Mission 1", kind: "mission", agency: "Firefly Aerospace", lander: "Blue Ghost", crew: null,
+  id: "blueghost1", name: "Blue Ghost Mission 1", kind: "mission", agency: "Firefly Aerospace", nation: "US", lander: "Blue Ghost", crew: null,
   lat_deg: 18.5623, lon_deg: 61.8103, t_start_utc: "2025-03-02T08:34:00Z", t_end_utc: "2025-03-16T00:00:00Z",
   blurb: "A private lander that worked a full lunar day in Mare Crisium and filmed a lunar sunset.",
 };
