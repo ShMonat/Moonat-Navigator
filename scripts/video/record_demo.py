@@ -48,7 +48,7 @@ CAPTIONS = {
     "compare": ("All six Apollo landings, ranked", "Sunlight and Earth, side by side"),
     "suggest": ("Moonat suggests the best dates", "Most sunlight · Earth in view · eclipses"),
     "search": ("Search the Moon", "Fly to any crater, landing site or Artemis region"),
-    "rover": ("Plan a rover drive", "Sun and Earth along a 19 km route at the south pole"),
+    "rover": ("Plan a rover drive", "Driver's view along a 19 km route at the south pole"),
     "eclipse": (
         "The Earth eclipses the Sun, seen from the Moon",
         "Blue Ghost lander · 14 March 2025 · NASA eclipse times",
@@ -102,7 +102,7 @@ OVERLAY_CSS = """
 #vid-cap .main { font-size: 50px; font-weight: 600; letter-spacing: 0.005em; line-height: 1.15; }
 #vid-cap .sub { margin-top: 10px; font-size: 27px; font-weight: 400; color: #e4e9f2; }
 #vid-root.cap-right #vid-cap { left: 1215px; width: 1240px; }
-#vid-root.cap-right #vid-scrim { left: 540px; }
+#vid-root.cap-right #vid-scrim { left: 0; }
 #vid-card { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center;
   color: #f2f1ec; text-align: center; opacity: 0;
   background: radial-gradient(1400px 800px at 50% 38%, rgba(22, 30, 52, 0.97), rgba(6, 8, 13, 0.995) 70%); }
@@ -415,7 +415,7 @@ class Director:
         self.page.evaluate("window.scrollTo(0, 0)")
 
     def sky_opt(self, key: str, on: bool) -> None:
-        """Set a view option of the "⋯" menu (closeUp, constellations, exposure, hudLevel) for every view."""
+        """Set a view option of the view options menu (closeUp, constellations, exposure, hudLevel) for every view."""
         before = self.draws()
         changed = self.page.evaluate(
             """([k, on]) => { const b = document.querySelector(`#sky-grid .sky-opt[data-opt="${k}"]`);
@@ -645,19 +645,28 @@ def scene_title(d: Director) -> None:
 
 
 def scene_apollo11(d: Director) -> None:
-    """1: the first visit opens Apollo 11 (globe with its pins on the left, the sky on the right); Focus gives a
-    tall frame with the high Earth and the ground together, like a Hasselblad photo."""
-    d.hold(4)
-    d.click("#sky-grid .sky-focus-btn", wait=d.wait_sky, xfade=8, n_move=10)
+    """1: the first visit opens Apollo 11: the globe with its pins on the left, and the sky stage on the right, a
+    window-high view with the high Earth and the ground together. A short drag of the sky shows it is live."""
+    d.caption("apollo", pos="right")
+    b = d.canvas_box()
+    start = (b["x"] + b["width"] * 0.55, b["y"] + b["height"] * 0.6)
+    d.move_to(start, 10)
+    d.page.mouse.down()
+    for i in range(1, 25):  # drag a little to the left and back: the view turns, then returns
+        d.cx = start[0] - 300 * math.sin(math.pi * i / 24)
+        before = d.draws()
+        d.page.mouse.move(d.cx, d.cy)
+        d.wait_draw(before, timeout=1.0)
+        d.frame()
+    d.page.mouse.up()
     d.cursor_on = False
-    d.caption("apollo")
     d.hold(54)
     d.keyframe("apollo11")
 
 
-def exit_focus(d: Director, xfade: int = 6) -> None:
-    """Leave the sky's focus mode with Esc (as a user would), cross-fading to the normal layout."""
-    if d.page.evaluate("document.body.classList.contains('sky-focus')"):
+def exit_full(d: Director, xfade: int = 6) -> None:
+    """Leave the sky view's full screen with Esc (as a user would), if it is on, cross-fading to the page."""
+    if d.page.evaluate("document.body.classList.contains('sky-full')"):
         d.page.keyboard.press("Escape")
         time.sleep(0.5)
         d.wait_sky()
@@ -665,11 +674,11 @@ def exit_focus(d: Director, xfade: int = 6) -> None:
 
 
 def scene_suggest(d: Director) -> None:
-    """2: the calendar of the Apollo 11 card's Start field (📅) holds "✨ Suggested for this place": the best windows
-    for sunlight and Earth contact and the eclipses visible from the site. The picker opens over the page, fitted to
+    """2: the calendar of the Apollo 11 card's Start field holds "Suggested for Apollo 11": the best windows for
+    sunlight and Earth contact and the eclipses visible from the site. The picker opens over the page, fitted to
     the window (web/js/app/time_picker.js), so nothing needs to scroll but its own list."""
     d.caption(None)
-    exit_focus(d)
+    exit_full(d)
     d.cursor_on = True
 
     def wait_list() -> None:
@@ -698,7 +707,7 @@ def scene_suggest(d: Director) -> None:
     d.hold(24)
     d.keyframe("suggest")
     d.hold(4)
-    # Close the picker with its ✕, off camera.
+    # Close the picker with its close button, off camera.
     d.page.evaluate("document.querySelector('.tp-pop .tp-close')?.click()")
     time.sleep(0.3)
 
@@ -710,12 +719,13 @@ ECLIPSE_PARTS = [(250.0, 318.0, 60), (686.0, 714.0, 54)]  # (slider from, slider
 
 def scene_eclipse(d: Director) -> None:
     """3: Eclipse from the Moon: the Earth slides over the Sun, totality's red ring, then the diamond ring.
-    Focus mode, the view centred on the Earth and zoomed in (Ctrl + wheel), constellation lines off; the close-up
+    The view in full screen, centred on the Earth and zoomed in (Ctrl + wheel), constellation lines off; the close-up
     loupes stay on and show the Sun and the Earth magnified."""
     d.caption(None)
     d.click_chip(5, wait=d.wait_story, capture=False)
-    d.page.evaluate("document.querySelector('#sky-grid .sky-focus-btn').click()")
-    time.sleep(0.6)
+    # Full screen (the card's full-screen icon) for the most striking shot: the view gets the whole frame.
+    d.page.evaluate("document.querySelector('#sky-grid .sky-fs-btn').click()")
+    time.sleep(0.8)
     d.wait_sky()
     d.set_slider(ECLIPSE_PARTS[0][0])
     d.look("sun")
@@ -751,16 +761,13 @@ POLE_VIEW_AZ = 152.0  # fixed camera, about 105..200 deg: the Sun from 181 to 12
 
 
 def scene_pole(d: Director) -> None:
-    """4: South pole ridge: a fixed wide view in focus mode, the Sun skimming the lit ground."""
+    """4: South pole ridge: a fixed wide view on the stage, the Sun skimming the lit ground."""
     d.caption(None)
-    exit_focus(d)
+    exit_full(d)
     d.cursor_on = True
     d.click_chip(3, wait=d.wait_story, capture=False)
-    # Off-camera set-up, then a cross-fade: focus mode, the start time, the Earth framing widened by two Ctrl +
-    # wheel ticks, turned to POLE_VIEW_AZ and tilted so the horizon sits a little above the middle.
-    d.page.evaluate("document.querySelector('#sky-grid .sky-focus-btn').click()")
-    time.sleep(0.6)
-    d.wait_sky()
+    # Off-camera set-up, then a cross-fade: the start time, the Earth framing widened by two Ctrl + wheel ticks,
+    # turned to POLE_VIEW_AZ and tilted so the horizon sits a little above the middle.
     d.set_slider(POLE_PARTS[0][0])
     d.look("earth")
     d.zoom_sky(2)
@@ -782,7 +789,7 @@ def scene_pole(d: Director) -> None:
         xfade=1,
     )
     d.cursor_on = False  # the pointer leaves the controls so the play/pause state stays visible
-    d.caption("pole")
+    d.caption("pole", pos="right")
     for k, (u0, u1, n) in enumerate(POLE_PARTS):
         if k:  # jump ahead in the window: a short cross-fade
             d.set_slider(u0)
@@ -802,7 +809,7 @@ def scene_search(d: Director) -> None:
     """Search the Moon: type into the globe's search box, pick "Shackleton rim" from the results, and the globe
     flies to the south pole (the place joins the comparison as a second card)."""
     d.caption(None)
-    exit_focus(d)
+    exit_full(d)
     d.cursor_on = True
     # The left column may be scrolled down to the story chips: bring the search box back while the pointer moves.
     delta = d.prepare_scroll("#globe-search")
@@ -849,15 +856,15 @@ ROVER_PART = (150.0, 700.0, 52)  # (slider from, slider to, frames)
 
 
 def scene_rover(d: Director) -> None:
-    """Rover trip: the story loads the planned route (map on the globe, route card), Track keeps the Sun in view,
-    and the drive plays: the rover's dot moves along the route on the globe while the sky turns with it."""
+    """Rover trip: the story loads the planned route (map on the globe, route card), "Driver's view" looks along
+    the route from the rover, and the drive plays: the rover's dot moves on the globe while the view rides along."""
     d.caption(None)
-    exit_focus(d)
+    exit_full(d)
     d.cursor_on = True
     d.click_chip(6, wait=d.wait_story, capture=False)
     d.set_slider(ROVER_PART[0])
     d.reveal(8)
-    d.click("#btn-track", wait=lambda: time.sleep(0.4), xfade=4, n_move=10)
+    d.click("#btn-driver", wait=lambda: time.sleep(0.5), xfade=4, n_move=10)
     d.cursor_on = False
     d.caption("rover", pos="right")
     u0, u1, n = ROVER_PART
@@ -874,7 +881,7 @@ def scene_rover(d: Director) -> None:
 def scene_farside(d: Director) -> None:
     """5: Far side (Chang'e 4): the Earth stays below the horizon while the Sun crosses the sky."""
     d.caption(None)
-    exit_focus(d)
+    exit_full(d)
     d.cursor_on = True
     d.click_chip(4, wait=d.wait_story, xfade=8)
     d.caption("farside", pos="right")

@@ -18,14 +18,15 @@ can hide either one. Moonat computes both against the real terrain and lets you 
 One page, in the order you need it:
 1. **Place and time:** click the Moon globe (missions, Artemis III candidate regions and places of interest are marked
    in their own colours), type coordinates or search 40 catalog sites (Apollo, Luna, Surveyor, Chang'e, Chandrayaan-3,
-   Artemis III regions), and give a time or a mission span in the date picker, where **✨ Suggested for this place**
+   Artemis III regions), and give a time or a mission span in the date picker, where **Suggested for this place**
    proposes the windows with the most sunlight, the best Earth contact or both, and the eclipses and Earthrises seen
    from that place. Or start with a story: Apollo 11, all Apollo landings, the south pole, the far side, an eclipse, a
    rover drive.
 2. **The sky from there:** a first-person 3D view from 2 m above the ground, with terrain lit by the Sun, the Earth with
-   its true phase and orientation, stars and planets, and a timelapse; one view per scenario. A hint offers the eclipse
-   or the Earthrise a mission window holds ("Show me").
-3. **☀ Sun | 🌍 Earth:** one switch turns every view to the Sun or the Earth and shows that body's numbers: elevation,
+   its true phase and orientation, stars and planets, and a timelapse; one view per scenario. The view fills the
+   window like an app, with a full-screen button. While it plays, "Follow Sun" or "Follow Earth" keeps the body in
+   frame. A hint offers the eclipse or the Earthrise a mission window holds ("Show me").
+3. **Sun | Earth:** one switch turns every view to the Sun or the Earth and shows that body's numbers: elevation,
    visible fraction of the disk, solar flux (W/m²), phase, time to sunset or Earthset, a side-by-side ranking of the
    scenarios, and charts with a cursor at the sky's moment.
 
@@ -36,7 +37,7 @@ More:
 - **Rover trips:** switch on **Trip** next to a place and add an end point and stops, as in Google Maps directions
   (each leg up to 60 km); Moonat fetches LOLA terrain from NASA Moon Trek, finds the fastest drivable path for a
   VIPER-class rover or the Apollo LRV (slope limits), draws it on the globe, and charts the Sun and Earth along the
-  drive against time or distance travelled. The timelapse rides along the route, with an optional "Look ahead" view
+  drive against time or distance travelled. The timelapse rides along the route, with an optional "Driver's view" facing the way the rover drives
   ([validation](docs/validation/rover.md)).
 
 | Compare all Apollo landings | South pole (Shackleton rim) | Far side (Chang'e 4) |
@@ -77,9 +78,9 @@ Neither affects Sun or Earth positions. Full lists are in the validation reports
    the 3D ground in the browser ([research](docs/research/terrain-everywhere.md)).
 
 ## Data sources
-NASA Space Apps challenge resources are marked with a star. Full list with licences: [docs/REFERENCES.md](docs/REFERENCES.md).
-- ★ **JPL Horizons**: validation reference for Sun and Earth positions.
-- ★ **Moon Trek**: LRO WAC mosaic tiles for the site-picker map.
+NASA Space Apps challenge resources are marked "(challenge resource)". Full list with licences: [docs/REFERENCES.md](docs/REFERENCES.md).
+- **JPL Horizons** (challenge resource): validation reference for Sun and Earth positions.
+- **Moon Trek** (challenge resource): LRO WAC mosaic for the globe, and live LOLA elevation for any point and for rover routes.
 - **LRO LOLA** (NASA PDS): polar DEMs LDEM_80S_20M, 75S_30M, 60S_60M, 75S_240M; global LDEM_64 and LDEM_16;
   SLDEM2015 (LOLA + SELENE) within ±60° latitude.
 - **JPL/NAIF**: DE421 ephemeris, lunar orientation kernel and frame kernel.
