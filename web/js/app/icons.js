@@ -48,6 +48,8 @@ const PATHS = {
   home: '<path d="M4 11.5 12 4.5l8 7"/><path d="M6.5 10v9.5h11V10"/><path d="M10 19.5v-5h4v5"/>',
   // A clock face: "the sky now" (a live story).
   clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 2.2"/>',
+  // AI mode: a crescent Moon with a small four-point spark beside it.
+  ai: '<path d="M13.2 4.6a7.6 7.6 0 1 0 6.2 10.6 6 6 0 0 1-6.2-10.6z"/><path d="M18.3 2.8c.35 1.9 1 2.55 2.9 2.9-1.9.35-2.55 1-2.9 2.9-.35-1.9-1-2.55-2.9-2.9 1.9-.35 2.55-1 2.9-2.9z"/>',
 };
 
 /**

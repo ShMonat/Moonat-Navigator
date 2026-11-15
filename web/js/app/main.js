@@ -341,6 +341,25 @@ function initHistory() {
   window.addEventListener("hashchange", onNav); // a hash typed or pasted into the address bar
 }
 
+/**
+ * AI mode (web/js/ai/): the header button loads the panel and its modules only when pressed, so the page's first load
+ * stays as it was. The Anthropic SDK itself loads later still, when a run starts.
+ */
+function initAiMode() {
+  const btn = $("btn-ai");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    btn.setAttribute("aria-busy", "true");
+    import("../ai/panel.js")
+      .then((m) => m.openAiPanel())
+      .catch((err) => {
+        console.error("[moonat] AI mode failed to load", err);
+        toast("AI mode could not load. Please check your connection and try again.");
+      })
+      .finally(() => btn.removeAttribute("aria-busy"));
+  });
+}
+
 function initShare() {
   $("btn-share").addEventListener("click", async () => {
     flushHash();
@@ -555,6 +574,7 @@ async function boot() {
   initInfoTips();
   initAbout();
   initShare();
+  initAiMode();
   initXAxisToggle();
   initBodySwitch((body) => aimSky(body));
   initSky({

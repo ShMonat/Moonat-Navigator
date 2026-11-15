@@ -25,6 +25,12 @@ Challenge Resources tab (published 2026-11-13): Quickmap, Moon Trek, JPL Horizon
 ### Web app (agent `web-app`)
 - Plotly.js (plotly.js-dist-min 2.35.2) — Sun and Earth time-series charts, loaded from jsDelivr — https://plotly.com/javascript/ — MIT
 - three.js 0.160.0 — 3D sky view and the Moon globe site picker (import map shared with the sky viewer), loaded from jsDelivr — https://threejs.org — MIT
+- Anthropic TypeScript/JavaScript SDK `@anthropic-ai/sdk` 1.3.0 — AI mode's calls to the Claude Messages API (model
+  `claude-opus-5-5`), loaded on demand as an ES module from https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@1.3.0/+esm
+  (its bundle also pulls `@opentelemetry/api` 1.10.0, Apache-2.0, and `standardwebhooks` 1.1.1, MIT, from jsDelivr) —
+  https://github.com/anthropics/anthropic-sdk-typescript — Apache-2.0 (the LICENSE file of version 1.3.0). New
+  dependency: pending Shahar's review. The Claude API
+  itself is a paid service, used with each visitor's own API key (docs/ai_mode.md).
 - jsDelivr CDN — serves the pinned library versions above — https://www.jsdelivr.com — free public CDN
 - Paul Tol, "Colour schemes" (SRON technical note, 2021), qualitative scheme "bright" — hues of the six scenario colours, stepped per theme and checked with the palette validator of the Claude Code "dataviz" skill (all pairs, colour-vision deficiency, contrast) — https://personal.sron.nl/~pault/ — free to use
 - GitHub Pages and GitHub Actions (configure-pages v5, upload-pages-artifact v3, deploy-pages v4) — hosting the public site — https://pages.github.com — GitHub terms

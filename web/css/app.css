@@ -126,6 +126,11 @@ button { cursor: pointer; }
 #btn-theme .i-moon { fill: currentColor; stroke: none; }
 :root[data-theme="dark"] #btn-theme .i-moon, :root:not([data-theme]) #btn-theme .i-moon { display: none; }
 :root[data-theme="light"] #btn-theme .i-sun { display: none; }
+/* AI mode's header button (the panel's own styles load with it: web/css/ai.css). */
+.ai-btn { display: inline-flex; align-items: center; gap: 6px; }
+.ai-btn .ico { color: var(--accent); }
+.ai-btn[aria-busy="true"] { opacity: 0.6; cursor: progress; }
+@media (max-width: 520px) { .ai-btn-long { display: none; } }
 .link-btn { border: 0; background: none; color: var(--accent); padding: 0; text-decoration: underline; text-underline-offset: 2px; }
 
 /* ---------- The "Checked against NASA and JPL" panel (opened from the footer and from About) ---------- */

@@ -34,6 +34,12 @@ Decisions in Shahar's domain are marked *(pending Shahar's review)*.
    **Suggested dates:** `web/js/suggest/` ranks mission dates for a site (best solar, Earth-contact and combined
    windows, eclipses of the Sun by the Earth, Earthrises) from one C6 series pass in a module worker (contract C11,
    docs/validation/suggest.md) *(definitions pending Shay's review; not yet wired into the UI)*.
+   **AI mode (2026-11-15):** `web/js/ai/` lets a visitor describe a mission and get sites ranked by Claude
+   (`claude-opus-5-5`, the official `@anthropic-ai/sdk` from jsDelivr, the visitor's own API key, called from the
+   browser). The model only states requirements, calls Moonat's own functions as tools (catalog + PGDA sunlit spots,
+   a C6 series over the window with the C3/C9/C5 horizon, C11) and explains; every number comes from the tools.
+   Loaded only when the header's "AI mode" button is pressed. Design, privacy and costs: docs/ai_mode.md
+   *(new dependency pending Shahar's review)*.
 6. **UI: one flow** (2026-11-14, Shay's request after using the app on his phone; replaces the two tabs of the Main Tab
    verdict) *(pending Shahar's review: board flag `single-flow-layout`)*. The page reads in the order a visitor needs it:
    the place (the globe, with catalog sites coloured by kind) and the time (scenario cards; the Start and End fields
