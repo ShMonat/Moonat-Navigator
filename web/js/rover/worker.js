@@ -3,13 +3,31 @@
 // - {id, type: "plan", start, end, rover, opts}: fetch the route terrain and plan the path (route.js computeRoute);
 // - {id, type: "horizons", job}: ray-march the horizons of some route points (route.js horizonsAt); several workers
 //   share the points of one route.
+// - ground patches for the sky view while a rover drives (ground.js): {type: "ground-route", rid, route} keeps the
+//   grids of a route (ground.js patchSource), {type: "ground-drop", rid} forgets them, {id, type: "ground", rid,
+//   lat_deg, lon_deg, opts} computes route.js routePatch there.
 // Out: {id, progress: {stage, frac}} while working, then {id, result} or {id, error, code}. Grid and image buffers
-// of a plan are transferred, not copied.
+// of a plan, and the heights of a ground patch, are transferred, not copied.
 
-import { computeRoute, horizonsAt } from "./route.js";
+import { computeRoute, horizonsAt, routePatch } from "./route.js";
+
+const routes = new Map(); // ground patches: route id -> the parts of the route that routePatch reads
 
 self.onmessage = async (ev) => {
   const { id, type = "plan", start, end, rover, opts, job } = ev.data;
+  if (type === "ground-route") return void routes.set(ev.data.rid, ev.data.route);
+  if (type === "ground-drop") return void routes.delete(ev.data.rid);
+  if (type === "ground") {
+    try {
+      const route = routes.get(ev.data.rid);
+      if (!route) throw new Error(`ground: route ${ev.data.rid} is not loaded`);
+      const result = routePatch(route, ev.data.lat_deg, ev.data.lon_deg, opts);
+      self.postMessage({ id, result }, [result.data.buffer]);
+    } catch (e) {
+      self.postMessage({ id, error: String((e && e.message) || e) });
+    }
+    return;
+  }
   let last = 0;
   const onProgress = (stage, frac) => {
     const t = Date.now();

@@ -195,7 +195,9 @@ await createSkyView(container /* HTMLElement */, {
   close-ups and the other body's disk, and they stay above the compass strip.
 - Terrain extras: `createSkyView(..., { terrainPatch: { meta, data: Float32Array } })` takes an in-memory C4 patch instead of
   `terrainPatchUrl`, and `view.setTerrain({ horizon, patch })` swaps the skyline and/or the patch in place (camera, sky and
-  textures stay; an omitted key keeps its value; `horizon: null` = the patch's own skyline).
+  textures stay; an omitted key keeps its value; `horizon: null` = the patch's own skyline). A patch with the same grid
+  (size, spacing, extent) and a skyline with the same number of azimuths only update the heights of the meshes already
+  built (about 12 ms; a full rebuild takes 30–190 ms).
 - Extras beyond C8 used by the app's full screen: `setPixelBudget(px | null)` (drawing-buffer size; pixel ratio ≤ 2) and
   `setTallFrames(on)` (the app turns it on for every view): `lookAtBody` keeps the full width whenever the body rule fits the
   horizon and the body with its margins; only a body too high for that gets a centred, taller frame (down to 3:4), as wide
@@ -431,7 +433,9 @@ tripKey(points, rover), tripProblems(points) -> [message]      // a 2-point trip
 - **Ride (sky view):** `sky_ride.js rideAt(item, t)` gives the rover's exact position on the path at the drive
   timeline, a skyline blended between the two nearest horizon samples (each turned into the local frame first), the
   heading and slope of travel; the view's 3D ground and drawn skyline are rebuilt at the position rounded to
-  max(20 m, a fine cell), at most every 160 ms while the time runs. "Driver's view" (the timelapse bar's camera group,
+  max(20 m, a fine cell), at most every 160 ms while the time runs. The ±8 km ground patch is computed in a Web Worker
+  (`ground.js`, the same `routePatch` on a copy of the route grids), one at a time per view, the latest position first.
+  "Driver's view" (the timelapse bar's camera group,
   shown while a trip is on screen) is the sky panel's "ahead" track mode (`setTrackMode`); `ui.js` gives the direction
   with `setLookAheadSource(sky_ride.js lookAheadDirection)`: the path's heading, the slope × 0.7 + 1.5° up; the view
   eases toward it (C8 `setTrack({az_deg, el_deg})`). Follow (body) and Driver's view are exclusive: the last one chosen

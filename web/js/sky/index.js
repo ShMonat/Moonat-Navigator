@@ -873,19 +873,22 @@ export async function createSkyView(container, {
   /**
    * Replace the terrain without rebuilding the view: a new C3 skyline and/or C4 patch, e.g. when the real terrain of a
    * custom point arrives after the view opened on the coarse tiles horizon. The camera, sky and textures stay; only
-   * the terrain meshes are rebuilt (tens of ms). `horizon`: C3 object, or null for the patch's own skyline (or a smooth
-   * one); `patch`: { meta, data: Float32Array } (C4) or null. An omitted key keeps its current value.
+   * the terrain meshes are rebuilt (tens of ms), or only their heights when the new patch has the same grid (a rover
+   * moving along its route: a few ms). `horizon`: C3 object, or null for the patch's own skyline (or a smooth one);
+   * `patch`: { meta, data: Float32Array } (C4) or null. An omitted key keeps its current value.
    */
   function setTerrain({ horizon: newHorizon, patch: newPatch } = {}) {
     if (disposed) return;
     if (newPatch !== undefined) patch = newPatch;
     if (newHorizon !== undefined) horizon = newHorizon ?? (patch ? horizonFromPatch(patch, eyeH) : flatHorizon(eyeH));
-    farScene.remove(terrain.skirt);
-    nearScene.remove(terrain.near);
-    terrain.dispose();
-    terrain = buildTerrain({ patch, horizon, eyeH, floatLinear });
-    farScene.add(terrain.skirt);
-    nearScene.add(terrain.near);
+    if (!terrain.setGround({ patch, horizon })) {
+      farScene.remove(terrain.skirt);
+      nearScene.remove(terrain.near);
+      terrain.dispose();
+      terrain = buildTerrain({ patch, horizon, eyeH, floatLinear });
+      farScene.add(terrain.skirt);
+      nearScene.add(terrain.near);
+    }
     horizonMaxEl = Math.max(...horizon.el_deg);
     info.hasPatch = !!patch;
     info.horizonSource = newHorizon ? 'site' : patch ? 'patch' : horizon.smooth ? 'smooth' : info.horizonSource;

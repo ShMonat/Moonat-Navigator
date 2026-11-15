@@ -6,7 +6,8 @@
 //   first (near the pole the azimuth frame turns quickly with position), so the blend is of the same directions.
 // - 3D ground and drawn skyline: rebuilt where the rover is (the position rounded to a few grid cells), at most every
 //   REBUILD_MS while the time runs, and once more where it stops. The ground is a ±8 km patch of the route grids
-//   (route.js routePatch).
+//   (route.js routePatch), computed in a Web Worker (ground.js) while the frames go on; the view then gives its
+//   meshes the new heights in place (sky/terrain.js setGround).
 // - Camera: keeps looking at the same physical direction as the local frame turns, or with "Driver's view" (the
 //   timelapse bar's camera group: the "ahead" track mode of sky_panel.js, fed by lookAheadDirection) faces the way
 //   the rover drives: the path's heading, slightly up or down with the slope.
@@ -16,10 +17,14 @@ import { legAtDistance } from "./trip.js";
 import { enuBasis } from "../terrain/geom.js";
 import { unitVec } from "./terrain.js";
 import { makeSite } from "../physics/index.js";
+import { groundPatch } from "./ground.js";
 
 const PATCHES = new Map(); // `${key}|${groundIndex}` -> patch
+const MAX_PATCHES = 80;
+/** The 3D ground of a ride: a ±8 km C4 patch, 257 × 257 (route.js routePatch). */
+const GROUND = { half_extent_m: 8000, n: 257 };
 /** Fewest milliseconds between two rebuilds of a view's 3D ground while the time runs. */
-const REBUILD_MS = 160;
+export const REBUILD_MS = 160;
 const D2R = Math.PI / 180;
 
 /** Ground step (m): the 3D ground and drawn skyline are rebuilt each time the rover moves this far. */
@@ -125,18 +130,33 @@ export function rideAt(it, tMs) {
   return ride;
 }
 
-/** In-memory C4 patch ({meta, data}) and skyline of the ground point of a ride (cached). */
-export function rideGround(it, ride) {
-  const key = `${it.key}|${ride.ground.index}`;
-  if (!PATCHES.has(key)) {
-    if (PATCHES.size > 80) PATCHES.delete(PATCHES.keys().next().value);
-    const g = ride.ground;
-    const route = it.route.result;
-    const patch = routePatch(route, g.lat_deg, g.lon_deg, { half_extent_m: 8000, n: 257, leg: legAtDistance(route, g.distance_m) });
-    const horizon = g.distance_m === ride.distance_m ? ride.horizon : horizonAlong(route, g.distance_m, g);
-    PATCHES.set(key, { patch, horizon });
-  }
+const groundKey = (it, ride) => `${it.key}|${ride.ground.index}`;
+const groundOpts = (route, g) => ({ ...GROUND, leg: legAtDistance(route, g.distance_m) });
+
+/** Keep the ground of a ride point; the skyline drawn with it is the blended one at the ground point. */
+function remember(key, it, ride, patch) {
+  const g = ride.ground, route = it.route.result;
+  const horizon = g.distance_m === ride.distance_m ? ride.horizon : horizonAlong(route, g.distance_m, g);
+  if (PATCHES.size >= MAX_PATCHES) PATCHES.delete(PATCHES.keys().next().value);
+  PATCHES.set(key, { patch, horizon });
   return PATCHES.get(key);
+}
+
+/** In-memory C4 patch ({meta, data}) and skyline of the ground point of a ride (cached), computed here. */
+export function rideGround(it, ride) {
+  const key = groundKey(it, ride);
+  if (PATCHES.has(key)) return PATCHES.get(key);
+  const g = ride.ground, route = it.route.result;
+  return remember(key, it, ride, routePatch(route, g.lat_deg, g.lon_deg, groundOpts(route, g)));
+}
+
+/** The same as rideGround, with the patch computed in the Web Worker (ground.js): resolves with {patch, horizon}. */
+export async function rideGroundAsync(it, ride) {
+  const key = groundKey(it, ride);
+  if (PATCHES.has(key)) return PATCHES.get(key);
+  const g = ride.ground, route = it.route.result;
+  const patch = await groundPatch(route, g.lat_deg, g.lon_deg, groundOpts(route, g));
+  return PATCHES.get(key) ?? remember(key, it, ride, patch);
 }
 
 /**
@@ -167,30 +187,52 @@ export function rideCamera(rec, ride, { ahead = false } = {}) {
 
 /**
  * After a view shows a new moment of the ride: rebuild its 3D ground and drawn skyline at the rover's ground point
- * when it moved there, at most every REBUILD_MS (a last rebuild follows when the time stops).
+ * when it moved there, at most every REBUILD_MS (a last rebuild follows when the time stops). The ground comes from
+ * `ground(it, ride)` (default rideGroundAsync: the patch is computed in the worker), one at a time per view: while one
+ * is on its way, newer points only replace the pending one, and the next build takes the latest. A ground that
+ * arrives after the card changed trip is dropped.
  */
-export function rideTerrain(rec, it, ride) {
+export function rideTerrain(rec, it, ride, { ground = rideGroundAsync } = {}) {
   if (!rec.view?.setTerrain) return;
-  const key = `${it.key}|${ride.ground.index}`;
+  const key = groundKey(it, ride);
   if (rec.rideGroundKey === key) {
     rec.ridePending = null;
     return;
   }
-  rec.ridePending = { it, ride, key }; // a scheduled build takes the latest point
-  if (rec.rideTimer) return;
-  const build = () => {
-    rec.rideTimer = 0;
-    const p = rec.ridePending;
-    rec.ridePending = null;
-    if (!p || !rec.view || rec.rideGroundKey === p.key) return;
-    const g = rideGround(p.it, p.ride);
+  rec.ridePending = { it, ride, key, ground };
+  if (!rec.rideTimer && !rec.rideBusy) scheduleGround(rec);
+}
+
+function scheduleGround(rec) {
+  const wait = rec.rideBuiltAt ? REBUILD_MS - (performance.now() - rec.rideBuiltAt) : 0;
+  if (wait <= 0) buildGround(rec);
+  else {
+    rec.rideTimer = setTimeout(() => {
+      rec.rideTimer = 0;
+      buildGround(rec);
+    }, wait);
+  }
+}
+
+async function buildGround(rec) {
+  const p = rec.ridePending;
+  rec.ridePending = null;
+  if (!p || !rec.view || rec.rideGroundKey === p.key) return;
+  rec.rideBusy = true;
+  rec.rideBuiltAt = performance.now();
+  let g = null;
+  try {
+    g = await p.ground(p.it, p.ride);
+  } catch (err) {
+    console.warn("[moonat] rover ground failed", err);
+  } finally {
+    rec.rideBusy = false;
+  }
+  if (g && rec.view?.setTerrain && rec.it === p.it && rec.rideGroundKey !== p.key) {
     rec.rideGroundKey = p.key;
-    rec.rideBuiltAt = performance.now();
     rec.view.setTerrain({ horizon: g.horizon, patch: g.patch });
-  };
-  const wait = REBUILD_MS - (performance.now() - (rec.rideBuiltAt || 0));
-  if (wait <= 0) build();
-  else rec.rideTimer = setTimeout(build, wait);
+  }
+  if (rec.ridePending) scheduleGround(rec);
 }
 
 /** Footer text of a trip's sky card. */

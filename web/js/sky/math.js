@@ -274,6 +274,33 @@ export function samplePatch(patch, east, north) {
 }
 
 /**
+ * Smooth vertex normals of an indexed triangle mesh, written into `out` (Float32Array, 3 per vertex): each vertex
+ * gets the sum of the cross products (C − B) × (A − B) of its triangles (area-weighted face normals), normalised.
+ * The same arithmetic, in the same order, as three.js BufferGeometry.computeVertexNormals (r160), on plain typed
+ * arrays (several times faster). pos: Float32Array (x, y, z per vertex, any units); idx: vertex indices, 3 per
+ * triangle. Unreferenced vertices get (0, 0, 0). Returns `out`.
+ */
+export function vertexNormals(pos, idx, out) {
+  out.fill(0);
+  for (let i = 0, n = idx.length; i < n; i += 3) {
+    const a = 3 * idx[i], b = 3 * idx[i + 1], c = 3 * idx[i + 2];
+    const bx = pos[b], by = pos[b + 1], bz = pos[b + 2];
+    const cbx = pos[c] - bx, cby = pos[c + 1] - by, cbz = pos[c + 2] - bz;
+    const abx = pos[a] - bx, aby = pos[a + 1] - by, abz = pos[a + 2] - bz;
+    const x = cby * abz - cbz * aby, y = cbz * abx - cbx * abz, z = cbx * aby - cby * abx;
+    out[a] += x; out[a + 1] += y; out[a + 2] += z;
+    out[b] += x; out[b + 1] += y; out[b + 2] += z;
+    out[c] += x; out[c + 1] += y; out[c + 2] += z;
+  }
+  for (let o = 0, n = out.length; o < n; o += 3) {
+    const x = out[o], y = out[o + 1], z = out[o + 2];
+    const k = 1 / (Math.sqrt(x * x + y * y + z * z) || 1);
+    out[o] = x * k; out[o + 1] = y * k; out[o + 2] = z * k;
+  }
+  return out;
+}
+
+/**
  * Horizon profile (C3 shape) computed from a C4 patch alone: for each azimuth, the maximum elevation angle of the
  * patch surface seen from the eye (ground + observerHeightM at the patch centre). The patch values already include
  * the curvature drop, so straight rays in ENU are correct. Terrain beyond the patch is not seen (lower bound).

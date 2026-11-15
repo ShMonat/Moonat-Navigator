@@ -6,6 +6,7 @@ import {
   DEG, M_ZUP_TO_YUP, mat3Mul, mat3Vec, mat3Transpose, rotZ, enuToThree, azElToEnu, enuToAzEl, yupRotationFromZup,
   earthBodyToEnu, lonLatToVec, sphereGeomDirFromUv, equirectUv, verticalFovDeg, horizonElAt, flatHorizon,
   horizonFromPatch, samplePatch, bvToRgb, fitBodyView, fitPhotoView, bodyFitAspect, constellationCentroid,
+  vertexNormals, rng,
 } from '../js/sky/math.js';
 import { makeSite, skyStateSync } from '../js/sky/placeholder_physics.js';
 
@@ -231,4 +232,30 @@ test('constellationCentroid: mean direction of the line points (labels of conste
   const o = constellationCentroid(json.lines.Ori);
   const ra = Math.atan2(o[1], o[0]) / DEG, dec = Math.asin(o[2]) / DEG;
   assert.ok(ra > 75 && ra < 92 && dec > -8 && dec < 12, `${ra} ${dec}`);
+});
+
+test('vertexNormals: area-weighted face normals, normalised (as three.js computeVertexNormals)', () => {
+  // A tilted plane y = 0.5 x - 0.25 z as a 6 x 6 grid of upward-facing triangles: every normal is the plane's.
+  const n = 6, pos = new Float32Array(n * n * 3), idx = [];
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) pos.set([c, 0.5 * c - 0.25 * r, r], 3 * (r * n + c));
+  for (let r = 0; r < n - 1; r++) for (let c = 0; c < n - 1; c++) { const a = r * n + c; idx.push(a, a + n, a + 1, a + 1, a + n, a + n + 1); }
+  const out = vertexNormals(pos, new Uint32Array(idx), new Float32Array(pos.length));
+  const k = 1 / Math.hypot(-0.5, 1, 0.25);
+  for (let v = 0; v < n * n; v++) closeVec([...out.slice(3 * v, 3 * v + 3)], [-0.5 * k, k, 0.25 * k], 1e-6);
+  // Random mesh: the sum of (C - B) x (A - B) over each vertex's triangles, normalised; unused vertices stay zero.
+  const rand = rng(7), P = new Float32Array(30 * 3).map(() => rand() * 10), T = new Uint32Array(60).map(() => Math.floor(rand() * 29));
+  const got = vertexNormals(P, T, new Float32Array(P.length).fill(9));
+  const sum = Array.from({ length: 30 }, () => [0, 0, 0]);
+  const p = (i) => [P[3 * i], P[3 * i + 1], P[3 * i + 2]];
+  for (let t = 0; t < T.length; t += 3) {
+    const [A, B, C] = [p(T[t]), p(T[t + 1]), p(T[t + 2])];
+    const cb = [C[0] - B[0], C[1] - B[1], C[2] - B[2]], ab = [A[0] - B[0], A[1] - B[1], A[2] - B[2]];
+    const x = [cb[1] * ab[2] - cb[2] * ab[1], cb[2] * ab[0] - cb[0] * ab[2], cb[0] * ab[1] - cb[1] * ab[0]];
+    for (const v of [T[t], T[t + 1], T[t + 2]]) for (let j = 0; j < 3; j++) sum[v][j] += x[j];
+  }
+  for (let v = 0; v < 30; v++) {
+    const L = Math.hypot(...sum[v]) || 1;
+    closeVec([...got.slice(3 * v, 3 * v + 3)], sum[v].map((s) => s / L), 1e-5);
+  }
+  assert.deepEqual([...got.slice(87, 90)], [0, 0, 0]); // vertex 29 is in no triangle
 });
