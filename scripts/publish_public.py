@@ -68,7 +68,20 @@ def main() -> None:
     ap.add_argument("--remote", default=PUBLIC_URL)
     ap.add_argument("--message", default=None)
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument(
+        "--after-freeze",
+        action="store_true",
+        help="publish although the public repo is frozen at the Space Apps submission (Shay's decision only)",
+    )
     a = ap.parse_args()
+
+    # The public repo and site are frozen at the NASA Space Apps 2026 submission (tag space-apps-2026-submitted,
+    # 2026-11-15, Shay's decision). Development continues in this private repo.
+    if not a.after_freeze and not a.dry_run:
+        raise SystemExit(
+            "The public repo is frozen at the Space Apps 2026 submission (tag space-apps-2026-submitted). "
+            "Publish only with Shay's explicit approval, using --after-freeze."
+        )
 
     git("fetch", "-q", "origin")
     src = git("rev-parse", a.ref)
