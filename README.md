@@ -65,6 +65,8 @@ Every claim below is backed by a validation report you can rerun.
 | Ray-marched horizon vs independent 3-D point cloud | correlation 0.9995 / 0.9997, no azimuth mirroring | [terrain.md](docs/validation/terrain.md) §4 |
 | Eclipse of the Sun by the Earth: whole-Moon contacts P1…P4 of 2025-03-14 and 1967-04-24 vs **NASA (Espenak)** | within 4.2 s; Blue Ghost's end of totality 08:34 UTC vs its diamond-ring photo "around 08:30" | [eclipse.md](docs/validation/eclipse.md) |
 | Horizons for **custom points** (live LOLA from **NASA Moon Trek**: 20 m near the south pole, 30 m near the poles, 118 m elsewhere) vs the precomputed catalog horizons | 0.07–0.37° RMS at 10 of 12 sites (0.01–0.19° where the horizon is set beyond 5 km); Sun-visible time within 0–3.4 points at 5 polar sites. Until it arrives (1–5 s), or offline, a coarse tiles horizon labelled "approximate" is shown. | [terrain-everywhere.md](docs/validation/terrain-everywhere.md) |
+| **Real Apollo photos:** terrain skyline of Hadley Delta, Mount Hadley (Apollo 15) and Stone Mountain (Apollo 16) vs Moonat's LOLA horizon (camera pointing fitted) | 0.08°, 0.09° and 0.15° RMS over 18–46° of azimuth | [real_photos.md](docs/validation/real_photos.md) |
+| Sun and Earth vs the **Apollo Lunar Surface Journal** alt-az table (43 epochs, Apollo 11–17) | Sun altitude within 0.07°; Earth within 0.26°, or 0.08° in altitude and 0.12° in azimuth once the parallax that the table leaves out is removed | [real_photos.md](docs/validation/real_photos.md) |
 
 Known limits: UT1 is taken as UTC, and the drawn Earth globe ignores precession and nutation (about 0.36° in 2026).
 Neither affects Sun or Earth positions. Full lists are in the validation reports. Website QA: [qa.md](docs/validation/qa.md).

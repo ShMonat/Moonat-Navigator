@@ -1,0 +1,1036 @@
+{
+ "_generated_by": "AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.",
+ "alsj_table": {
+  "rows": [
+   {
+    "mission": "Apollo 11",
+    "event": "Landing",
+    "t_utc": "1969-07-20T20:17:39Z",
+    "lat_deg": 0.6875,
+    "lon_deg": 23.4333,
+    "earth_alt": 59.43,
+    "earth_az": 272.16,
+    "sun_alt": 10.65,
+    "sun_az": 88.81,
+    "moonat": {
+     "sun_alt": 10.664,
+     "sun_az": 88.808,
+     "earth_alt": 59.265,
+     "earth_az": 272.175
+    }
+   },
+   {
+    "mission": "Apollo 11",
+    "event": "EVA st",
+    "t_utc": "1969-07-21T02:39:33Z",
+    "lat_deg": 0.6875,
+    "lon_deg": 23.4333,
+    "earth_alt": 59.3,
+    "earth_az": 272.88,
+    "sun_alt": 13.84,
+    "sun_az": 88.84,
+    "moonat": {
+     "sun_alt": 13.906,
+     "sun_az": 88.837,
+     "earth_alt": 59.136,
+     "earth_az": 272.909
+    }
+   },
+   {
+    "mission": "Apollo 11",
+    "event": "1SSfM1GLfM",
+    "t_utc": "1969-07-21T02:56:15Z",
+    "lat_deg": 0.6875,
+    "lon_deg": 23.4333,
+    "earth_alt": 59.3,
+    "earth_az": 272.92,
+    "sun_alt": 14.03,
+    "sun_az": 88.84,
+    "moonat": {
+     "sun_alt": 14.048,
+     "sun_az": 88.838,
+     "earth_alt": 59.131,
+     "earth_az": 272.941
+    }
+   },
+   {
+    "mission": "Apollo 11",
+    "event": "EVA end",
+    "t_utc": "1969-07-21T05:11:13Z",
+    "lat_deg": 0.6875,
+    "lon_deg": 23.4333,
+    "earth_alt": 59.27,
+    "earth_az": 273.17,
+    "sun_alt": 15.17,
+    "sun_az": 88.85,
+    "moonat": {
+     "sun_alt": 15.193,
+     "sun_az": 88.848,
+     "earth_alt": 59.09,
+     "earth_az": 273.197
+    }
+   },
+   {
+    "mission": "Apollo 11",
+    "event": "Liftoff",
+    "t_utc": "1969-07-21T17:54:00Z",
+    "lat_deg": 0.6875,
+    "lon_deg": 23.4333,
+    "earth_alt": 59.09,
+    "earth_az": 274.58,
+    "sun_alt": 21.65,
+    "sun_az": 88.91,
+    "moonat": {
+     "sun_alt": 21.668,
+     "sun_az": 88.894,
+     "earth_alt": 58.911,
+     "earth_az": 274.613
+    }
+   },
+   {
+    "mission": "Apollo 12",
+    "event": "Landing",
+    "t_utc": "1969-11-19T06:54:36Z",
+    "lat_deg": -3.1975,
+    "lon_deg": -23.3856,
+    "earth_alt": 61.56,
+    "earth_az": 86.95,
+    "sun_alt": 5.19,
+    "sun_az": 91.16,
+    "moonat": {
+     "sun_alt": 5.188,
+     "sun_az": 91.163,
+     "earth_alt": 61.422,
+     "earth_az": 86.96
+    }
+   },
+   {
+    "mission": "Apollo 12",
+    "event": "EVA1 st",
+    "t_utc": "1969-11-19T11:32:35Z",
+    "lat_deg": -3.1975,
+    "lon_deg": -23.3856,
+    "earth_alt": 61.54,
+    "earth_az": 87.56,
+    "sun_alt": 7.52,
+    "sun_az": 91.03,
+    "moonat": {
+     "sun_alt": 7.53,
+     "sun_az": 91.041,
+     "earth_alt": 61.399,
+     "earth_az": 87.578
+    }
+   },
+   {
+    "mission": "Apollo 12",
+    "event": "EVA1 end",
+    "t_utc": "1969-11-19T15:28:38Z",
+    "lat_deg": -3.1975,
+    "lon_deg": -23.3856,
+    "earth_alt": 61.52,
+    "earth_az": 88.07,
+    "sun_alt": 9.51,
+    "sun_az": 90.53,
+    "moonat": {
+     "sun_alt": 9.518,
+     "sun_az": 90.939,
+     "earth_alt": 61.382,
+     "earth_az": 88.094
+    }
+   },
+   {
+    "mission": "Apollo 12",
+    "event": "EVA2 st",
+    "t_utc": "1969-11-20T03:54:45Z",
+    "lat_deg": -3.1975,
+    "lon_deg": -23.3856,
+    "earth_alt": 61.48,
+    "earth_az": 89.65,
+    "sun_alt": 15.79,
+    "sun_az": 90.6,
+    "moonat": {
+     "sun_alt": 15.802,
+     "sun_az": 90.617,
+     "earth_alt": 61.345,
+     "earth_az": 89.67
+    }
+   },
+   {
+    "mission": "Apollo 12",
+    "event": "EVA2 end",
+    "t_utc": "1969-11-20T07:44:00Z",
+    "lat_deg": -3.1975,
+    "lon_deg": -23.3856,
+    "earth_alt": 61.48,
+    "earth_az": 90.09,
+    "sun_alt": 17.72,
+    "sun_az": 90.51,
+    "moonat": {
+     "sun_alt": 17.733,
+     "sun_az": 90.518,
+     "earth_alt": 61.339,
+     "earth_az": 90.135
+    }
+   },
+   {
+    "mission": "Apollo 12",
+    "event": "Liftoff",
+    "t_utc": "1969-11-20T14:25:47Z",
+    "lat_deg": -3.1975,
+    "lon_deg": -23.3856,
+    "earth_alt": 61.48,
+    "earth_az": 90.88,
+    "sun_alt": 21.11,
+    "sun_az": 90.33,
+    "moonat": {
+     "sun_alt": 21.116,
+     "sun_az": 90.344,
+     "earth_alt": 61.335,
+     "earth_az": 90.927
+    }
+   },
+   {
+    "mission": "Apollo 14",
+    "event": "Landing",
+    "t_utc": "1971-02-05T09:18:13Z",
+    "lat_deg": -3.6733,
+    "lon_deg": -17.4653,
+    "earth_alt": 66.1,
+    "earth_az": 96.7,
+    "sun_alt": 10.36,
+    "sun_az": 89.54,
+    "moonat": {
+     "sun_alt": 10.355,
+     "sun_az": 89.55,
+     "earth_alt": 65.961,
+     "earth_az": 96.809
+    }
+   },
+   {
+    "mission": "Apollo 14",
+    "event": "EVA1 st",
+    "t_utc": "1971-02-05T14:42:13Z",
+    "lat_deg": -3.6733,
+    "lon_deg": -17.4653,
+    "earth_alt": 66.19,
+    "earth_az": 96.35,
+    "sun_alt": 13.08,
+    "sun_az": 89.35,
+    "moonat": {
+     "sun_alt": 13.082,
+     "sun_az": 89.363,
+     "earth_alt": 66.047,
+     "earth_az": 96.431
+    }
+   },
+   {
+    "mission": "Apollo 14",
+    "event": "EVA1 end",
+    "t_utc": "1971-02-05T19:30:03Z",
+    "lat_deg": -3.6733,
+    "lon_deg": -17.4653,
+    "earth_alt": 66.26,
+    "earth_az": 95.99,
+    "sun_alt": 15.51,
+    "sun_az": 89.19,
+    "moonat": {
+     "sun_alt": 15.504,
+     "sun_az": 89.193,
+     "earth_alt": 66.135,
+     "earth_az": 96.065
+    }
+   },
+   {
+    "mission": "Apollo 14",
+    "event": "EVA2 st",
+    "t_utc": "1971-02-06T08:11:15Z",
+    "lat_deg": -3.6733,
+    "lon_deg": -17.4653,
+    "earth_alt": 66.55,
+    "earth_az": 94.88,
+    "sun_alt": 21.91,
+    "sun_az": 88.71,
+    "moonat": {
+     "sun_alt": 21.909,
+     "sun_az": 88.725,
+     "earth_alt": 66.416,
+     "earth_az": 94.962
+    }
+   },
+   {
+    "mission": "Apollo 14",
+    "event": "EVA2 end",
+    "t_utc": "1971-02-06T12:45:56Z",
+    "lat_deg": -3.6733,
+    "lon_deg": -17.4653,
+    "earth_alt": 66.67,
+    "earth_az": 94.41,
+    "sun_alt": 24.22,
+    "sun_az": 88.53,
+    "moonat": {
+     "sun_alt": 24.219,
+     "sun_az": 88.547,
+     "earth_alt": 66.533,
+     "earth_az": 94.517
+    }
+   },
+   {
+    "mission": "Apollo 14",
+    "event": "Liftoff",
+    "t_utc": "1971-02-06T18:48:42Z",
+    "lat_deg": -3.6733,
+    "lon_deg": -17.4653,
+    "earth_alt": 66.82,
+    "earth_az": 93.82,
+    "sun_alt": 27.28,
+    "sun_az": 88.29,
+    "moonat": {
+     "sun_alt": 27.27,
+     "sun_az": 88.302,
+     "earth_alt": 66.7,
+     "earth_az": 93.891
+    }
+   },
+   {
+    "mission": "Apollo 15",
+    "event": "Landing",
+    "t_utc": "1971-07-30T22:16:29Z",
+    "lat_deg": 26.1008,
+    "lon_deg": 3.6528,
+    "earth_alt": 69.28,
+    "earth_az": 203.0,
+    "sun_alt": 12.05,
+    "sun_az": 95.73,
+    "moonat": {
+     "sun_alt": 12.045,
+     "sun_az": 95.722,
+     "earth_alt": 69.202,
+     "earth_az": 203.001
+    }
+   },
+   {
+    "mission": "Apollo 15",
+    "event": "SEVA st",
+    "t_utc": "1971-07-31T00:16:49Z",
+    "lat_deg": 26.1008,
+    "lon_deg": 3.6528,
+    "earth_alt": 69.26,
+    "earth_az": 203.25,
+    "sun_alt": 12.96,
+    "sun_az": 96.2,
+    "moonat": {
+     "sun_alt": 12.956,
+     "sun_az": 96.193,
+     "earth_alt": 69.176,
+     "earth_az": 203.223
+    }
+   },
+   {
+    "mission": "Apollo 15",
+    "event": "SEVA end",
+    "t_utc": "1971-07-31T00:49:56Z",
+    "lat_deg": 26.1008,
+    "lon_deg": 3.6528,
+    "earth_alt": 69.25,
+    "earth_az": 203.3,
+    "sun_alt": 13.21,
+    "sun_az": 96.33,
+    "moonat": {
+     "sun_alt": 13.206,
+     "sun_az": 96.324,
+     "earth_alt": 69.169,
+     "earth_az": 203.282
+    }
+   },
+   {
+    "mission": "Apollo 15",
+    "event": "EVA1 st",
+    "t_utc": "1971-07-31T13:13:17Z",
+    "lat_deg": 26.1008,
+    "lon_deg": 3.6528,
+    "earth_alt": 69.03,
+    "earth_az": 204.4,
+    "sun_alt": 18.82,
+    "sun_az": 99.34,
+    "moonat": {
+     "sun_alt": 18.81,
+     "sun_az": 99.332,
+     "earth_alt": 68.97,
+     "earth_az": 204.485
+    }
+   },
+   {
+    "mission": "Apollo 15",
+    "event": "EVA1 end",
+    "t_utc": "1971-07-31T19:45:59Z",
+    "lat_deg": 26.1008,
+    "lon_deg": 3.6528,
+    "earth_alt": 68.91,
+    "earth_az": 204.98,
+    "sun_alt": 21.76,
+    "sun_az": 101.01,
+    "moonat": {
+     "sun_alt": 21.751,
+     "sun_az": 100.998,
+     "earth_alt": 68.841,
+     "earth_az": 205.007
+    }
+   },
+   {
+    "mission": "Apollo 15",
+    "event": "EVA2 st",
+    "t_utc": "1971-08-01T11:48:49Z",
+    "lat_deg": 26.1008,
+    "lon_deg": 3.6528,
+    "earth_alt": 68.52,
+    "earth_az": 205.83,
+    "sun_alt": 28.89,
+    "sun_az": 105.41,
+    "moonat": {
+     "sun_alt": 28.881,
+     "sun_az": 105.402,
+     "earth_alt": 68.46,
+     "earth_az": 205.932
+    }
+   },
+   {
+    "mission": "Apollo 15",
+    "event": "EVA2 end",
+    "t_utc": "1971-08-01T19:01:02Z",
+    "lat_deg": 26.1008,
+    "lon_deg": 3.6528,
+    "earth_alt": 68.33,
+    "earth_az": 206.12,
+    "sun_alt": 32.05,
+    "sun_az": 107.57,
+    "moonat": {
+     "sun_alt": 32.032,
+     "sun_az": 107.571,
+     "earth_alt": 68.262,
+     "earth_az": 206.177
+    }
+   },
+   {
+    "mission": "Apollo 15",
+    "event": "EVA3 st",
+    "t_utc": "1971-08-02T08:52:14Z",
+    "lat_deg": 26.1008,
+    "lon_deg": 3.6528,
+    "earth_alt": 67.91,
+    "earth_az": 206.23,
+    "sun_alt": 37.98,
+    "sun_az": 112.2,
+    "moonat": {
+     "sun_alt": 37.973,
+     "sun_az": 112.196,
+     "earth_alt": 67.837,
+     "earth_az": 206.347
+    }
+   },
+   {
+    "mission": "Apollo 15",
+    "event": "EVA3 end",
+    "t_utc": "1971-08-02T13:42:04Z",
+    "lat_deg": 26.1008,
+    "lon_deg": 3.6528,
+    "earth_alt": 67.75,
+    "earth_az": 206.2,
+    "sun_alt": 40.0,
+    "sun_az": 113.99,
+    "moonat": {
+     "sun_alt": 39.999,
+     "sun_az": 113.982,
+     "earth_alt": 67.677,
+     "earth_az": 206.314
+    }
+   },
+   {
+    "mission": "Apollo 15",
+    "event": "Liftoff",
+    "t_utc": "1971-08-02T17:11:23Z",
+    "lat_deg": 26.1008,
+    "lon_deg": 3.6528,
+    "earth_alt": 67.63,
+    "earth_az": 206.18,
+    "sun_alt": 41.45,
+    "sun_az": 115.34,
+    "moonat": {
+     "sun_alt": 41.444,
+     "sun_az": 115.338,
+     "earth_alt": 67.557,
+     "earth_az": 206.26
+    }
+   },
+   {
+    "mission": "Apollo 16",
+    "event": "Landing",
+    "t_utc": "1972-04-21T02:23:35Z",
+    "lat_deg": -8.9914,
+    "lon_deg": 15.5144,
+    "earth_alt": 77.16,
+    "earth_az": 319.7,
+    "sun_alt": 14.76,
+    "sun_az": 86.01,
+    "moonat": {
+     "sun_alt": 14.773,
+     "sun_az": 85.997,
+     "earth_alt": 77.105,
+     "earth_az": 319.685
+    }
+   },
+   {
+    "mission": "Apollo 16",
+    "event": "EVA1 st",
+    "t_utc": "1972-04-21T16:47:38Z",
+    "lat_deg": -8.9914,
+    "lon_deg": 15.5144,
+    "earth_alt": 76.32,
+    "earth_az": 321.15,
+    "sun_alt": 21.96,
+    "sun_az": 84.65,
+    "moonat": {
+     "sun_alt": 21.976,
+     "sun_az": 84.649,
+     "earth_alt": 76.269,
+     "earth_az": 321.2
+    }
+   },
+   {
+    "mission": "Apollo 16",
+    "event": "EVA1 end",
+    "t_utc": "1972-04-21T23:58:40Z",
+    "lat_deg": -8.9914,
+    "lon_deg": 15.5144,
+    "earth_alt": 75.9,
+    "earth_az": 321.79,
+    "sun_alt": 25.55,
+    "sun_az": 83.93,
+    "moonat": {
+     "sun_alt": 25.563,
+     "sun_az": 83.917,
+     "earth_alt": 75.835,
+     "earth_az": 321.719
+    }
+   },
+   {
+    "mission": "Apollo 16",
+    "event": "EVA2 st",
+    "t_utc": "1972-04-22T16:33:35Z",
+    "lat_deg": -8.9914,
+    "lon_deg": 15.5144,
+    "earth_alt": 74.89,
+    "earth_az": 322.36,
+    "sun_alt": 33.8,
+    "sun_az": 82.02,
+    "moonat": {
+     "sun_alt": 33.819,
+     "sun_az": 82.008,
+     "earth_alt": 74.815,
+     "earth_az": 322.418
+    }
+   },
+   {
+    "mission": "Apollo 16",
+    "event": "EVA2 end",
+    "t_utc": "1972-04-22T23:56:44Z",
+    "lat_deg": -8.9914,
+    "lon_deg": 15.5144,
+    "earth_alt": 74.43,
+    "earth_az": 322.58,
+    "sun_alt": 37.47,
+    "sun_az": 81.04,
+    "moonat": {
+     "sun_alt": 37.483,
+     "sun_az": 81.025,
+     "earth_alt": 74.359,
+     "earth_az": 322.539
+    }
+   },
+   {
+    "mission": "Apollo 16",
+    "event": "EVA3 st",
+    "t_utc": "1972-04-23T15:25:28Z",
+    "lat_deg": -8.9914,
+    "lon_deg": 15.5144,
+    "earth_alt": 73.49,
+    "earth_az": 322.42,
+    "sun_alt": 45.11,
+    "sun_az": 78.59,
+    "moonat": {
+     "sun_alt": 45.124,
+     "sun_az": 78.578,
+     "earth_alt": 73.413,
+     "earth_az": 322.485
+    }
+   },
+   {
+    "mission": "Apollo 16",
+    "event": "EVA3 end",
+    "t_utc": "1972-04-23T21:05:31Z",
+    "lat_deg": -8.9914,
+    "lon_deg": 15.5144,
+    "earth_alt": 73.15,
+    "earth_az": 322.36,
+    "sun_alt": 47.89,
+    "sun_az": 77.52,
+    "moonat": {
+     "sun_alt": 47.904,
+     "sun_az": 77.504,
+     "earth_alt": 73.073,
+     "earth_az": 322.375
+    }
+   },
+   {
+    "mission": "Apollo 16",
+    "event": "Liftoff",
+    "t_utc": "1972-04-24T01:25:47Z",
+    "lat_deg": -8.9914,
+    "lon_deg": 15.5144,
+    "earth_alt": 72.9,
+    "earth_az": 322.29,
+    "sun_alt": 50.02,
+    "sun_az": 76.61,
+    "moonat": {
+     "sun_alt": 50.023,
+     "sun_az": 76.597,
+     "earth_alt": 72.816,
+     "earth_az": 322.263
+    }
+   },
+   {
+    "mission": "Apollo 17",
+    "event": "Landing",
+    "t_utc": "1972-12-11T19:54:58Z",
+    "lat_deg": 20.1653,
+    "lon_deg": 30.7658,
+    "earth_alt": 45.52,
+    "earth_az": 240.88,
+    "sun_alt": 13.33,
+    "sun_az": 95.83,
+    "moonat": {
+     "sun_alt": 13.347,
+     "sun_az": 95.845,
+     "earth_alt": 45.299,
+     "earth_az": 240.894
+    }
+   },
+   {
+    "mission": "Apollo 17",
+    "event": "EVA1 st",
+    "t_utc": "1972-12-11T23:54:49Z",
+    "lat_deg": 20.1653,
+    "lon_deg": 30.7658,
+    "earth_alt": 45.32,
+    "earth_az": 240.72,
+    "sun_alt": 15.22,
+    "sun_az": 96.58,
+    "moonat": {
+     "sun_alt": 15.24,
+     "sun_az": 96.592,
+     "earth_alt": 45.13,
+     "earth_az": 240.727
+    }
+   },
+   {
+    "mission": "Apollo 17",
+    "event": "EVA1 end",
+    "t_utc": "1972-12-12T07:06:42Z",
+    "lat_deg": 20.1653,
+    "lon_deg": 30.7658,
+    "earth_alt": 45.09,
+    "earth_az": 240.42,
+    "sun_alt": 18.63,
+    "sun_az": 97.96,
+    "moonat": {
+     "sun_alt": 18.641,
+     "sun_az": 97.975,
+     "earth_alt": 44.852,
+     "earth_az": 240.425
+    }
+   },
+   {
+    "mission": "Apollo 17",
+    "event": "EVA2 st",
+    "t_utc": "1972-12-12T23:28:06Z",
+    "lat_deg": 20.1653,
+    "lon_deg": 30.7658,
+    "earth_alt": 44.56,
+    "earth_az": 239.74,
+    "sun_alt": 26.3,
+    "sun_az": 101.34,
+    "moonat": {
+     "sun_alt": 26.32,
+     "sun_az": 101.361,
+     "earth_alt": 44.358,
+     "earth_az": 239.74
+    }
+   },
+   {
+    "mission": "Apollo 17",
+    "event": "EVA2 end",
+    "t_utc": "1972-12-13T07:05:02Z",
+    "lat_deg": 20.1653,
+    "lon_deg": 30.7658,
+    "earth_alt": 44.46,
+    "earth_az": 239.41,
+    "sun_alt": 29.85,
+    "sun_az": 103.07,
+    "moonat": {
+     "sun_alt": 29.864,
+     "sun_az": 103.092,
+     "earth_alt": 44.199,
+     "earth_az": 239.422
+    }
+   },
+   {
+    "mission": "Apollo 17",
+    "event": "EVA3 st",
+    "t_utc": "1972-12-13T22:25:48Z",
+    "lat_deg": 20.1653,
+    "lon_deg": 30.7658,
+    "earth_alt": 44.25,
+    "earth_az": 238.78,
+    "sun_alt": 36.9,
+    "sun_az": 106.98,
+    "moonat": {
+     "sun_alt": 36.92,
+     "sun_az": 107.006,
+     "earth_alt": 44.027,
+     "earth_az": 238.786
+    }
+   },
+   {
+    "mission": "Apollo 17",
+    "event": "EVA3 end",
+    "t_utc": "1972-12-14T05:40:56Z",
+    "lat_deg": 20.1653,
+    "lon_deg": 30.7658,
+    "earth_alt": 44.28,
+    "earth_az": 238.48,
+    "sun_alt": 40.19,
+    "sun_az": 109.09,
+    "moonat": {
+     "sun_alt": 40.202,
+     "sun_az": 109.115,
+     "earth_alt": 44.02,
+     "earth_az": 238.489
+    }
+   },
+   {
+    "mission": "Apollo 17",
+    "event": "Liftoff",
+    "t_utc": "1972-12-14T22:54:37Z",
+    "lat_deg": 20.1653,
+    "lon_deg": 30.7658,
+    "earth_alt": 44.42,
+    "earth_az": 237.8,
+    "sun_alt": 47.79,
+    "sun_az": 115.05,
+    "moonat": {
+     "sun_alt": 47.803,
+     "sun_az": 115.08,
+     "earth_alt": 44.204,
+     "earth_az": 237.796
+    }
+   }
+  ],
+  "n": 43,
+  "diff_moonat_minus_alsj_deg": {
+   "sun_alt": {
+    "mean": 0.008,
+    "rms": 0.016,
+    "max_abs": 0.066
+   },
+   "sun_az": {
+    "mean": 0.012,
+    "rms": 0.064,
+    "max_abs": 0.409
+   },
+   "earth_alt": {
+    "mean": -0.13,
+    "rms": 0.143,
+    "max_abs": 0.261
+   },
+   "earth_az": {
+    "mean": 0.033,
+    "rms": 0.055,
+    "max_abs": 0.117
+   }
+  }
+ },
+ "photos": [
+  {
+   "cfg": {
+    "id": "AS15-88-11863",
+    "site": "apollo15",
+    "what": "Scott salutes the flag; Hadley Delta behind (end of EVA-2)",
+    "t_utc": "1971-08-01T18:30:00Z",
+    "t_note": "flag deployed late in EVA-2 (EVA-2 11:48-19:01 UTC, ALSJ); +-0.5 h",
+    "photographer": "James B. Irwin",
+    "heading0": 180.0,
+    "x_ranges": [
+     [
+      0.005,
+      0.74
+     ]
+    ],
+    "thr": 95,
+    "scan_mm": 51.4,
+    "shadow": {
+     "base": [
+      2151,
+      2405
+     ],
+     "along": [
+      [
+       3020,
+       2424
+      ],
+      [
+       3244,
+       2464
+      ]
+     ]
+    }
+   },
+   "shadow_sun": {
+    "shadow_az_photo_deg": [
+     276.0,
+     285.29
+    ],
+    "sun_az_from_shadow_deg": [
+     96.0,
+     105.29
+    ],
+    "sun_az_moonat_deg": 107.42,
+    "sun_el_moonat_deg": 31.78,
+    "diff_deg": [
+     -11.42,
+     -2.13
+    ]
+   },
+   "n_points": 718,
+   "hfov_deg": 46.37,
+   "f_px_full": 4557.2,
+   "camera_fit": {
+    "heading": 164.42,
+    "pitch": -4.94,
+    "roll": 2.45
+   },
+   "skyline_rms_deg": 0.076,
+   "skyline_median_abs_deg": 0.03,
+   "skyline_p95_abs_deg": 0.12,
+   "skyline_rms_without_outliers_deg": 0.076,
+   "outliers_over_1p5deg": 0,
+   "skyline_rms_if_f_pm3pct_deg": [
+    0.102,
+    0.057
+   ],
+   "az_range_deg": [
+    142.04,
+    176.49
+   ],
+   "photo_el_range_deg": [
+    5.02,
+    13.02
+   ],
+   "moonat_el_range_deg": [
+    5.27,
+    13.01
+   ]
+  },
+  {
+   "cfg": {
+    "id": "AS15-86-11603",
+    "site": "apollo15",
+    "what": "Irwin at the rover; Mount Hadley behind (EVA-1, looking north-east)",
+    "t_utc": "1971-07-31T14:00:00Z",
+    "t_note": "rover set-up early in EVA-1 (EVA-1 13:13-19:46 UTC, ALSJ); +-1 h",
+    "photographer": "David R. Scott",
+    "heading0": 45.0,
+    "x_ranges": [
+     [
+      0.45,
+      0.84
+     ]
+    ],
+    "thr": 120,
+    "scan_mm": 51.5
+   },
+   "shadow_sun": null,
+   "n_points": 400,
+   "hfov_deg": 46.45,
+   "f_px_full": 4772.0,
+   "camera_fit": {
+    "heading": 46.78,
+    "pitch": -7.7,
+    "roll": 1.24
+   },
+   "skyline_rms_deg": 3.258,
+   "skyline_median_abs_deg": 0.045,
+   "skyline_p95_abs_deg": 11.819,
+   "skyline_rms_without_outliers_deg": 0.086,
+   "outliers_over_1p5deg": 31,
+   "skyline_rms_if_f_pm3pct_deg": [
+    3.346,
+    3.163
+   ],
+   "az_range_deg": [
+    44.47,
+    62.94
+   ],
+   "photo_el_range_deg": [
+    -2.5,
+    11.01
+   ],
+   "moonat_el_range_deg": [
+    5.59,
+    11.17
+   ]
+  },
+  {
+   "cfg": {
+    "id": "AS16-113-18339",
+    "site": "apollo16",
+    "what": "Young's jump salute; Stone Mountain behind (EVA-1)",
+    "t_utc": "1972-04-21T18:00:00Z",
+    "t_note": "flag deployment early in EVA-1 (EVA-1 16:48-23:59 UTC, ALSJ); +-1 h",
+    "photographer": "Charles M. Duke Jr.",
+    "heading0": 180.0,
+    "x_ranges": [
+     [
+      0.003,
+      0.06
+     ],
+     [
+      0.715,
+      0.99
+     ]
+    ],
+    "thr": 45,
+    "scan_mm": 51.5
+   },
+   "shadow_sun": null,
+   "n_points": 326,
+   "hfov_deg": 46.45,
+   "f_px_full": 4576.3,
+   "camera_fit": {
+    "heading": 163.44,
+    "pitch": -2.88,
+    "roll": -0.32
+   },
+   "skyline_rms_deg": 0.147,
+   "skyline_median_abs_deg": 0.031,
+   "skyline_p95_abs_deg": 0.23,
+   "skyline_rms_without_outliers_deg": 0.147,
+   "outliers_over_1p5deg": 0,
+   "skyline_rms_if_f_pm3pct_deg": [
+    0.152,
+    0.144
+   ],
+   "az_range_deg": [
+    140.39,
+    186.13
+   ],
+   "photo_el_range_deg": [
+    1.51,
+    4.89
+   ],
+   "moonat_el_range_deg": [
+    1.81,
+    4.84
+   ]
+  },
+  {
+   "cfg": {
+    "id": "AS11-40-5875",
+    "site": "apollo11",
+    "what": "Aldrin beside the flag; flat mare horizon (EVA)",
+    "t_utc": "1969-07-21T03:30:00Z",
+    "t_note": "flag photos mid-EVA (EVA 02:39-05:11 UTC, ALSJ); +-0.5 h",
+    "photographer": "Neil A. Armstrong",
+    "heading0": 180.0,
+    "x_ranges": [
+     [
+      0.45,
+      0.585
+     ],
+     [
+      0.77,
+      0.99
+     ]
+    ],
+    "thr": 80,
+    "scan_mm": 51.5
+   },
+   "shadow_sun": null,
+   "n_points": 353,
+   "hfov_deg": 46.45,
+   "f_px_full": 4622.9,
+   "camera_fit": {
+    "heading": 156.92,
+    "pitch": -3.02,
+    "roll": -1.89
+   },
+   "skyline_rms_deg": 0.048,
+   "skyline_median_abs_deg": 0.023,
+   "skyline_p95_abs_deg": 0.11,
+   "skyline_rms_without_outliers_deg": 0.048,
+   "outliers_over_1p5deg": 0,
+   "skyline_rms_if_f_pm3pct_deg": [
+    0.047,
+    0.048
+   ],
+   "az_range_deg": [
+    154.34,
+    179.5
+   ],
+   "photo_el_range_deg": [
+    0.96,
+    1.98
+   ],
+   "moonat_el_range_deg": [
+    1.0,
+    1.91
+   ]
+  }
+ ],
+ "earth_phase": {
+  "cfg": {
+   "id": "AS17-134-20384",
+   "site": "apollo17",
+   "what": "Schmitt and the flag; Earth above (EVA-1)",
+   "t_utc": "1972-12-12T03:30:00Z",
+   "t_note": "flag deployment in EVA-1 (EVA-1 23:55-07:07 UTC, ALSJ); +-3.6 h covers the whole EVA",
+   "photographer": "Eugene A. Cernan",
+   "box": [
+    0.58,
+    0.22,
+    0.7,
+    0.3
+   ]
+  },
+  "threshold": 114.2,
+  "earth_diameter_px": 171.3,
+  "lit_extent_px": 109.5,
+  "k_photo": 0.639,
+  "k_moonat_eva_start_mid_end": [
+   0.684,
+   0.669,
+   0.655
+  ],
+  "earth_diam_deg_photo": 2.032,
+  "earth_diam_deg_moonat": 1.888,
+  "earth_alt_az_moonat_mid": [
+   44.97,
+   240.56
+  ]
+ },
+ "figures": [
+  "docs/figures/real_vs_moonat_AS15-88-11863.png",
+  "docs/figures/real_vs_moonat_AS15-86-11603.png",
+  "docs/figures/real_vs_moonat_AS16-113-18339.png",
+  "docs/figures/real_vs_moonat_AS11-40-5875.png",
+  "docs/figures/real_vs_moonat_AS17-134-20384_earth.png"
+ ]
+}
