@@ -44,7 +44,7 @@
       --fs-body: 34px;
       --fs-small: 27px;
       --fs-tiny: 22px;
-      --fs-num: 66px;
+      --fs-num: 86px;
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; background: #05070b; color: var(--text); }
@@ -90,6 +90,11 @@
     .subtitle { font-size: var(--fs-lead); color: var(--text-2); margin-top: calc(30 * var(--k)); }
     .rule { width: calc(150 * var(--k)); height: calc(4 * var(--k)); border-radius: 2px; background: var(--accent); margin: calc(54 * var(--k)) 0 calc(38 * var(--k)); }
     .team { font-size: var(--fs-lead); font-weight: 600; }
+    /* Team names link to LinkedIn; the "in" mark is our own line glyph (#in-glyph), not LinkedIn artwork. */
+    [data-team] a { color: var(--text); text-decoration: underline; text-decoration-color: rgba(143, 180, 255, 0.55);
+      text-decoration-thickness: 0.08em; text-underline-offset: 0.2em; white-space: nowrap; }
+    [data-team] .in { width: 0.82em; height: 0.82em; margin-left: 0.28em; vertical-align: -0.06em; color: var(--accent); }
+    [data-team] .sep { color: var(--muted); padding: 0 0.3em; }
     .event { font-size: var(--fs-body); color: var(--text-2); margin-top: calc(10 * var(--k)); }
     .qr-card {
       display: flex; flex-direction: column; align-items: center; gap: calc(22 * var(--k));
@@ -100,7 +105,7 @@
     .qr-card figcaption b { color: var(--accent); }
 
     /* 2. Problem */
-    .problem { display: flex; flex-direction: column; gap: calc(30 * var(--k)); flex: 1; }
+    .problem { display: flex; flex-direction: column; justify-content: center; gap: calc(44 * var(--k)); flex: 1; padding-bottom: calc(30 * var(--k)); }
     .problem .lead { font-size: calc(46 * var(--k)); color: var(--text); max-width: calc(1600 * var(--k)); }
     .tiles-2 { display: grid; grid-template-columns: 1fr 1fr; gap: calc(36 * var(--k)); }
     .tile {
@@ -131,7 +136,7 @@
     .shot figcaption { font-size: var(--fs-tiny); color: var(--muted); }
 
     /* 4. How it works */
-    .flow-row { display: grid; grid-template-columns: calc(230 * var(--k)) repeat(4, 1fr); gap: calc(46 * var(--k)); align-items: stretch; }
+    .flow-row { display: grid; grid-template-columns: calc(250 * var(--k)) repeat(4, 1fr); gap: calc(46 * var(--k)); align-items: stretch; }
     .box {
       position: relative; padding: calc(26 * var(--k)) calc(26 * var(--k)); border-radius: calc(20 * var(--k));
       background: var(--surface); border: 1px solid var(--border-strong); font-size: var(--fs-small); color: var(--text-2); line-height: 1.32;
@@ -160,7 +165,8 @@
       display: flex; flex-direction: column; gap: calc(8 * var(--k)); padding: calc(24 * var(--k)) calc(32 * var(--k));
       background: var(--surface); border: 1px solid var(--border); border-radius: calc(22 * var(--k));
     }
-    .vt .num { font-size: var(--fs-num); font-weight: 720; line-height: 1.05; color: var(--ok); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+    .vt .num { font-size: var(--fs-num); font-weight: 720; line-height: 1.05; color: var(--ok); font-variant-numeric: tabular-nums; letter-spacing: -0.015em; }
+    .vt .num .vs { font-size: 0.5em; font-weight: 600; color: var(--text-2); letter-spacing: 0; }
     .vt .what { font-size: calc(29 * var(--k)); color: var(--text); line-height: 1.28; }
     .vt .ref { margin-top: auto; font-size: var(--fs-tiny); color: var(--muted); }
     .note { margin-top: calc(18 * var(--k)); font-size: var(--fs-small); color: var(--text-2); }
@@ -169,7 +175,7 @@
     .found { flex: 1; min-height: 0; display: grid; grid-template-columns: calc(820 * var(--k)) 1fr; gap: calc(48 * var(--k)); }
     .feature { display: flex; flex-direction: column; gap: calc(14 * var(--k)); }
     .feature h3 { font-size: calc(36 * var(--k)); font-weight: 650; }
-    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: calc(18 * var(--k)); }
+    .stats { display: grid; grid-template-columns: 1fr 1.28fr 0.72fr; gap: calc(18 * var(--k)); }
     .stat { background: var(--surface); border: 1px solid var(--border); border-radius: calc(18 * var(--k)); padding: calc(10 * var(--k)) calc(20 * var(--k)) calc(12 * var(--k)); }
     .stat .num { font-size: calc(48 * var(--k)); font-weight: 720; line-height: 1.05; }
     .stat .lbl { font-size: var(--fs-tiny); color: var(--text-2); line-height: 1.25; }
@@ -181,20 +187,43 @@
     .row p { font-size: calc(25 * var(--k)); color: var(--text-2); line-height: 1.3; }
     .traffic i { font-style: normal; font-weight: 650; }
 
-    /* 7. Next and links */
-    .end { flex: 1; display: grid; grid-template-columns: 1fr calc(880 * var(--k)); gap: calc(70 * var(--k)); }
-    .end h3 { font-size: calc(40 * var(--k)); font-weight: 650; margin-bottom: calc(22 * var(--k)); color: var(--accent); }
-    .next { list-style: none; padding: 0; display: flex; flex-direction: column; gap: calc(26 * var(--k)); }
-    .next li { padding-left: calc(30 * var(--k)); border-left: calc(5 * var(--k)) solid var(--surface-3); color: var(--text-2); }
-    .next li b { display: block; font-size: calc(38 * var(--k)); }
+    /* 7. AI mode, next and links */
+    .end { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr calc(790 * var(--k)); gap: calc(64 * var(--k)); }
+    .end-left { display: flex; flex-direction: column; gap: calc(30 * var(--k)); }
+    .end h3 { font-size: calc(40 * var(--k)); font-weight: 650; margin-bottom: calc(20 * var(--k)); color: var(--accent); }
+    .ai-card {
+      display: flex; flex-direction: column; gap: calc(18 * var(--k)); padding: calc(28 * var(--k)) calc(34 * var(--k)) calc(30 * var(--k));
+      border-radius: calc(24 * var(--k)); border: 1px solid rgba(143, 180, 255, 0.45);
+      background: linear-gradient(160deg, rgba(143, 180, 255, 0.16), rgba(143, 180, 255, 0.04));
+    }
+    .ai-head { display: flex; align-items: center; gap: calc(18 * var(--k)); font-size: calc(50 * var(--k)); font-weight: 700; line-height: 1.1; }
+    .badge {
+      font-size: calc(20 * var(--k)); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ok);
+      border: calc(2 * var(--k)) solid var(--ok); border-radius: 999px; padding: calc(5 * var(--k)) calc(14 * var(--k));
+    }
+    .ai-lead { font-size: calc(31 * var(--k)); color: var(--text-2); line-height: 1.3; }
+    .ai-flow { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: calc(44 * var(--k)); }
+    .ai-flow li {
+      position: relative; padding: calc(16 * var(--k)) calc(20 * var(--k)); border-radius: calc(16 * var(--k));
+      background: var(--surface); border: 1px solid var(--border-strong); font-size: var(--fs-tiny); color: var(--text-2); line-height: 1.3;
+    }
+    .ai-flow li b { display: block; font-size: calc(29 * var(--k)); color: var(--text); margin-bottom: calc(4 * var(--k)); }
+    .ai-flow li + li::before {
+      content: ""; position: absolute; left: calc(-38 * var(--k)); top: 50%; width: calc(30 * var(--k)); height: calc(30 * var(--k)); margin-top: calc(-15 * var(--k));
+      background: no-repeat center / contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 12h14M12 5l7 7-7 7' fill='none' stroke='%238fb4ff' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    }
+    .ai-key { font-size: var(--fs-tiny); color: var(--muted); }
+    .next { list-style: none; padding: 0; display: flex; flex-direction: column; gap: calc(20 * var(--k)); }
+    .next li { padding-left: calc(28 * var(--k)); border-left: calc(5 * var(--k)) solid var(--surface-3); color: var(--text-2); font-size: var(--fs-small); }
+    .next li b { display: block; font-size: calc(36 * var(--k)); color: var(--text); }
     .links { display: flex; flex-direction: column; gap: calc(22 * var(--k)); }
     .link { display: grid; grid-template-columns: calc(190 * var(--k)) 1fr; gap: calc(20 * var(--k)); align-items: baseline; }
     .link span { font-size: var(--fs-small); color: var(--muted); }
-    .link a { font-size: calc(31 * var(--k)); font-weight: 600; overflow-wrap: anywhere; }
-    .end-qr { display: flex; align-items: center; gap: calc(26 * var(--k)); margin-top: calc(14 * var(--k)); }
-    .end-qr img { width: calc(190 * var(--k)); height: calc(190 * var(--k)); background: #fff; border-radius: calc(12 * var(--k)); padding: calc(8 * var(--k)); }
+    .link a, .link .team-links { font-size: calc(31 * var(--k)); font-weight: 600; overflow-wrap: anywhere; }
+    .end-qr { display: flex; align-items: center; gap: calc(26 * var(--k)); margin-top: calc(26 * var(--k)); }
+    .end-qr img { width: calc(180 * var(--k)); height: calc(180 * var(--k)); background: #fff; border-radius: calc(12 * var(--k)); padding: calc(8 * var(--k)); }
     .end-qr p { font-size: var(--fs-small); color: var(--text-2); }
-    .disclose { margin-top: calc(26 * var(--k)); font-size: var(--fs-small); color: var(--text-2); padding: calc(18 * var(--k)) calc(26 * var(--k)); background: var(--surface); border-radius: calc(16 * var(--k)); border: 1px solid var(--border); }
+    .disclose { margin-top: calc(22 * var(--k)); font-size: var(--fs-tiny); color: var(--text-2); padding: calc(14 * var(--k)) calc(24 * var(--k)); background: var(--surface); border-radius: calc(14 * var(--k)); border: 1px solid var(--border); }
 
     /* Navigation (screen only). */
     .nav {
@@ -226,6 +255,13 @@
       .flow-row { grid-template-columns: 1fr; gap: 30px; }
       .box + .box::before { left: 50%; top: -28px; margin: 0 0 0 -11px; width: 22px; height: 22px; transform: rotate(90deg); }
       .tiles-6 { grid-template-columns: 1fr 1fr; gap: 12px; }
+      .ai-flow { grid-template-columns: 1fr; gap: 26px; }
+      .ai-flow li + li::before { left: 50%; top: -24px; margin: 0 0 0 -10px; width: 20px; height: 20px; transform: rotate(90deg); }
+      .ai-card { padding: 16px; gap: 12px; }
+      .ai-head { font-size: 24px; }
+      .badge { font-size: 12px; padding: 3px 9px; border-width: 1.5px; }
+      .ai-lead, .ai-flow li b { font-size: 16px; }
+      .end-left { gap: 18px; }
       .problem { gap: 18px; }
       .problem .lead { font-size: 21px; }
       .tile { padding: 16px; gap: 14px; }
@@ -264,6 +300,8 @@
     <defs>
       <mask id="crescent-mask" maskContentUnits="userSpaceOnUse"><rect width="32" height="32" fill="#fff"/><circle cx="21.5" cy="11.5" r="11" fill="#000"/></mask>
       <symbol id="crescent" viewBox="0 0 32 32"><circle class="crescent" cx="16" cy="16" r="13" mask="url(#crescent-mask)"/></symbol>
+      <!-- Our own line glyph for "LinkedIn profile" (an outlined "in"), drawn in the text colour. -->
+      <symbol id="in-glyph" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8.5 11v6M12.5 17v-6M12.5 13.8c0-1.7 1.1-2.8 2.5-2.8s2.3.9 2.3 2.6V17"/></g><circle cx="8.5" cy="7.8" r="1.25" fill="currentColor"/></symbol>
     </defs>
   </svg>
 
@@ -341,9 +379,9 @@
       <header><p class="kicker">How it works</p><h2>Real ephemerides, real terrain, in the browser</h2></header>
       <div class="flow-row">
         <div class="box input"><h3>Place and time</h3>Any point on the Moon, any moment</div>
-        <div class="box"><h3>Where are the Sun and Earth?</h3>JPL DE421 ephemeris in the Moon-fixed MOON_ME frame, so libration is included<span class="src">JPL / NAIF</span></div>
-        <div class="box"><h3>Where is the skyline?</h3>NASA LOLA terrain horizons, fetched live from Moon Trek for any point<span class="src">NASA LRO LOLA, Moon Trek</span></div>
-        <div class="box"><h3>How much is visible?</h3>The visible share of the <span class="sun">Sun's</span> and <span class="earth">Earth's</span> disks, and eclipses of the Sun by the Earth</div>
+        <div class="box"><h3>Where are the Sun and Earth?</h3>JPL DE421 ephemeris in the Moon-fixed frame (MOON_ME): libration included<span class="src">JPL / NAIF</span></div>
+        <div class="box"><h3>Where is the skyline?</h3>NASA LOLA terrain horizons, live from Moon Trek for any point<span class="src">NASA LRO LOLA, Moon Trek</span></div>
+        <div class="box"><h3>How much is visible?</h3>Share of the <span class="sun">Sun's</span> and <span class="earth">Earth's</span> disks above the skyline, and eclipses of the Sun by the Earth</div>
         <div class="box"><h3>Results</h3>Sky view, solar power, Earth contact, suggested dates, rover routes</div>
       </div>
       <div class="how-bottom">
@@ -373,7 +411,7 @@
       <div class="tiles-6">
         <div class="vt"><div class="num">0.055″</div><div class="what">Sun and Earth directions vs <b>JPL Horizons</b>, worst case (target was 36″)</div><div class="ref">3 sites, 3 epochs, 399 rows</div></div>
         <div class="vt"><div class="num">0.13″</div><div class="what">Independent check: the browser code itself vs <b>JPL Horizons</b>, worst case</div><div class="ref">20 random sites incl. both poles and the far side, 1966–2040</div></div>
-        <div class="vt"><div class="num" style="font-size:calc(56 * var(--k))">92.7 % <span class="muted" style="font-weight:500">vs</span> 92.5 %</div><div class="what">South-pole illumination vs <b>Gläser et al. 2014</b>, at a connecting-ridge point</div><div class="ref">10 m above the ground, 18.5 years</div></div>
+        <div class="vt"><div class="num">92.7 % <span class="vs">vs 92.5 %</span></div><div class="what">South-pole illumination vs <b>Gläser et al. 2014</b>, at a connecting-ridge point</div><div class="ref">10 m above the ground, 18.5 years</div></div>
         <div class="vt"><div class="num">4.2 s</div><div class="what">Contact times of eclipses seen from the Moon vs <b>NASA</b> (Espenak)</div><div class="ref">Eclipses of 14 Mar 2025 and 24 Apr 1967, worst case</div></div>
         <div class="vt"><div class="num">0.07–0.37°</div><div class="what">Live horizons from <b>NASA Moon Trek</b> vs our precomputed LOLA horizons, RMS</div><div class="ref">10 of 12 test sites</div></div>
         <div class="vt"><div class="num">r = 0.97</div><div class="what">Earth visibility vs the <b>NASA PGDA</b> south-pole Earth-visibility map</div><div class="ref">46 206 points, 89–90° S</div></div>
@@ -390,8 +428,8 @@
           <h3>StarHab lunar base site: <span class="ok">Malapert massif crest</span></h3>
           <img src="img/starhab.jpg" width="1280" height="720" style="display:block;width:100%;height:auto;border-radius:calc(14 * var(--k));border:1px solid var(--border-strong)" alt="Moonat's sky view from the StarHab site on the Malapert massif crest, near the lunar south pole.">
           <div class="stats">
-            <div class="stat"><div class="num sun">82 %</div><div class="lbl">Sun (average share of full sunlight)</div></div>
-            <div class="stat"><div class="num earth">98 %</div><div class="lbl">Earth (average share of its disk in view)</div></div>
+            <div class="stat"><div class="num sun">82 %</div><div class="lbl">Sun: mean share of its disk in view</div></div>
+            <div class="stat"><div class="num earth">98 %</div><div class="lbl">Earth: mean share in view; never fully hidden</div></div>
             <div class="stat"><div class="num">7 days</div><div class="lbl">Longest night</div></div>
           </div>
           <p class="cap">85.97° S, 2.29° W · 2030–2040 · 10 m mast · best of 80,648 polar points</p>
@@ -403,7 +441,7 @@
           </div>
           <div class="row">
             <img src="img/layers.jpg" width="760" height="480" alt="The Moon globe over the south pole with the permanently shadowed regions and the most sunlit ground marked.">
-            <div><h3>Map layers</h3><p>NASA's permanently shadowed regions, where ice may hide, and the ground lit most of the time.</p></div>
+            <div><h3>Map layers</h3><p>NASA's permanently shadowed regions, where ice may hide, and the ground lit most of the time. Plus base maps and contour lines.</p></div>
           </div>
           <div class="row">
             <img src="img/beresheet.jpg" width="760" height="480" alt="The sky right now at the Beresheet crash site in Mare Serenitatis.">
@@ -415,15 +453,26 @@
     </section>
 
     <!-- 7. Next, and links -->
-    <section class="slide" id="s7" aria-label="Slide 7: Next, and links">
-      <header><p class="kicker">Next, and links</p><h2>Where Moonat goes next</h2></header>
+    <section class="slide" id="s7" aria-label="Slide 7: AI mode, next steps and links">
+      <header><p class="kicker">New, next, and links</p><h2>Plan a mission in plain words</h2></header>
       <div class="end">
-        <div>
-          <ul class="next">
-            <li><b>A phone app</b>The same views in your pocket, on site or in the control room.</li>
-            <li><b>More worlds: Mars, Titan</b>The same sky and terrain engine for other surfaces.</li>
-            <li><b>AI mode (planned)</b>Describe a mission and get suggested sites and dates.</li>
-          </ul>
+        <div class="end-left">
+          <div class="ai-card">
+            <p class="ai-head"><span class="badge">Live</span>AI mode</p>
+            <ol class="ai-flow" aria-label="Describe a mission; Moonat turns it into requirements, runs its validated physics as tools, and ranks sites and dates.">
+              <li><b>Mission</b>plain words, made requirements</li>
+              <li><b>Physics</b>validated code, run as tools</li>
+              <li><b>Ranking</b>sites and dates, best first</li>
+            </ol>
+            <p class="ai-key">Claude, with your own Anthropic API key. Every number comes from Moonat's physics.</p>
+          </div>
+          <div>
+            <h3>Next</h3>
+            <ul class="next">
+              <li><b>Phone app in the app stores</b>The same views in your pocket, on site or in the control room.</li>
+              <li><b>More worlds: Mars, Titan</b>The same sky and terrain engine for other surfaces.</li>
+            </ul>
+          </div>
         </div>
         <div>
           <h3>Try it</h3>
@@ -431,25 +480,32 @@
             <div class="link"><span>Live app</span><a href="https://shmonat.github.io/Moonat-Navigator/">shmonat.github.io/Moonat-Navigator</a></div>
             <div class="link"><span>Source code</span><a href="https://github.com/ShMonat/Moonat-Navigator">github.com/ShMonat/Moonat-Navigator</a></div>
             <div class="link"><span>30 s video</span><a href="https://shmonat.github.io/Moonat-Navigator/video/moonat_demo.mp4">shmonat.github.io/Moonat-Navigator/video/moonat_demo.mp4</a></div>
+            <div class="link"><span>Team</span><span class="team-links" data-team></span></div>
           </div>
-          <div class="end-qr"><img src="img/qr.svg" width="190" height="190" alt="QR code to the live app"><p>Scan to open the live app on your phone.</p></div>
+          <div class="end-qr"><img src="img/qr.svg" width="180" height="180" alt="QR code to the live app"><p>Scan to open the live app on your phone.</p></div>
         </div>
       </div>
-      <p class="disclose">Built with AI coding agents (Claude Code), directed by the team; screenshots are real renders of the app.</p>
-      <div class="foot"><span class="brandmark"><svg aria-hidden="true"><use href="#crescent"/></svg>Moonat · <span data-team></span></span><span class="pageno"></span></div>
+      <p class="disclose">Built with AI coding agents (Claude Code), directed by the team. AI mode calls Claude at run time. Screenshots are real renders of the app.</p>
+      <div class="foot"><span class="brandmark"><svg aria-hidden="true"><use href="#crescent"/></svg>Moonat</span><span class="pageno"></span></div>
     </section>
 
   </main>
 
   <script>
-    // Team names: one place to edit.
-    const TEAM = "Shay Monat · Shahar";
+    // Team: one place to edit. Shown as "Shay Monat · Shahar Caspi", each name linked to its LinkedIn profile.
+    const TEAM = [
+      ["Shay Monat", "https://www.linkedin.com/in/shay-monat/"],
+      ["Shahar Caspi", "https://www.linkedin.com/in/shahar-caspi/"],
+    ];
 
     const slides = [...document.querySelectorAll(".slide")];
     const narrow = matchMedia("screen and (max-width: 760px), screen and (orientation: portrait) and (max-width: 1100px)");
     let cur = 0;
 
-    document.querySelectorAll("[data-team]").forEach((e) => { e.textContent = TEAM; });
+    document.querySelectorAll("[data-team]").forEach((e) => {
+      e.innerHTML = TEAM.map(([name, url]) => `<a href="${url}" target="_blank" rel="noopener" aria-label="${name} on LinkedIn">${name}`
+        + `<svg class="in" aria-hidden="true"><use href="#in-glyph"/></svg></a>`).join('<span class="sep">·</span>');
+    });
     slides.forEach((s, i) => { const n = s.querySelector(".pageno"); if (n) n.textContent = `${i + 1} / ${slides.length}`; });
 
     function fit() {

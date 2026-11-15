@@ -26,7 +26,19 @@ test("every image the deck uses exists", () => {
   for (const s of srcs) assert.ok(existsSync(join(SLIDES, s)), s);
 });
 
-test("the team names come from one constant", () => {
-  assert.equal((html.match(/const TEAM = "/g) || []).length, 1);
+test("the team names and LinkedIn links come from one constant", () => {
+  assert.equal((html.match(/const TEAM = \[/g) || []).length, 1);
   assert.ok((html.match(/data-team/g) || []).length >= 1);
+  for (const [name, url] of [
+    ["Shay Monat", "https://www.linkedin.com/in/shay-monat/"],
+    ["Shahar Caspi", "https://www.linkedin.com/in/shahar-caspi/"],
+  ]) {
+    assert.equal(html.split(`["${name}", "${url}"]`).length - 1, 1, name);
+  }
+  assert.match(html, /target="_blank" rel="noopener"/);
+});
+
+test("AI mode is presented as live, not planned", () => {
+  assert.match(html, /AI mode/);
+  assert.doesNotMatch(html, /AI mode \(planned\)/);
 });
