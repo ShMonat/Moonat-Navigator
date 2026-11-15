@@ -47,7 +47,7 @@ https://shmonat.github.io/Moonat-Navigator/ — source code: https://github.com/
 
 **How it works**
 1. Positions: JPL DE421 ephemeris and the lunar orientation model (MOON_ME frame, which includes libration), with light-time and aberration. Validated against **JPL Horizons** topocentric lunar sites: the Sun and Earth directions agree to 0.055 arcseconds (1.5e-05°) at worst over 399 comparisons at three sites and three epochs.
-2. Terrain: NASA LRO **LOLA** elevation maps. For each catalog site, we compute the horizon profile: the elevation of the skyline in every direction, out to 70–330 km, including lunar curvature. We checked it against published south-pole illumination (Gläser et al. 2014): 92.7% of time lit at one reference point against 92.5% published (95.8% against 95.6%).
+2. Terrain: NASA LRO **LOLA** elevation maps. For each catalog site, we compute the horizon profile: the elevation of the skyline in every direction, out to 70–330 km, including lunar curvature. We checked it against published south-pole illumination (Gläser et al. 2014): 92.7% of time lit at one reference point against 92.5% published (95.8% against 95.6%). We also checked it against real Apollo surface photos. The skyline in NASA photos AS15-88-11863 (Hadley Delta), AS15-86-11603 (Mount Hadley) and AS16-113-18339 (Stone Mountain) matches our LOLA horizon to 0.08–0.15° RMS; the camera's pointing is fitted, because it was not recorded. The Sun's altitude at 43 Apollo epochs in the Apollo Lunar Surface Journal's table matches to 0.016° RMS.
 3. Visibility: the fraction of the Sun's or the Earth's disk that rises above that skyline, weighted for the Sun's limb darkening for power.
 4. The physics is precomputed in Python and validated; the browser does the fast geometry and reproduces the Python reference to 3e-11°, so any site and any time works instantly. An independent check of the browser code against JPL Horizons at 20 random places and times (both poles, the far side, 1966–2040) agrees to 0.13 arcseconds.
 5. Terrain anywhere: for a point that is not in the catalog, the browser fetches LOLA heights from NASA **Moon Trek** in 1–3 s and traces the horizon itself. At 10 of 12 test sites it agrees with our precomputed horizons to 0.07–0.37° (RMS).
@@ -85,7 +85,7 @@ Team: we are a married couple, Shay Monat (https://www.linkedin.com/in/shay-mona
 - **JPL/NAIF SPICE kernels**: DE421 ephemeris, lunar principal-axes orientation kernel and the MOON_ME frame kernel.
 - **NASA Visible Earth**: Blue Marble and Earth City Lights textures for the Earth in the sky.
 - **LROC (ASU/NASA LRO)** NAC mosaics, the Beresheet impact site, and the candidate landing regions NASA announced in October 2024 (shown as potential Artemis sites): site placement.
-- Mission coordinates and times from NASA NSSDCA and the Apollo Lunar Surface Journal.
+- Mission coordinates and times from NASA NSSDCA and the Apollo Lunar Surface Journal, and Apollo surface photos (NASA, public domain) and the Journal's Sun and Earth altitude table for validation.
 
 These data let us answer a simple question, "will we see the Sun and Earth?", with real precision.
 
