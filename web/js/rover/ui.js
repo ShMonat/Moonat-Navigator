@@ -1,32 +1,38 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
-// Rover trips in the scenario cards, in the spirit of Google Maps directions: the "Trip" toggle next to the place
-// turns a scenario into a trip from that place (point A); rows for the end (B) and the stops after it (+ Add stop),
-// each set by a search (catalog places in reach, or typed coordinates) or on the globe, removable, movable and
-// reversible; travel modes (the rover presets); the route summary (driving time, distance, arrival) with the rover's
-// live position while the timelapse plays; and the route map and the elevation and slope profiles under "Details".
+// Rover trips in the scenario cards, laid out like Google Maps' directions panel. The "Trip" toggle next to the place
+// turns a scenario into a trip from that place. The trip block shows, top to bottom: the travel modes (the rover
+// presets) as icon tabs; the stacked point fields (the start with a hollow circle, the stops with a dot, the end with a
+// pin in the place colour, joined by a dotted line) with a swap button on the right and "Add stop" below; the route
+// card (the duration, coloured by the delay against a straight flat drive, the distance and the arrival) with the
+// rover's live position while the timelapse plays; and the route map and the elevation and slope profiles under
+// "Details". A focused point field lists its suggestions and takes the next click on the globe (trip_edit.js
+// fieldState, pick.js); a trip's start and end pins can be dragged on the globe (map.js).
 // Planning: index.js planTrip (leg by leg, cached). The globe shows each trip's path and the rover (globe_route.js).
 
 import { store, subscribe, updateScenario, setActive } from "../app/store.js";
-import { colorHex, parseUtc, formatDuration, formatUtc, fmtLat, fmtLon, normalizeLon, MAX_VIA, isPointLabel, pointLabel } from "../app/state.js";
-import { catalogSites, shortName, searchSites } from "../app/catalog.js";
+import { colorHex, parseUtc, formatDuration, formatUtc } from "../app/state.js";
+import { catalogSites } from "../app/catalog.js";
 import { skyTime, setLookAheadSource } from "../app/sky_panel.js";
 import { lookAheadDirection } from "./sky_ride.js";
-import { planTrip, tripKey, tripProblems, onRouteProgress, RouteError, MAX_ROUTE_KM, routeTrack, waypointLetter, legAtDistance } from "./index.js";
-import { makePlane, greatCircle } from "./terrain.js";
+import { planTrip, tripKey, tripProblems, onRouteProgress, RouteError, routeTrack, waypointLetter, legAtDistance } from "./index.js";
+import { makePlane } from "./terrain.js";
 import { PRESETS } from "./presets.js";
-import { newRouteFields, routeRequest, tripWaypoints } from "./app.js";
-import { registerRouteCard, startPick, cancelPick, pickState, onPickChange } from "./pick.js";
+import { newRouteFields, routeRequest } from "./app.js";
+import { registerRouteCard, cancelPick, pickState, onPickChange, pointerOnMap, undismiss } from "./pick.js";
 import { showTripRoute, clearTripRoute, fitTrip, setRoverMarker, setTripStops, shownTrips } from "./globe_route.js";
+import {
+  tripRows, rowRole, rowName, setRow, removeRow, swapRows, moveUp, addStopIndex, canAddStop, commitRows, stopSuggestions,
+  fieldState, parseLatLon, autoArm, pointName as nameAt,
+} from "./trip_edit.js";
+import { tripDelay, delayText, DELAY_LEVELS } from "./delay.js";
 import { icon as svgIcon } from "../app/icons.js";
 
 // "Driver's view" (the sky panel's "ahead" track mode, in the timelapse bar's camera group): a trip's view faces the
 // path's heading at the rover.
 setLookAheadSource(lookAheadDirection);
 
-/** Most points of a trip: the start, MAX_VIA stops and the end. */
-const MAX_POINTS = MAX_VIA + 2;
 const memory = new Map(); // scenario id -> its route while the trip is switched off (switching back restores it)
-const adding = new Set(); // scenario ids with an empty "new end" row open
+const gaps = new Map(); // scenario id -> index of the empty stop row that "Add stop" opened (before the end)
 const results = new Map(); // scenario id -> { key, r (planned route), track, stopsKey }
 const panels = new Map(); // scenario id -> panel API (refresh, live)
 const fitted = new Map(); // scenario id -> trip key the globe was last fitted to
@@ -47,30 +53,23 @@ function el(tag, attrs = {}, ...children) {
 const getS = (id) => store.scenarios.find((x) => x.id === id) || null;
 const fmtNum = (v, d = 3) => (v === null || v === undefined || !Number.isFinite(+v) ? "" : String(+(+v).toFixed(d)));
 const km = (m) => `${(m / 1000).toFixed(m < 10000 ? 2 : 1)} km`;
+const coarse = () => !!window.matchMedia?.("(pointer: coarse)")?.matches;
+const round4 = (x) => Math.round(x * 1e4) / 1e4;
 
-/** The catalog site at a point (within 1e-4°), or null. */
-function siteAt(p) {
-  if (!p) return null;
-  const tol = 1e-4 + 1e-9;
-  return catalogSites().find((x) => Math.abs(x.lat_deg - p.lat_deg) <= tol && Math.abs(normalizeLon(x.lon_deg - p.lon_deg)) <= tol) || null;
-}
 /** A point's name: its catalog place, else its coordinates ("89.44° S, 137.19° W"). */
-export function pointName(p) {
-  if (!p) return "";
-  const site = siteAt(p);
-  return site ? shortName(site) : `${fmtLat(p.lat_deg)}, ${fmtLon(normalizeLon(p.lon_deg))}`;
-}
+export const pointName = (p) => nameAt(p, catalogSites());
 
-/** "−26.1, 3.7", "26.1 N 3.7 E", "26.1°N, 3.7°E" -> {lat_deg, lon_deg}, or null. */
-export function parseLatLon(text) {
-  const t = String(text || "").trim().replace(/[−–]/g, "-");
-  const m = /^(-?\d+(?:\.\d+)?)\s*°?\s*([NS])?\s*[,;\s]\s*(-?\d+(?:\.\d+)?)\s*°?\s*([EW])?$/i.exec(t);
-  if (!m) return null;
-  let lat = Number(m[1]), lon = Number(m[3]);
-  if (m[2] && /s/i.test(m[2])) lat = -Math.abs(lat);
-  if (m[4] && /w/i.test(m[4])) lon = -Math.abs(lon);
-  if (!(Math.abs(lat) <= 90) || !(Math.abs(lon) <= 360)) return null;
-  return { lat_deg: lat, lon_deg: normalizeLon(lon) };
+/** The travel modes' icons (icons.js). */
+const MODE_ICON = { viper: "viper", lrv: "lrv", custom: "sliders" };
+const modeIcon = (preset) => svgIcon(MODE_ICON[preset in PRESETS ? preset : "custom"]);
+
+/** Bring the globe into view for "Choose on the map": at the top of a phone's page, else just into view. */
+function revealMap() {
+  const mb = document.getElementById("map-block");
+  if (!mb) return;
+  const phone = window.matchMedia?.("(max-width: 699.98px)")?.matches;
+  const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  mb.scrollIntoView({ block: phone ? "start" : "nearest", behavior: reduce ? "auto" : "smooth" });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -95,7 +94,7 @@ function toggleTrip(id) {
   if (!s) return;
   if (s.route) {
     memory.set(id, s.route);
-    adding.delete(id);
+    gaps.delete(id);
     if (pickState()?.id === id) cancelPick();
     clearTripRoute(id);
     updateScenario(id, { route: null }, "structure");
@@ -103,33 +102,39 @@ function toggleTrip(id) {
   }
   const r = memory.get(id) || newRouteFields("viper");
   setActive(id);
+  undismiss(id);
+  // The trip's empty end field takes the next click on the map at once (the panel arms it, autoArm).
   updateScenario(id, { route: { ...r } }, "structure");
-  if (!Number.isFinite(r.end_lat_deg)) {
-    // Like "Directions": the end row is ready for a search, and a click on the globe sets it.
-    startPick(id, 1, "B, the end of the trip");
-    requestAnimationFrame(() => document.querySelector(`#cards [data-id="${id}"] .trip-row[data-row="1"] .trip-input`)?.focus());
+  if (!Number.isFinite(r.end_lat_deg) && !coarse()) {
+    // Like "Directions": with a mouse the end field also takes the focus and its suggestions open (a phone keeps its
+    // keyboard closed: the map, the banner and the field are there to tap).
+    requestAnimationFrame(() => document.querySelector(`#cards [data-id="${id}"] .trip-row.is-end .trip-input`)?.focus());
   }
 }
 
 // ---------------------------------------------------------------------------------------------
 // The trip panel of a card.
 
-const MODE_ICONS = {
-  viper: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="9" width="14" height="5.5" rx="1.4"/><path d="M15.5 9V4.5M13.6 4.3h3.8"/><circle cx="7" cy="17.6" r="1.9"/><circle cx="11.5" cy="17.6" r="1.9"/><circle cx="16" cy="17.6" r="1.9"/></svg>',
-  lrv: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 13.5h19M8 13.5V9.5h3M13.5 13.5V9.5h3M19 9.2a2.6 2.6 0 0 0-3.6 0"/><circle cx="6" cy="16.6" r="2.4"/><circle cx="18" cy="16.6" r="2.4"/></svg>',
-  custom: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h14"/><circle cx="9" cy="6" r="2" class="k"/><circle cx="15" cy="12" r="2" class="k"/><circle cx="8" cy="18" r="2" class="k"/></svg>',
-};
+/** The suggestion icons' classes (globe.css .gs-ico kinds; trip-only kinds in rover.css). */
+const ICO_CLASS = { pick: "is-pick", coord: "is-coord", home: "k-home", place: "k-pin" };
+const ICO_SVG = { pick: "pin", coord: "follow", home: "home" };
 
 /**
- * The trip section of a card (scenarios with a `route`): the points, the rover, the plan and its summary.
+ * The trip section of a card (scenarios with a `route`): the travel modes, the points, the plan and its route card.
  * @param {object} s  C7 scenario with `route`
  */
 export function buildTripPanel(s) {
   const id = s.id;
   const sec = el("section", { class: "trip", "aria-label": "Rover trip" });
-  const rowsEl = el("ol", { class: "trip-stops", "aria-label": "Trip points" });
   const modesEl = el("div", { class: "trip-modes", role: "group", "aria-label": "Rover (travel mode)" });
   const noteEl = el("p", { class: "trip-note" });
+  const rowsEl = el("ol", { class: "trip-stops", "aria-label": "Trip points" });
+  const swapBtn = el("button", {
+    type: "button", class: "icon-btn trip-swap", html: svgIcon("swap"),
+    title: "Reverse the trip (swap the start and the end)", "aria-label": "Reverse the trip (swap the start and the end)",
+  });
+  const routeEl = el("div", { class: "trip-route" }, rowsEl, swapBtn);
+  const addEl = el("div", { class: "trip-add" });
   const optsEl = el("details", { class: "trip-opts" });
   const planEl = el("div", { class: "trip-plan", hidden: true },
     el("div", { class: "trip-bar" }, el("div", { class: "trip-bar-fill" })), el("span", { class: "trip-status", role: "status" }));
@@ -137,228 +142,293 @@ export function buildTripPanel(s) {
   const sumEl = el("div", { class: "trip-sum", hidden: true, "aria-live": "polite" });
   const liveEl = el("p", { class: "trip-live", hidden: true });
   const detailsEl = el("details", { class: "trip-details", hidden: true });
-  sec.append(rowsEl, modesEl, noteEl, optsEl, planEl, msgEl, sumEl, liveEl, detailsEl);
+  sec.append(modesEl, noteEl, routeEl, addEl, optsEl, planEl, msgEl, sumEl, liveEl, detailsEl);
 
   let seq = 0;
   let mapDrawn = null; // the route the details map was drawn for
   const cur = () => getS(id) || s;
 
   // ---- points
-  /** The rows after A: the trip's points (the end may be null) and an empty new end while adding. */
-  const rowPoints = () => {
-    const w = tripWaypoints(cur()).slice(1);
-    if (adding.has(id) && w.at(-1)) w.push(null);
-    return w;
-  };
-  /** Commit the rows (in order; empty rows are dropped) to the scenario's route: the last is the end. */
-  const commitRows = (rows) => {
-    const set = rows.filter(Boolean).slice(0, MAX_POINTS - 1);
-    const r = { ...cur().route };
-    const last = set.at(-1) || null;
-    r.end_lat_deg = last ? round4(last.lat_deg) : null;
-    r.end_lon_deg = last ? round4(last.lon_deg) : null;
-    const via = set.slice(0, -1).map((p) => ({ lat_deg: round4(p.lat_deg), lon_deg: round4(p.lon_deg) }));
-    if (via.length) r.via = via;
-    else delete r.via;
-    updateScenario(id, { route: r }, "field");
-  };
-  const setRow = (i, p) => {
-    if (pickState()?.id === id) cancelPick(); // a point found by search ends "Choose on the globe"
-    const rows = rowPoints();
-    rows[i - 1] = p;
-    if (rows.at(-1)) adding.delete(id);
-    commitRows(rows);
-    // Next: an empty row if any, else "+ Add stop".
-    requestAnimationFrame(() => (sec.querySelector(".trip-row .trip-input:placeholder-shown") || sec.querySelector(".trip-add-btn"))?.focus());
-  };
-  const removeRow = (i) => {
-    const rows = rowPoints();
-    if (rows[i - 1] === null) adding.delete(id);
-    rows.splice(i - 1, 1);
+  /** The rows: [start, ...stops, end] (unset points null) and the empty stop row "Add stop" opened. */
+  const rowsNow = () => tripRows(cur(), gaps.get(id) ?? null);
+  /**
+   * Write rows to the store (trip_edit.js commitRows); an empty stop row between set points stays open. The fields are
+   * drawn again, so a map pick armed for one of them ends.
+   */
+  const apply = (rows) => {
+    const g = rows.findIndex((p, k) => k > 0 && k < rows.length - 1 && !p);
+    if (g > 0 && rows.every((p, k) => k === g || p)) gaps.set(id, g);
+    else gaps.delete(id);
     if (pickState()?.id === id) cancelPick();
-    commitRows(rows);
+    commitRows(id, rows, catalogSites());
   };
-  const moveUp = (i) => {
-    const rows = rowPoints();
-    if (i < 2 || !rows[i - 1] || !rows[i - 2]) return;
-    [rows[i - 2], rows[i - 1]] = [rows[i - 1], rows[i - 2]];
-    commitRows(rows);
-    requestAnimationFrame(() => sec.querySelector(`.trip-row[data-row="${i - 1}"] .trip-up, .trip-row[data-row="${i - 1}"] .trip-input`)?.focus());
+  const setPoint = (i, p) => apply(setRow(rowsNow(), i, p));
+  /** After a choice in a field: the next empty field, else "Add stop", takes the focus (not on a touch screen). */
+  const focusNext = () => {
+    if (coarse()) return;
+    requestAnimationFrame(() => (rowsEl.querySelector(".trip-input:placeholder-shown") || addEl.querySelector("button"))?.focus());
+  };
+  const dropRow = (i) => {
+    const rows = rowsNow();
+    if (!rows[i] && gaps.get(id) === i) {
+      if (pickState()?.id === id) cancelPick();
+      // The empty stop row: nothing to write.
+      gaps.delete(id);
+      renderRows();
+      return;
+    }
+    apply(removeRow(rows, i));
   };
   const reverse = () => {
-    const s0 = cur();
-    const w = tripWaypoints(s0);
-    if (w.some((p) => !p)) return;
-    const rev = [...w].reverse();
-    const a = rev[0];
-    const site = siteAt(a);
-    const oldSite = siteAt(w[0]);
-    const autoName = !s0.label || isPointLabel(s0.label) || (oldSite && s0.label === shortName(oldSite));
-    const r = { ...s0.route, end_lat_deg: rev.at(-1).lat_deg, end_lon_deg: rev.at(-1).lon_deg };
-    const via = rev.slice(1, -1);
-    if (via.length) r.via = via.map((p) => ({ ...p }));
-    else delete r.via;
-    // The times stay (the trip is driven the other way, not moved to another place).
-    updateScenario(id, {
-      lat_deg: a.lat_deg, lon_deg: a.lon_deg, site_id: site ? site.id : null, route: r,
-      ...(autoName ? { label: site ? shortName(site) : pointLabel(a.lat_deg, a.lon_deg) } : {}),
-      t_start_utc: s0.t_start_utc, t_end_utc: s0.t_end_utc, ...(s0.t_src ? { t_src: s0.t_src } : {}),
-    }, "structure");
+    const rows = rowsNow();
+    if (rows.every(Boolean)) apply(swapRows(rows));
   };
-  const addRow = () => {
-    adding.add(id);
+  const up = (i) => {
+    const rows = rowsNow();
+    if (!rows[i] || !rows[i - 1]) return;
+    apply(moveUp(rows, i));
+    requestAnimationFrame(() => rowsEl.querySelector(`.trip-row[data-row="${i - 1}"] .trip-up`)?.focus());
+  };
+  const addStop = () => {
+    const rows = rowsNow();
+    if (!canAddStop(rows)) return;
+    const g = addStopIndex(rows);
+    gaps.set(id, g);
+    undismiss(id);
+    if (pickState()?.id === id) cancelPick(); // the rows move: the new stop field takes the map instead (arm)
     renderRows();
-    const n = rowPoints().length;
-    startPick(id, n, `${waypointLetter(n)}, the new end`);
-    requestAnimationFrame(() => sec.querySelector(`.trip-row[data-row="${n}"] .trip-input`)?.focus());
+    if (!coarse()) requestAnimationFrame(() => rowsEl.querySelector(`.trip-row[data-row="${g}"] .trip-input`)?.focus());
   };
+  let disposed = false;
+  /** While this trip is the selected card, its first empty field takes the next map click (trip_edit.js autoArm). */
+  const arm = () => {
+    if (disposed || !sec.isConnected || !cur().route || store.activeId !== id) return;
+    autoArm(id, rowsNow());
+  };
+  swapBtn.addEventListener("click", reverse);
+  const addBtn = el("button", { type: "button", class: "trip-add-btn", title: "Add a stop before the end", onclick: addStop },
+    el("span", { class: "trip-add-ico", "aria-hidden": "true", html: svgIcon("plus") }), el("span", { text: "Add stop" }));
 
   function renderRows() {
-    const s1 = cur();
-    const rows = rowPoints();
-    if (!rows.length) rows.push(null);
-    const start = tripWaypoints(s1)[0];
-    const items = [el("li", { class: "trip-row is-start", "data-row": "0" },
-      el("span", { class: "trip-mk start", "aria-hidden": "true", text: "A" }),
-      el("span", { class: "trip-start" }, el("b", { text: start ? pointName(start) : "Choose the start: the globe or the coordinates above" }), el("small", { text: "start: this card's place" })),
-      start && rows.every(Boolean)
-        ? el("button", { type: "button", class: "icon-btn trip-rev", title: "Reverse the trip", "aria-label": "Reverse the trip", text: "⇅", onclick: reverse })
-        : null)];
-    rows.forEach((p, k) => items.push(pointRow(k + 1, p, k === rows.length - 1, rows)));
-    const canAdd = rows.every(Boolean) && rows.length + 1 < MAX_POINTS;
-    if (canAdd) {
-      items.push(el("li", { class: "trip-add" },
-        el("button", { type: "button", class: "trip-add-btn", text: "+ Add stop", title: "Drive on from the end to another point", onclick: addRow })));
-    }
-    rowsEl.replaceChildren(...items);
+    const rows = rowsNow();
+    rowsEl.replaceChildren(...rows.map((p, i) => pointRow(i, p, rows)));
+    swapBtn.disabled = !rows.every(Boolean);
+    addEl.replaceChildren(...(canAddStop(rows) ? [addBtn] : []));
     syncPickMarks();
+    queueMicrotask(arm); // after the card is on the page
   }
 
-  /** One point row: its letter, a search box (places in reach, coordinates, "Choose on the globe"), ↑ and ✕. */
-  function pointRow(i, p, isEnd, rows) {
+  /** The other places on the map (the scenarios' places), for the suggestions. */
+  const mapPlaces = () => store.scenarios.filter((x) => Number.isFinite(x.lat_deg) && Number.isFinite(x.lon_deg))
+    .map((x) => ({ lat_deg: x.lat_deg, lon_deg: x.lon_deg, label: x.label || pointName(x), color: colorHex(x.color, store.theme) }));
+
+  /** One point field: its marker, a search box with its suggestions, move up and remove. */
+  function pointRow(i, p, rows) {
+    const n = rows.length;
+    const role = rowRole(i, n);
+    const name = rowName(i, n);
     const L = waypointLetter(i);
-    const what = isEnd ? "the end" : "a stop";
+    const verb = coarse() ? "tap" : "click";
     const listId = `trip-${id}-${i}`;
+    const shown = p ? pointName(p) : "";
     const input = el("input", {
-      type: "search", class: "trip-input", role: "combobox", "aria-expanded": "false", "aria-controls": listId,
-      "aria-autocomplete": "list", autocomplete: "off", spellcheck: "false", value: p ? pointName(p) : "",
-      placeholder: isEnd ? "Choose the end: search or click the globe" : "Choose a stop",
-      "aria-label": `Point ${L}, ${what}: search a place, type coordinates, or choose on the globe`,
+      type: "text", class: "trip-input", role: "combobox", "aria-expanded": "false", "aria-controls": listId,
+      "aria-autocomplete": "list", autocomplete: "off", spellcheck: "false", enterkeyhint: "search", value: shown,
+      placeholder: role === "start" ? `Choose start point, or ${verb} the map` : role === "end" ? `Choose end point, or ${verb} the map` : `Add a stop, or ${verb} the map`,
+      "aria-label": `${role === "start" ? "Start" : role === "end" ? "End" : "Stop"} ${L}: search a place, type coordinates, or choose on the map`,
     });
-    const list = el("ul", { class: "picker-list trip-list", id: listId, role: "listbox", hidden: true, tabindex: "-1" });
-    const prev = () => (i === 1 ? tripWaypoints(cur())[0] : rows[i - 2]);
+    const list = el("ul", { class: "trip-list", id: listId, role: "listbox", hidden: true, tabindex: "-1", "aria-label": `Places for ${name}` });
+    const field = el("div", { class: "trip-field" }, input, list);
+    // Distances are given from the point before (for the start, from the point after it).
+    const nb = i === 0 ? 1 : i - 1;
     let opts = [];
     let sel = -1;
-    const close = () => {
+    const onDocDown = (e) => st.pointerDown(field.contains(e.target));
+    const closeList = () => {
       list.hidden = true;
+      field.classList.remove("open");
       input.setAttribute("aria-expanded", "false");
       input.removeAttribute("aria-activedescendant");
+      document.removeEventListener("pointerdown", onDocDown, true);
     };
-    const open = () => {
-      const q = input.value.trim();
-      const shownName = p ? pointName(p) : "";
-      const query = q === shownName ? "" : q;
-      const from = prev();
-      opts = [];
-      const coord = parseLatLon(query);
-      if (coord) opts.push({ kind: "coord", p: coord, name: `Use ${fmtLat(coord.lat_deg)}, ${fmtLon(coord.lon_deg)}`, meta: from ? `${km(greatCircle(from, coord).dist_m)} from ${waypointLetter(i - 1)}` : "" });
-      const tap = window.matchMedia?.("(pointer: coarse)")?.matches;
-      opts.push({ kind: "pick", name: "Choose on the globe", meta: `the next ${tap ? "tap" : "click"} on the Moon sets it` });
-      // Places in reach of the previous point, nearest first; a search ranks an exact name first, then places in reach,
-      // nearest first. The previous point itself is not offered.
-      const ql = query.toLowerCase();
-      const near = (query ? searchSites(query, catalogSites()) : catalogSites()).map((site) => {
-        const d = from ? greatCircle(from, site).dist_m : NaN;
-        const exact = !!ql && (site.name.toLowerCase() === ql || shortName(site).toLowerCase() === ql);
-        return { site, d, exact, reach: Number.isFinite(d) && d <= MAX_ROUTE_KM * 1000 };
-      }).filter((x) => !(x.d <= 1) && (query || x.reach));
-      near.sort((a, b) => (b.exact - a.exact) || (b.reach - a.reach) || ((a.d || 0) - (b.d || 0)));
-      for (const { site, d } of near.slice(0, 12)) {
-        const far = Number.isFinite(d) && d > MAX_ROUTE_KM * 1000;
-        opts.push({
-          kind: "site", p: { lat_deg: site.lat_deg, lon_deg: site.lon_deg }, name: site.name, disabled: far,
-          // The kind tells apart places of the same name (the Malapert Massif region and place of interest).
-          meta: [site.kind === "candidate" ? "Potential Artemis site" : site.kind === "home" ? "Home base" : "",
-            Number.isFinite(d) ? `${km(d)} from ${waypointLetter(i - 1)}${far ? ` · too far for one leg (max ${MAX_ROUTE_KM} km)` : ""}` : ""].filter(Boolean).join(" · "),
-        });
+    const st = fieldState(id, i, name, { onOpen: (open) => open || closeList() });
+
+    /** The globe's block when it is pinned over the top of the inputs column (wide screens, pick.js), else null. */
+    const pinnedMap = () => {
+      const mb = document.getElementById("map-block");
+      return mb && getComputedStyle(mb).position === "sticky" ? mb : null;
+    };
+    /** With the globe pinned over the top of the inputs column, bring the field out from under it. */
+    const keepInView = () => {
+      const mb = pinnedMap();
+      const scroller = sec.closest(".inputs");
+      if (!mb || !scroller) return;
+      const fr = input.getBoundingClientRect();
+      const top = mb.getBoundingClientRect().bottom + 8;
+      const bottom = scroller.getBoundingClientRect().bottom - 8;
+      if (fr.top < top) scroller.scrollTop -= top - fr.top;
+      else if (fr.bottom > bottom) scroller.scrollTop += fr.bottom - bottom;
+    };
+    /** Open below the field, or above it when there is more room there, never over the globe. */
+    const place = () => {
+      list.classList.remove("up");
+      const fr = input.getBoundingClientRect();
+      const scroller = sec.closest(".inputs");
+      const own = scroller && /auto|scroll/.test(getComputedStyle(scroller).overflowY);
+      const vv = window.visualViewport;
+      const top = Math.max(own ? scroller.getBoundingClientRect().top : 0, vv ? vv.offsetTop : 0);
+      const bottom = Math.min(own ? scroller.getBoundingClientRect().bottom : window.innerHeight, vv ? vv.offsetTop + vv.height : window.innerHeight);
+      const map = (pinnedMap() || document.getElementById("map"))?.getBoundingClientRect();
+      const mapAbove = map && map.right > fr.left && map.left < fr.right && map.bottom <= fr.top + 1 ? map.bottom : -Infinity;
+      const below = bottom - fr.bottom - 8;
+      const above = fr.top - Math.max(top, mapAbove) - 8;
+      const want = Math.min(list.scrollHeight, 360);
+      if (below < Math.min(want, 200) && above > below) {
+        list.classList.add("up");
+        list.style.maxHeight = `${Math.max(0, Math.min(360, above))}px`;
+      } else list.style.maxHeight = `${Math.min(360, Math.max(160, below))}px`;
+    };
+    const highlight = () => {
+      const items = list.querySelectorAll(".trip-opt");
+      items.forEach((li, k) => li.setAttribute("aria-selected", k === sel ? "true" : "false"));
+      const c = items[sel];
+      if (!c) {
+        input.removeAttribute("aria-activedescendant");
+        return;
       }
-      sel = opts.findIndex((o) => !o.disabled && o.kind !== "pick");
-      if (sel < 0) sel = 0;
-      const lis = opts.map((o, k) => {
-        const li = el("li", {
-          class: `picker-item trip-opt${o.kind === "pick" ? " is-pick" : ""}`, role: "option", id: `${listId}-${k}`,
-          "aria-selected": k === sel ? "true" : "false", "aria-disabled": o.disabled ? "true" : null,
-        }, el("div", { class: "pi-name" }, o.kind === "pick" ? el("span", { class: "ico pi-ico", "aria-hidden": "true", html: svgIcon("pin") }) : null, o.name), o.meta ? el("div", { class: "pi-meta", text: o.meta }) : null);
-        li.addEventListener("mousedown", (e) => {
-          e.preventDefault();
-          choose(k);
-        });
-        return li;
+      input.setAttribute("aria-activedescendant", c.id);
+      // Scroll inside the list only (the page stays where it is).
+      if (c.offsetTop < list.scrollTop) list.scrollTop = c.offsetTop;
+      else if (c.offsetTop + c.offsetHeight > list.scrollTop + list.clientHeight) list.scrollTop = c.offsetTop + c.offsetHeight - list.clientHeight;
+    };
+    const optionEl = (o, k) => {
+      const ico = el("span", {
+        class: `gs-ico trip-ico ${ICO_CLASS[o.kind] || `k-${o.site?.kind || "poi"}`}`, "aria-hidden": "true",
+        html: ICO_SVG[o.kind] ? svgIcon(ICO_SVG[o.kind]) : "",
       });
-      if (!query && !near.length) {
-        lis.push(el("li", { class: "picker-empty", text: `No catalog place within ${MAX_ROUTE_KM} km of ${waypointLetter(i - 1)}. Click the globe, or type coordinates such as ${from ? `${(from.lat_deg + (from.lat_deg > 0 ? -0.05 : 0.05)).toFixed(2)}, ${from.lon_deg.toFixed(2)}` : "26.08, 3.66"}.` }));
+      if (o.kind === "place" && o.color) ico.style.setProperty("--k", o.color);
+      const li = el("li", {
+        class: `gs-item trip-opt is-${o.kind}`, role: "option", id: `${listId}-${k}`, "aria-selected": "false",
+        "aria-disabled": o.disabled ? "true" : null,
+      }, ico, el("span", { class: "gs-text" }, el("span", { class: "gs-name", text: o.name }), o.meta ? el("span", { class: "gs-sub", text: o.meta }) : null));
+      li.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        choose(k);
+      });
+      return li;
+    };
+    const render = () => {
+      const q = input.value.trim();
+      const query = q === shown ? "" : q;
+      opts = stopSuggestions({
+        query, from: rows[nb] || null, fromLetter: waypointLetter(nb), sites: catalogSites(), places: mapPlaces(),
+        exclude: i === 0 ? [] : [rows[i + 1]], tap: coarse(),
+      });
+      sel = query ? opts.findIndex((o) => !o.disabled && o.kind !== "pick") : -1;
+      const lis = opts.map(optionEl);
+      if (!query && !opts.some((o) => o.kind !== "pick" && !o.disabled)) {
+        const from = rows[nb];
+        const eg = from ? `${(from.lat_deg + (from.lat_deg > 0 ? -0.05 : 0.05)).toFixed(2)}, ${from.lon_deg.toFixed(2)}` : "26.08, 3.66";
+        lis.push(el("li", { class: "gs-empty", text: `No catalog place in reach of ${waypointLetter(nb)}. ${verb === "tap" ? "Tap" : "Click"} the map, or type coordinates such as ${eg}.` }));
       }
       list.replaceChildren(...lis);
       list.hidden = false;
+      field.classList.add("open");
       input.setAttribute("aria-expanded", "true");
+      document.addEventListener("pointerdown", onDocDown, true);
+      place();
+      list.scrollTop = 0;
       highlight();
-    };
-    const highlight = () => {
-      list.querySelectorAll(".picker-item").forEach((li, k) => li.setAttribute("aria-selected", k === sel ? "true" : "false"));
-      const c = list.querySelector(`#${CSS.escape(`${listId}-${sel}`)}`);
-      if (c) {
-        c.scrollIntoView({ block: "nearest" });
-        input.setAttribute("aria-activedescendant", c.id);
-      }
     };
     const choose = (k) => {
       const o = opts[k];
       if (!o || o.disabled) return;
-      close();
       if (o.kind === "pick") {
-        input.value = p ? pointName(p) : "";
-        startPick(id, i, `${L}, ${what}`);
-        document.getElementById("map-block")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-        // With a mouse, the globe's "Search the Moon" box is ready too (its choice fills the row, pick.js).
-        if (window.matchMedia("(pointer: fine)").matches) document.getElementById("globe-search")?.focus({ preventScroll: true });
+        st.chooseOnMap();
+        input.value = shown;
+        input.blur();
+        revealMap();
         return;
       }
+      st.chose();
       input.value = pointName(o.p);
-      setRow(i, o.p);
+      setPoint(i, o.p);
+      focusNext();
     };
-    input.addEventListener("focus", open);
-    input.addEventListener("input", open);
-    input.addEventListener("blur", () => setTimeout(() => {
-      close();
-      if (document.activeElement !== input) input.value = p ? pointName(p) : "";
-    }, 150));
+    list.addEventListener("mousedown", (e) => e.preventDefault()); // the list's scrollbar keeps the focus in the field
+    input.addEventListener("focus", () => {
+      st.focus();
+      keepInView();
+      render();
+    });
+    input.addEventListener("input", () => {
+      st.typed();
+      render();
+    });
+    // A click in the focused field (after Esc or a press outside) opens the suggestions and arms the map again.
+    input.addEventListener("click", () => {
+      if (!list.hidden) return;
+      st.focus();
+      keepInView();
+      render();
+    });
+    input.addEventListener("blur", (e) => {
+      const to = e.relatedTarget;
+      setTimeout(() => {
+        if (!input.isConnected || document.activeElement === input) return;
+        // A press on the globe keeps the field's pick: that click sets the point.
+        st.blur(to ? !!to.closest?.("#map-block") : pointerOnMap());
+        input.value = shown;
+      }, 0);
+    });
     input.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowDown") { e.preventDefault(); if (list.hidden) open(); sel = Math.min(opts.length - 1, sel + 1); highlight(); }
-      else if (e.key === "ArrowUp") { e.preventDefault(); sel = Math.max(0, sel - 1); highlight(); }
-      else if (e.key === "Enter") {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
+        if (list.hidden) {
+          st.typed();
+          render();
+        }
+        const step = e.key === "ArrowDown" ? 1 : -1;
+        let k = sel;
+        for (let tries = 0; tries < opts.length; tries++) {
+          k = Math.max(0, Math.min(opts.length - 1, k + step));
+          if (!opts[k]?.disabled) break;
+        }
+        if (!opts[k]?.disabled) sel = k;
+        highlight();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (!list.hidden && sel >= 0) return choose(sel);
         const coord = parseLatLon(input.value);
-        if (coord && list.hidden) setRow(i, coord);
-        else if (sel >= 0) choose(sel);
-      } else if (e.key === "Escape" && !list.hidden) {
-        e.preventDefault();
-        e.stopPropagation();
-        close();
-        input.value = p ? pointName(p) : "";
+        if (coord) {
+          st.chose();
+          setPoint(i, coord);
+          focusNext();
+        }
+      } else if (e.key === "Escape") {
+        const wasOpen = !list.hidden;
+        if (st.escape()) {
+          e.preventDefault();
+          if (wasOpen) {
+            e.stopPropagation(); // the first Esc closes the list; the next one ends the map pick (pick.js)
+            input.value = shown;
+          }
+        }
       }
     });
-    const up = i >= 2 && p && rows[i - 2]
-      ? el("button", { type: "button", class: "icon-btn trip-up", title: `Move ${L} up`, "aria-label": `Move ${L} up`, text: "↑", onclick: () => moveUp(i) })
+    const upBtn = i >= 2 && p && rows[i - 1]
+      ? el("button", { type: "button", class: "icon-btn trip-up", title: `Move ${L} up`, "aria-label": `Move point ${L} up`, html: svgIcon("up"), onclick: () => up(i) })
       : null;
-    const rm = el("button", {
-      type: "button", class: "icon-btn trip-rm", title: p ? `Remove ${L}` : "Remove this row", "aria-label": p ? `Remove point ${L}` : "Remove this empty row", html: svgIcon("close"),
-      onclick: () => removeRow(i),
-    });
-    // The first row's ✕ with nothing else to remove: nothing to do.
-    if (i === 1 && rows.length === 1 && !p) rm.hidden = true;
-    return el("li", { class: "trip-row", "data-row": String(i) },
-      el("span", { class: `trip-mk${isEnd ? " end" : ""}`, "aria-hidden": "true", text: L }),
-      el("div", { class: "trip-field" }, input, list), up, rm);
+    // Like Google Maps: with only a start and an end there is nothing to remove (edit or swap them instead).
+    const rmBtn = n > 2
+      ? el("button", {
+        type: "button", class: "icon-btn trip-rm", title: p ? `Remove ${L}` : "Remove this stop", "aria-label": p ? `Remove point ${L}` : "Remove this empty stop",
+        html: svgIcon("close"), onclick: () => dropRow(i),
+      })
+      : null;
+    const mk = el("span", { class: `trip-mk mk-${role}`, "aria-hidden": "true", html: role === "end" ? svgIcon("pin") : "" });
+    // The row buttons in a column of their own, so the fields line up.
+    return el("li", { class: `trip-row is-${role}`, "data-row": String(i) }, mk, field, n > 2 ? el("span", { class: "trip-acts" }, upBtn, rmBtn) : null);
   }
 
   function syncPickMarks() {
@@ -370,25 +440,18 @@ export function buildTripPanel(s) {
   function renderModes() {
     const r = cur().route || {};
     const preset = r.preset in PRESETS ? r.preset : "custom";
-    const btn = (key, label, sub, tip) => el("button", {
-      type: "button", class: "trip-mode", "data-mode": key, "aria-pressed": String(preset === key), title: tip,
-      html: `${MODE_ICONS[key]}<span class="tm-text"><b></b><small></small></span>`,
+    const lim = (v, sl) => `${fmtNum(v)} m/s, slopes up to ${fmtNum(sl)}°`;
+    const tab = (key, name, tip) => el("button", {
+      type: "button", class: "trip-mode", "data-mode": key, "aria-pressed": String(preset === key), title: `${name}: ${tip}`,
       onclick: () => setMode(key),
-    });
-    const items = [
-      btn("viper", "VIPER-class", `${PRESETS.viper.speed_mps} m/s`, PRESETS.viper.note),
-      btn("lrv", "Apollo LRV", `${PRESETS.lrv.speed_mps} m/s`, PRESETS.lrv.note),
-      btn("custom", "Custom", preset === "custom" ? `${fmtNum(r.speed_mps)} m/s` : "your limits", "Your own speed and slope limits (Speed, slopes and stops below)"),
-    ];
-    const texts = [["VIPER-class", `${PRESETS.viper.speed_mps} m/s · ≤ ${PRESETS.viper.max_slope_deg}°`], ["Apollo LRV", `${PRESETS.lrv.speed_mps} m/s · ≤ ${PRESETS.lrv.max_slope_deg}°`],
-      ["Custom", preset === "custom" ? `${fmtNum(r.speed_mps)} m/s · ≤ ${fmtNum(r.max_slope_deg)}°` : "your limits"]];
-    items.forEach((b, k) => {
-      b.querySelector("b").textContent = texts[k][0];
-      b.querySelector("small").textContent = texts[k][1];
-    });
-    modesEl.replaceChildren(...items);
+    }, el("span", { class: "tm-ico", "aria-hidden": "true", html: svgIcon(MODE_ICON[key]) }), el("span", { class: "tm-name", text: name }));
+    modesEl.replaceChildren(
+      tab("viper", "VIPER-class", lim(PRESETS.viper.speed_mps, PRESETS.viper.max_slope_deg)),
+      tab("lrv", "Apollo LRV", lim(PRESETS.lrv.speed_mps, PRESETS.lrv.max_slope_deg)),
+      tab("custom", "Custom", preset === "custom" ? lim(r.speed_mps, r.max_slope_deg) : "your own speed and slope limits"),
+    );
     const p = PRESETS[preset];
-    noteEl.textContent = p ? p.note : "Custom rover: your own speed and slope limits.";
+    noteEl.textContent = p ? p.note : `Custom rover: ${lim(r.speed_mps, r.max_slope_deg)} (Speed, slopes and rest stops below).`;
   }
   function setMode(key) {
     const r = { ...cur().route };
@@ -538,25 +601,35 @@ export function buildTripPanel(s) {
     const t1 = s1.t_end_utc ? parseUtc(s1.t_end_utc) : NaN;
     const legs = r.leg_info || null;
     const arrive = Number.isFinite(t0) ? `Arrives ${formatUtc(t0 + total)}` : "Set a start time to see when the rover arrives.";
-    const parts = [
-      el("div", { class: "trip-sum-main" },
-        el("span", { class: "trip-mode-ico", "aria-hidden": "true", html: MODE_ICONS[s1.route?.preset in PRESETS ? s1.route.preset : "custom"] }),
-        el("b", { class: "trip-time", text: formatDuration(total) }),
-        el("span", { class: "trip-dist", text: `(${km(st.length_m)})` })),
+    // Google Maps' traffic colours: the route time against a straight flat drive through the same points (delay.js).
+    const delay = tripDelay(r, routeRequest(s1).stops, total);
+    const level = delay.level || "green";
+    const ratioTip = Number.isFinite(delay.ratio)
+      ? `${delay.ratio.toFixed(2)} × the time of a straight drive on flat ground (green below ${DELAY_LEVELS.orange}, orange below ${DELAY_LEVELS.red}, red from ${DELAY_LEVELS.red})`
+      : "";
+    const main = el("div", { class: "trip-card-main" },
+      el("div", { class: "trip-card-why", text: `Fastest route within the ${fmtNum(r.rover.max_slope_deg)}° slope limit` }),
       el("div", { class: "trip-sum-sub", text: arrive }),
+      el("div", { class: `trip-delay lv-${level}`, text: delayText(delay), title: ratioTip || null }),
       el("div", { class: "trip-sum-fine", text: [
         `${st.mean_speed_mps < 1 ? st.mean_speed_mps.toFixed(2) : st.mean_speed_mps.toFixed(1)} m/s on average`,
         `+${Math.round(st.climb_m)} / −${Math.round(st.descent_m)} m`,
         `steepest ${st.max_along_deg.toFixed(1)}°`,
         track.timeline.stops ? `${track.timeline.stops} rest stop${track.timeline.stops > 1 ? "s" : ""} (${formatDuration(rest)})` : "",
-      ].filter(Boolean).join(" · ") }),
-    ];
+      ].filter(Boolean).join(" · ") }));
     if (legs) {
-      parts.push(el("ol", { class: "trip-legs" }, ...legs.map((l, j) => el("li", {},
-        el("span", { class: "tl-pts", text: `${waypointLetter(j)} → ${waypointLetter(j + 1)}` }),
-        el("span", { text: `${km(l.length_m)} · ${formatDuration(l.drive_s * 1000)}` })))));
+      // Each leg by the names of its ends (their letters are on the globe's stop dots).
+      const w = r.waypoints || [];
+      main.append(el("ol", { class: "trip-legs" }, ...legs.map((l, j) => el("li", { title: `${waypointLetter(j)} → ${waypointLetter(j + 1)}` },
+        el("span", { class: "tl-pts", text: `${pointName(w[j])} → ${pointName(w[j + 1])}` }),
+        el("span", { class: "tl-len", text: `${km(l.length_m)} · ${formatDuration(l.drive_s * 1000)}` })))));
     }
-    sumEl.replaceChildren(...parts);
+    sumEl.replaceChildren(el("div", { class: "trip-card", "data-level": level },
+      el("span", { class: "trip-card-ico", "aria-hidden": "true", html: modeIcon(s1.route?.preset) }),
+      main,
+      el("div", { class: "trip-card-side" },
+        el("b", { class: `trip-time lv-${level}`, text: formatDuration(total), title: ratioTip || null }),
+        el("span", { class: "trip-dist", text: km(st.length_m) }))));
     sumEl.classList.remove("stale");
     sumEl.hidden = false;
     // An end time before the arrival cuts the drive short.
@@ -660,20 +733,26 @@ export function buildTripPanel(s) {
     else planTimer = setTimeout(plan, 350);
   }
 
-  // Globe picks fill the armed row.
+  // Globe picks fill the armed row (row 0 the start, -1 the end: a dragged pin); the field shows the new point.
   const offPick = registerRouteCard(id, {
     onPoint: (row, lat, lon) => {
       setActive(id);
-      setRow(row, { lat_deg: Math.round(lat * 1e4) / 1e4, lon_deg: Math.round(lon * 1e4) / 1e4 });
+      setPoint(row, { lat_deg: round4(lat), lon_deg: round4(lon) });
     },
   });
-  const offPickMarks = onPickChange(syncPickMarks);
+  // A pick that ended (used, cancelled, a field let go of it) hands the map back to the first empty field, if any.
+  const offPickMarks = onPickChange((pk) => {
+    syncPickMarks();
+    if (!pk) queueMicrotask(arm);
+  });
   panels.get(id)?.dispose();
   panels.set(id, {
     sec,
     refresh,
     live,
+    arm,
     dispose() {
+      disposed = true;
       clearTimeout(planTimer);
       seq++;
       offPick();
@@ -683,8 +762,6 @@ export function buildTripPanel(s) {
   refresh(true);
   return sec;
 }
-
-const round4 = (x) => Math.round(x * 1e4) / 1e4;
 
 /** A trip's path for the globe: at most ~600 points [{lat, lon}]. */
 function globePoints(r) {
@@ -734,6 +811,11 @@ subscribe((kind, detail = {}) => {
       fitted.set(store.activeId, e.key);
       fitTrip(globePoints(e.r));
     }
+    // Another card selected: a trip's map pick ends (globe clicks are ordinary again); a selected trip with an empty
+    // field takes the map.
+    const pk = pickState();
+    if (pk && pk.id !== store.activeId) cancelPick();
+    panels.get(store.activeId)?.arm();
   }
 });
 

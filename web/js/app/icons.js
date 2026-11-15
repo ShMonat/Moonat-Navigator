@@ -35,6 +35,17 @@ const PATHS = {
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
   play: '<path d="M8 5.5v13l10-6.5z" fill="currentColor"/>',
   pause: '<path d="M8.5 5.5v13M15.5 5.5v13"/>',
+  // Travel modes of a rover trip: a VIPER-class rover (body, mast, three wheels), the Apollo LRV (open chassis, seats,
+  // dish, two wheels) and custom limits (sliders).
+  viper: '<rect x="4.5" y="9" width="14" height="5.5" rx="1.4"/><path d="M15.5 9V4.5M13.6 4.3h3.8"/><circle cx="7" cy="17.6" r="1.9"/><circle cx="11.5" cy="17.6" r="1.9"/><circle cx="16" cy="17.6" r="1.9"/>',
+  lrv: '<path d="M2.5 13.5h19M8 13.5V9.5h3M13.5 13.5V9.5h3M19 9.2a2.6 2.6 0 0 0-3.6 0"/><circle cx="6" cy="16.6" r="2.4"/><circle cx="18" cy="16.6" r="2.4"/>',
+  sliders: '<path d="M4 6h3M11 6h9M4 12h9M17 12h3M4 18h2M10 18h10"/><circle cx="9" cy="6" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="8" cy="18" r="2"/>',
+  // Two opposite arrows: swap a trip's start and end.
+  swap: '<path d="M8 19V5M4.5 8.5 8 5l3.5 3.5M16 5v14M12.5 15.5 16 19l3.5-3.5"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  up: '<path d="M12 19V5M6.5 10.5 12 5l5.5 5.5"/>',
+  // A house: the home base.
+  home: '<path d="M4 11.5 12 4.5l8 7"/><path d="M6.5 10v9.5h11V10"/><path d="M10 19.5v-5h4v5"/>',
 };
 
 /** Names of the interface icons. */

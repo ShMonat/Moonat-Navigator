@@ -470,9 +470,13 @@ tripKey(points, rover), tripProblems(points) -> [message]      // a 2-point trip
   wins.
 - **Globe:** `globe_route.js` draws each trip's path (`showRoute`), its stops as lettered dots (`setMarker` with `text`:
   B, C …; the start and the end are the scenario's pins), the moving rover dot (`setMarker` with `ahead`), and fits the
-  globe to a trip when it is planned or selected (`fitTo`), all through `web/js/app/globe_api.js` (C8b). A row waiting
-  for "Choose on the globe" (pin icon) takes the next globe click or the next place chosen in "Search the Moon" (`pick.js`
-  consumeMapClick, called by map.js and places.js).
+  globe to a trip when it is planned or selected (`fitTo`), all through `web/js/app/globe_api.js` (C8b). The selected
+  trip's first empty point field (by default, from the moment Trip is on, until Cancel or Esc; `trip_edit.js` autoArm),
+  a point field that has the focus, or one that chose "Choose on the map", takes the next globe click (the catalog marker's own
+  coordinates when the click lands on one) or the next place chosen in "Search the Moon" (`pick.js` consumeMapClick,
+  called first by map.js and places.js, so that click adds no place and removes no pin). A trip's start and end pins
+  can be dragged (`pick.js` dropTripPoint). On wide screens the globe is pinned at the top of the inputs column while a
+  point is picked.
 - **Terrain:** one Moon Trek LOLA grid (C9 layers and projection) covering both points plus max(3 km, 30 %) of margin, in
   the stereographic plane at the midpoint; ≤ 1001² px (20 m south of 85°S, 30 m poleward of 75°, 118 m elsewhere;
   coarser cells for long polar routes), and at least the C9 near-field extent (401 px). Plus a 401² mid-field grid out to
@@ -488,10 +492,17 @@ tripKey(points, rover), tripProblems(points) -> [message]      // a 2-point trip
 - **Runtime:** a module Web Worker fetches the terrain and plans; the horizons are spread over up to 4 short-lived
   workers. 2–7 s in the browser for 6–20 km routes; 0.9–6 MB downloaded (including C5 tiles on a first visit).
 - **App wiring:** `web/js/rover/app.js` `routeCore(s)` (called by the app's compute for complete trips, `isTrip`), the
-  trip rows of a scenario card `ui.js` (the "Trip" toggle next to the place; rows B, C … set by search, typed
-  coordinates or "Choose on the globe" `pick.js`; travel modes = presets; summary, live position and ETA while the
-  timelapse plays, `tripTime(offsetMs)` from main.js), the sky ride `sky_ride.js` (sky, skyline and ±8 km ground where
-  the rover is).
+  trip block of a scenario card `ui.js`, laid out like Google Maps' directions (the "Trip" toggle next to the place;
+  travel modes = presets as icon tabs; stacked point fields for the start, the stops and the end, each set by search,
+  typed coordinates or the map, with swap and "Add stop" (a stop before the end), editing logic in `trip_edit.js`; the
+  route card; live position and ETA while the timelapse plays, `tripTime(offsetMs)` from main.js), the sky ride
+  `sky_ride.js` (sky, skyline and ±8 km ground where the rover is).
+- **Traffic colour (added 2026-11-15, trip-ui; thresholds pending Shay's review):** `delay.js` `tripDelay(route, stops,
+  arrivalMs)`: ratio = the route's time (drive + rest stops) / the time of the same rover on flat ground along the great
+  circles between consecutive waypoints (level speed, `speedFactor(0)`; the same rest-stop rule), so a straight flat
+  route scores 1.0 and both detours and uphill slowdowns raise it. The route card colours the duration with
+  `DELAY_LEVELS` = { orange: 1.2, red: 1.5 } (green below 1.2, orange from 1.2 to below 1.5, red from 1.5) and always
+  says it in words: "+14 h vs. a straight drive · route 1.6× the straight line (21.0 km)".
 
 ## C11 `suggest-dates` (producer: `suggest`; consumer: `web-app`) — **implemented**
 Suggested mission dates for one site: the best windows for solar power, direct-to-Earth contact or both, and special

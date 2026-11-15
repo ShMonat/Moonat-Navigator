@@ -1,7 +1,8 @@
 /* AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team. */
-/* Rover trips (web/js/rover/ui.js): the Trip toggle next to the place, the trip points (A, B, C …), the travel modes,
-   the route summary and the live position, the route map and profiles and the globe pick banner (the sky's
-   Driver's view is in the timelapse bar's camera group, app.css). The path, the stops and the rover dot on the globe are the globe's own (globe.css). */
+/* Rover trips (web/js/rover/ui.js), in the look of Google Maps' directions panel: the Trip toggle next to the place,
+   the travel mode tabs, the stacked point fields and their suggestions, the route card and the live position, the
+   route map and profiles and the map pick banner (the sky's Driver's view is in the timelapse bar's camera group,
+   app.css). The path, the stops and the rover dot on the globe are the globe's own (globe.css). */
 
 /* The Trip toggle in a card's head, next to the place's name. */
 .trip-toggle {
@@ -12,61 +13,92 @@
 .trip-toggle:hover { color: var(--text); border-color: var(--accent); background: var(--accent-soft); }
 .trip-toggle[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 
-/* The trip section of a card. */
+/* The trip section of a card, laid out like Google Maps' directions panel. */
 .trip { margin: 0 0 4px; padding: 8px 0 2px; border-top: 1px solid var(--border); }
-.trip-stops { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.trip-row { position: relative; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto auto; align-items: center; gap: 6px; }
-/* The dotted line that joins the points, like a route list. */
-.trip-row:has(+ .trip-row)::before {
-  content: ""; position: absolute; left: 10px; top: 22px; bottom: -10px; border-left: 2px dotted var(--border-strong);
-}
-.trip-mk {
-  position: relative; z-index: 1; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
-  background: #4f5f86; color: #fff; font-size: 11px; font-weight: 700; box-shadow: 0 0 0 2px var(--surface);
-}
-.trip-mk.start { background: #1a8f5a; }
-.trip-mk.end { background: #c0392b; }
-.trip-row.is-start { min-height: 34px; }
-.trip-start { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
-.trip-start b { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.trip-start small { font-size: 11.5px; color: var(--muted); }
-.trip-field { position: relative; min-width: 0; }
-.trip-input {
-  width: 100%; min-width: 0; padding: 6px 9px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2);
-  font-size: 13.5px;
-}
-.trip-input:focus { border-color: var(--accent); outline: none; }
-.trip-row.picking .trip-input { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
-.trip-row .icon-btn { width: 28px; height: 28px; border-color: transparent; font-size: 13px; }
-.trip-row .icon-btn:hover { border-color: var(--border); }
-.trip-row .trip-rev { grid-column: 4; font-size: 15px; }
-.trip-row.is-start .trip-start { grid-column: 2 / 4; }
-.trip-list .trip-opt.is-pick .pi-name { color: var(--accent); }
-.trip-list .pi-ico { margin-right: 6px; }
-.trip-list .trip-opt[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
-.trip-add { padding-left: 28px; }
-.trip-add-btn {
-  border: 0; background: none; padding: 3px 2px; color: var(--accent); font-size: 13px; font-weight: 600;
-}
-.trip-add-btn:hover { text-decoration: underline; text-underline-offset: 3px; }
 
-/* Travel modes: the rover presets, like Google Maps' car, walk and transit. */
-.trip-modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin-top: 10px; padding: 3px; border-radius: 10px; background: var(--surface-2); }
+/* Travel modes: the rover presets as icon tabs in one row, like Google Maps' car, transit and walk. */
+.trip-modes { display: flex; gap: 2px; margin: 2px 0 0; }
 .trip-mode {
-  display: flex; align-items: center; gap: 6px; min-width: 0; padding: 5px 6px; border: 0; border-radius: 8px; background: transparent;
-  color: var(--text-2); text-align: left;
+  flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 2px 2px 4px;
+  border: 0; border-radius: 10px; background: transparent; color: var(--text-2); font-size: 12px; font-weight: 600;
 }
-.trip-mode svg { width: 24px; height: 24px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-.trip-mode svg .k { fill: var(--surface-2); }
-.trip-mode .tm-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
-.trip-mode b { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.trip-mode small { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.trip-mode:hover { color: var(--text); }
-.trip-mode[aria-pressed="true"] { background: var(--surface); color: var(--accent); box-shadow: 0 0 0 1px var(--border-strong), var(--shadow); }
-.trip-mode[aria-pressed="true"] svg .k { fill: var(--surface); }
-.trip-mode[aria-pressed="true"] b { color: var(--text); }
-.trip-note { margin: 5px 2px 0; font-size: 11.5px; line-height: 1.35; color: var(--muted); }
-.trip-opts { margin-top: 6px; font-size: 12.5px; }
+.trip-mode .tm-ico { display: grid; place-items: center; width: 54px; height: 30px; border-radius: 15px; transition: background 0.15s; }
+.trip-mode .tm-ico .ico-svg { width: 22px; height: 22px; stroke-width: 1.6; }
+.trip-mode .tm-name { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trip-mode:hover .tm-ico { background: var(--surface-3); }
+.trip-mode[aria-pressed="true"] { color: var(--text); }
+.trip-mode[aria-pressed="true"] .tm-ico { background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent); }
+.trip-note { margin: 4px 2px 10px; font-size: 11.5px; line-height: 1.35; color: var(--muted); text-align: center; }
+
+/* The points: stacked fields with the markers in a column on the left, joined by a dotted line, the swap button on the
+   right. */
+.trip-route { display: flex; align-items: center; gap: 2px; }
+.trip-stops { flex: 1; min-width: 0; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.trip-row { position: relative; display: flex; align-items: center; gap: 6px; }
+.trip-row:not(:last-child)::after {
+  content: ""; position: absolute; left: 9px; top: calc(50% + 7px); height: calc(100% - 6px); border-left: 2px dotted var(--muted);
+  pointer-events: none;
+}
+.trip-mk { position: relative; z-index: 1; flex: none; display: grid; place-items: center; width: 20px; height: 20px; }
+.trip-mk.mk-start::before {
+  content: ""; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--text-2); background: var(--surface);
+}
+.trip-mk.mk-stop::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--text-2); }
+.trip-mk.mk-end { color: var(--c, var(--site-pin)); }
+.trip-mk.mk-end .ico-svg { width: 20px; height: 20px; overflow: visible; }
+.trip-mk.mk-end .ico-svg path { fill: currentColor; }
+.trip-mk.mk-end .ico-svg circle { fill: var(--surface); stroke: none; }
+.trip-field { position: relative; flex: 1; min-width: 0; }
+.trip-input {
+  width: 100%; min-width: 0; height: 36px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--text); font-size: 14px; text-overflow: ellipsis;
+}
+.trip-input::placeholder { color: var(--muted); opacity: 1; }
+.trip-input:focus, .trip-field.open .trip-input { border-color: var(--accent); outline: none; box-shadow: 0 0 0 1px var(--accent); }
+/* The row the next click on the map sets. */
+.trip-row.picking .trip-input { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 0 0 4px var(--accent-soft); }
+.trip-acts { flex: none; display: flex; justify-content: flex-end; width: 60px; }
+.trip-row .icon-btn { flex: none; width: 30px; height: 30px; border-color: transparent; color: var(--muted); }
+.trip-row .icon-btn:hover { color: var(--text); border-color: var(--border); }
+.trip-swap { flex: none; width: 34px; height: 34px; border-radius: 50%; border-color: transparent; color: var(--text-2); }
+.trip-swap .ico-svg { width: 19px; height: 19px; }
+.trip-swap:hover:not(:disabled) { background: var(--surface-3); color: var(--text); }
+.trip-swap:disabled { opacity: 0.35; cursor: default; }
+.trip-add { margin-top: 6px; }
+.trip-add:empty { display: none; }
+.trip-add-btn {
+  display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 4px 6px 4px 0; color: var(--text-2);
+  font-size: 13.5px; font-weight: 600; border-radius: 8px;
+}
+.trip-add-ico {
+  display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid currentColor; font-size: 12px;
+}
+.trip-add-ico .ico-svg { stroke-width: 2.6; }
+.trip-add-btn:hover { color: var(--accent); }
+
+/* A field's suggestions: under the field (or above it when there is more room there, never over the globe), in the
+   style of the globe's "Search the Moon" list (globe.css .gs-*). */
+.trip-list {
+  position: absolute; z-index: 5; left: 0; right: 0; top: calc(100% + 4px); margin: 0; padding: 6px 0; list-style: none;
+  max-height: 360px; overflow: auto; overscroll-behavior: contain; background: var(--gs-bg); color: var(--gs-ink);
+  border: 1px solid var(--gs-line); border-radius: 12px; box-shadow: var(--gs-shadow);
+}
+.trip-list.up { top: auto; bottom: calc(100% + 4px); }
+.trip-list .gs-item { min-height: 44px; padding: 5px 12px; gap: 10px; }
+.trip-list .gs-ico { width: 28px; height: 28px; }
+.trip-list .gs-name { font-size: 13.5px; }
+.trip-list .gs-sub { font-size: 11.5px; }
+.trip-list .trip-opt[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+.trip-list .trip-opt[aria-disabled="true"]:hover { background: transparent; }
+.trip-ico.is-pick, .trip-ico.is-coord { background: var(--accent-soft); color: var(--accent); }
+.trip-ico.is-pick::after, .trip-ico.is-coord::after { display: none; }
+.trip-list .trip-ico.is-pick svg, .trip-list .trip-ico.is-coord svg { stroke: currentColor; width: 17px; height: 17px; }
+.trip-list .trip-ico.k-home svg { width: 16px; height: 16px; }
+.trip-opt.is-pick .gs-name { color: var(--accent); }
+.trip-list .gs-empty { white-space: normal; line-height: 1.4; }
+
+/* Speed, slopes and rest stops. */
+.trip-opts { margin-top: 8px; font-size: 12.5px; }
 .trip-opts summary, .trip-details summary { cursor: pointer; color: var(--text-2); font-size: 12.5px; padding: 2px 0; }
 .trip-opts summary:hover, .trip-details summary:hover { color: var(--text); }
 .trip-opts .trip-rover { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 6px; }
@@ -76,7 +108,7 @@
 }
 .trip-rest input:focus { border-color: var(--accent); outline: none; }
 
-/* Planning progress, the summary and the live line. */
+/* Planning progress, the route card and the live line. */
 .trip-plan { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; }
 .trip-bar { height: 4px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
 .trip-bar-fill { height: 100%; width: 0; background: var(--accent); transition: width 0.25s; }
@@ -84,16 +116,29 @@
 .trip-msg { margin-top: 8px; }
 .trip-sum { margin-top: 10px; }
 .trip-sum.stale { opacity: 0.5; }
-.trip-sum-main { display: flex; align-items: center; gap: 8px; }
-.trip-mode-ico svg { display: block; width: 26px; height: 26px; fill: none; stroke: var(--text-2); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-.trip-mode-ico svg .k { fill: var(--surface); }
-.trip-time { font-size: 18px; font-weight: 700; color: var(--ok, #6fd69a); font-variant-numeric: tabular-nums; }
-.trip-dist { font-size: 14px; color: var(--text-2); font-variant-numeric: tabular-nums; }
-.trip-sum-sub { margin-top: 2px; font-size: 13px; color: var(--text); }
-.trip-sum-fine { margin-top: 2px; font-size: 12px; color: var(--muted); }
-.trip-legs { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 2px; font-size: 12px; color: var(--text-2); font-variant-numeric: tabular-nums; }
-.trip-legs li { display: flex; gap: 10px; }
-.trip-legs .tl-pts { min-width: 3.6em; font-weight: 650; color: var(--text); }
+/* The route card: the travel mode's icon, why this route and when it arrives, and on the right the duration (coloured
+   like Google Maps' traffic by the delay against a straight flat drive, delay.js) and the distance. */
+.trip-card {
+  display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 2px 10px; align-items: start; padding: 10px 12px 10px 10px;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); box-shadow: inset 3px 0 0 var(--accent);
+}
+.trip-card-ico { padding-top: 1px; color: var(--text-2); }
+.trip-card-ico .ico-svg { display: block; width: 24px; height: 24px; stroke-width: 1.6; }
+.trip-card-main { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.trip-card-why { font-size: 13.5px; font-weight: 600; color: var(--text); }
+.trip-card-side { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; text-align: right; }
+.trip-time { font-size: 17px; font-weight: 700; line-height: 1.2; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.trip-dist { font-size: 13px; color: var(--text-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.lv-green { color: var(--ok, #6fd69a); }
+.lv-orange { color: var(--warn); }
+.lv-red { color: var(--danger); }
+.trip-delay { font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.trip-sum-sub { font-size: 12.5px; color: var(--text-2); }
+.trip-sum-fine { font-size: 11.5px; color: var(--muted); }
+.trip-legs { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 1px; font-size: 12px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.trip-legs li { display: flex; gap: 8px; min-width: 0; }
+.trip-legs .tl-pts { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.trip-legs .tl-len { flex: none; }
 .trip-live {
   display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 4px; margin: 8px 0 0; padding: 6px 9px; border-radius: 8px;
   background: var(--accent-soft); font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums;
@@ -127,29 +172,44 @@
 .route-profile .pf-limit { stroke: #c0392b; stroke-width: 1; stroke-dasharray: 4 3; opacity: 0.8; }
 .route-profile .pf-line { fill: none; stroke: var(--c); stroke-width: 1.8; stroke-linejoin: round; }
 
-/* Choosing a point on the globe. */
+/* Choosing a point on the map: a slim banner on the globe, under its search box and preset buttons (which stay usable). */
 .map-block { position: relative; }
-/* Under the globe's search box and its preset buttons, which stay usable while a point is being chosen. */
 .rover-pick-banner {
-  position: absolute; z-index: 5; left: 50%; top: 102px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px;
-  max-width: calc(100% - 24px); padding: 7px 8px 7px 12px; border-radius: 10px; background: var(--surface); color: var(--text);
-  border: 1px solid var(--accent); box-shadow: var(--shadow, 0 4px 18px rgba(0, 0, 0, 0.35)); font-size: 13px; font-weight: 600;
+  position: absolute; z-index: 5; left: 50%; top: 102px; transform: translateX(-50%); display: flex; align-items: center; gap: 4px;
+  max-width: calc(100% - 24px); padding: 3px 3px 3px 14px; border-radius: 999px; background: var(--gs-bg); color: var(--gs-ink);
+  border: 1px solid var(--accent); box-shadow: var(--gs-shadow); font-size: 13px; font-weight: 600; white-space: nowrap;
 }
+.rover-pick-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.rover-pick-cancel {
+  flex: none; border: 0; border-radius: 999px; background: transparent; color: var(--accent); padding: 5px 12px; font-size: 13px; font-weight: 650;
+}
+.rover-pick-cancel:hover { background: var(--gs-hover); }
 .rover-picking .map { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 12px; }
-
-
+/* While armed, a click anywhere on the globe (a marker or a pin included) sets the point: a crosshair everywhere. */
+.rover-picking .globe-stage, .rover-picking .globe-site, .rover-picking .globe-pin:not(.dragging) { cursor: crosshair; }
+/* Wide screens, where the inputs column scrolls on its own: the globe stays pinned at the top of the column while a trip
+   point is picked, and after it while the route is drawn (pick.js "map-pinned"); the cards scroll under it. */
+@media (min-width: 1100px) {
+  .layout > .inputs > .map-block.map-pinned {
+    position: sticky; top: 0; z-index: 6; padding-bottom: 8px; background: var(--bg);
+    box-shadow: 0 12px 14px -14px rgba(0, 0, 0, 0.7);
+  }
+}
 
 .xaxis-note { margin: 0; font-size: 12px; color: var(--muted); }
 
 @media (max-width: 420px) {
-  .trip-mode { flex-direction: column; align-items: flex-start; gap: 2px; padding: 5px; }
-  .trip-mode svg { width: 20px; height: 20px; }
+  .trip-mode .tm-ico { width: 46px; }
   .trip-opts .trip-rover { grid-template-columns: 1fr 1fr; }
 }
 @media (pointer: coarse) {
   .trip-toggle { min-height: 40px; }
-  .trip-input { min-height: 40px; }
-  .trip-row .icon-btn { width: 40px; height: 40px; }
-  .trip-mode { min-height: 44px; }
+  .trip-input { height: 44px; font-size: 16px; }
+  .trip-row .icon-btn { width: 34px; height: 40px; }
+  .trip-acts { width: 68px; }
+  .trip-swap { width: 40px; height: 40px; }
+  .trip-mode { min-height: 48px; }
   .trip-add-btn { min-height: 40px; }
+  .trip-list .gs-item { min-height: 48px; }
+  .rover-pick-cancel { min-height: 36px; }
 }

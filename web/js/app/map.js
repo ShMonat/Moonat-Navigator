@@ -10,7 +10,7 @@ import { createGlobe } from "../globe/globe.js";
 import { store, subscribe, setActive } from "./store.js";
 import { colorHex } from "./state.js";
 import { catalogSites, siteById } from "./catalog.js";
-import { consumeMapClick } from "../rover/pick.js";
+import { consumeMapClick, dropTripPoint } from "../rover/pick.js";
 import { initPlaces, selectSite, dropPin, removePlace, movePlace, showPlaceCard } from "./places.js";
 import { attachGlobe } from "./globe_api.js";
 import { initMapLayers } from "./map_layers.js";
@@ -43,7 +43,8 @@ export async function initMap(opts = {}) {
       if (pin.route) setActive(pin.id);
       else removePlace(pin.id);
     },
-    onPinDrag: (pin, lat, lon) => movePlace(pin.id, lat, lon),
+    // A dropped pin moves; a trip's start or end pin moves that point of the trip (like a route's ends in Google Maps).
+    onPinDrag: (pin, lat, lon) => (pin.route ? dropTripPoint(pin.id, pin.end ? -1 : 0, lat, lon) : movePlace(pin.id, lat, lon)),
   });
   initPlaces(globe);
   initMapLayers(globe);
@@ -102,17 +103,17 @@ function drawScenarios(fit) {
       lon: s.lon_deg,
       color,
       label,
-      sub: s.route ? "rover start" : custom ? "click to remove · drag to move" : "click to remove",
+      sub: s.route ? "rover start · drag to move" : custom ? "click to remove · drag to move" : "click to remove",
       active: multi && s.id === store.activeId,
-      draggable: custom,
+      draggable: custom || !!s.route,
       glyph: site?.kind,
       data: { id: s.id, lat: s.lat_deg, lon: s.lon_deg, route: !!s.route },
     });
     // Rover traverse: a second pin at the end point.
     if (s.route && Number.isFinite(s.route.end_lat_deg) && Number.isFinite(s.route.end_lon_deg)) {
       pins.push({
-        lat: s.route.end_lat_deg, lon: s.route.end_lon_deg, color, label: `${label} (end)`, sub: "rover end", active: false,
-        draggable: false, data: { id: s.id, lat: s.route.end_lat_deg, lon: s.route.end_lon_deg, route: true },
+        lat: s.route.end_lat_deg, lon: s.route.end_lon_deg, color, label: `${label} (end)`, sub: "rover end · drag to move", active: false,
+        draggable: true, data: { id: s.id, lat: s.route.end_lat_deg, lon: s.route.end_lon_deg, route: true, end: true },
       });
     }
   });
