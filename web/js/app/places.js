@@ -17,6 +17,7 @@ import { applySite, clearAll } from "./scenarios_ui.js";
 import { placeResults, siteSubtitle, fmtSigned, fmtHemi, KIND_ONE } from "./place_search.js";
 import { HOUSE_PATH } from "../globe/globe.js";
 import { consumeMapClick } from "../rover/pick.js";
+import { icon as svgIcon } from "./icons.js";
 
 /** Most places the map selects at once (one per palette colour). "+ Add location" in the cards has no limit. */
 export const MAX_PLACES = PALETTE.dark.length;
@@ -249,7 +250,7 @@ function renderCard() {
   const kind = site?.kind || "pin";
   const ico = el("span", { class: `gplace-ico k-${kind}${s ? " sel" : ""}`, "aria-hidden": "true", html: kind === "home" ? houseSvg() : "" });
   if (s) ico.style.setProperty("--c", colorHex(s.color, store.theme));
-  const close = el("button", { type: "button", class: "gplace-close", "aria-label": "Close the place card", title: "Close", text: "✕" });
+  const close = el("button", { type: "button", class: "gplace-close", "aria-label": "Close the place card", title: "Close", html: svgIcon("close") });
   close.addEventListener("click", closePlaceCard);
   const act = el("button", { type: "button", class: `gplace-btn ${s ? "gplace-remove" : "gplace-add"}`, text: s ? "Remove" : "Add place" });
   act.addEventListener("click", () => {
@@ -291,7 +292,7 @@ function buildSearch() {
     enterkeyhint: "go",
   });
   const icon = el("span", { class: "gsearch-ico", "aria-hidden": "true", html: '<svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.2"/><path d="M15.2 15.2 20 20"/></svg>' });
-  const clear = el("button", { type: "button", class: "gsearch-clear", "aria-label": "Clear the search", title: "Clear", text: "✕", hidden: true });
+  const clear = el("button", { type: "button", class: "gsearch-clear", "aria-label": "Clear the search", title: "Clear", html: svgIcon("close"), hidden: true });
   const list = el("ul", { class: "gsearch-list", id, role: "listbox", "aria-label": "Places", hidden: true, tabindex: "-1" });
   const wrap = el("div", { class: "gsearch", role: "search" }, el("div", { class: "gsearch-box" }, icon, input, clear), list);
 

@@ -1,18 +1,21 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
 // The sky panel: one sky view per scenario in a grid, the timelapse bar under it (a shared time slider: time since each
-// scenario's start, so missions are synchronised; play/pause with a speed selector; "🎯 Track", which keeps the
-// selected body framed in every view while the time runs), and the body every view is aimed at (the page's
-// "☀ Sun | 🌍 Earth" switch, main.js). Each view's card has Focus, Full screen and a "⋯" menu of the rarely used view
-// options (Close-up, Constellations, Exposure). Views are created lazily, when they scroll into view.
+// scenario's start, so missions are synchronised; play/pause with a speed selector; the camera group: "Follow Sun" /
+// "Follow Earth", which keeps the selected body framed in every view while the time runs, and, with a rover trip on
+// screen, "Driver's view", which faces the way the rover drives), and the body every view is aimed at (the page's
+// Sun | Earth switch, main.js). The panel sits in the page's stage, which fills the window (app.css .sky-stage). Each
+// view's card has a "⋯" menu of the rarely used view options (Close-up, Constellations, Exposure, Numbers) and a full
+// screen button. Views are created lazily, when they scroll into view.
 
 import { formatDuration, formatUtc } from "./state.js";
+import { icon } from "./icons.js";
 import { horizonElAt } from "./derive.js";
 import { bodyLine, compassPair, earthNeverRises } from "../sky/words.js";
 import { stateAt } from "./physics_adapter.js";
 import { makeSkyView, terrainPatchUrl, skyPatch } from "./sky_adapter.js";
 import { terrainStatusText } from "./terrain_live.js";
 import { bindPinchZoom, bindAxisLock } from "./gestures.js";
-import { rideAt, rideGround, rideNote, rideCamera, rideTerrain, addRideControls } from "../rover/sky_ride.js";
+import { rideAt, rideGround, rideNote, rideCamera, rideTerrain } from "../rover/sky_ride.js";
 import { autoSpeed } from "./playback.js";
 
 const $ = (id) => document.getElementById(id);
@@ -105,16 +108,17 @@ export function initSky({ onTime } = {}) {
   });
   $("btn-play").addEventListener("click", () => (playing ? stop() : play()));
   $("sky-speed").addEventListener("change", () => (speedTouched = true));
-  $("btn-track").addEventListener("click", onTrackButton);
-  syncTrackBtn();
-  initFocusKeys();
+  $("btn-follow").addEventListener("click", () => pressCamera("body"));
+  $("btn-driver").addEventListener("click", () => pressCamera("ahead"));
+  syncCamGroup();
+  initFullKeys();
   initOptionMenus();
 }
 
 /**
  * Aim every view at a body ("sun" | "earth"), now and for views created later. aim = false only records the body
- * (a story or a link about to load new views, which aim themselves when they are built). While Track is on, the views
- * follow the new body (a pause made by a drag ends); a rover view looking ahead keeps looking ahead.
+ * (a story or a link about to load new views, which aim themselves when they are built). While Follow is on, the views
+ * follow the new body (a pause made by a drag ends); a rover view in the driver's view keeps facing the way ahead.
  */
 export function setSkyBody(body, { aim = true } = {}) {
   aimBody = body === "sun" ? "sun" : "earth";
@@ -127,24 +131,24 @@ export function setSkyBody(body, { aim = true } = {}) {
       } else if (!(trackMode === "ahead" && rec.it.route && lookAheadFn)) lookOne(rec, aimBody);
     }
   }
-  syncTrackBtn();
+  syncCamGroup();
 }
 
 // ---------------------------------------------------------------------------------------------
-// Track: every view follows the body of the Sun | Earth switch while the time changes (C8 extra setTrack), or, in a
-// rover traverse, the direction of travel ("ahead": the route card turns it on with setTrackMode and gives the
-// direction with setLookAheadSource). The last one chosen wins, and the "🎯 Track" button shows which one is on. A drag
-// in a view pauses tracking there until the button is pressed again.
+// The camera group of the timelapse bar: "Follow Sun" / "Follow Earth" (track mode "body": every view follows the body
+// of the Sun | Earth switch while the time changes, C8 extra setTrack) or, with a rover trip on screen, "Driver's
+// view" (track mode "ahead": trip views face the direction of travel, given by setLookAheadSource). One mode at a
+// time: the last one chosen wins, and pressing the one that is on turns it off (free look). A drag in a view pauses
+// it there until its button is pressed again.
 
 let trackMode = null; // null | "body" | "ahead"
 let lookAheadFn = null; // (item, tMs, ride) -> { az_deg, el_deg } | null
 const trackListeners = new Set();
 
 /**
- * Turn tracking on or off for every view: "body" (the Sun | Earth switch's body), "ahead" (rover traverses face their
- * direction of travel; other views are left free) or null. Choosing a mode replaces the other one and ends any pause.
- * Listeners (onTrackModeChange) hear every change, so a route card's "Look ahead" option and the timelapse bar's
- * button stay in step.
+ * Turn tracking on or off for every view: "body" (Follow: the Sun | Earth switch's body), "ahead" (Driver's view:
+ * rover traverses face their direction of travel; other views are left free) or null (free look). Choosing a mode
+ * replaces the other one and ends any pause. Listeners (onTrackModeChange) hear every change.
  */
 export function setTrackMode(mode) {
   const m = mode === "body" || mode === "ahead" ? mode : null;
@@ -155,7 +159,7 @@ export function setTrackMode(mode) {
     if (m === "body") rec.camTouched = false;
     applyTrack(rec, true);
   }
-  syncTrackBtn();
+  syncCamGroup();
   if (changed) for (const cb of trackListeners) cb(trackMode);
 }
 
@@ -164,14 +168,14 @@ export function getTrackMode() {
   return trackMode;
 }
 
-/** Call cb(mode) whenever the track mode changes (the button, setTrackMode, or a new set of scenarios). Returns an unsubscribe. */
+/** Call cb(mode) whenever the track mode changes (the camera group, setTrackMode, or a new set of scenarios). Returns an unsubscribe. */
 export function onTrackModeChange(cb) {
   trackListeners.add(cb);
   return () => trackListeners.delete(cb);
 }
 
 /**
- * The direction a rover view looks in "ahead" mode: fn(item, tMs, ride) -> { az_deg, el_deg } (deg, the local horizon
+ * The direction a rover view looks in "ahead" mode (Driver's view): fn(item, tMs, ride) -> { az_deg, el_deg } (deg, the local horizon
  * frame of the view's current site: ride.site of web/js/rover/sky_ride.js rideAt) or null. Called for every frame of a
  * traverse's view; the view eases toward it (C8 setTrack). Pass null to remove it.
  */
@@ -204,46 +208,53 @@ function applyTrack(rec, resume = false, ride = null) {
 /** A view reports its tracking state ({ mode, body, paused }): a drag paused it, or it started or stopped. */
 function onViewTrack(rec, info) {
   rec.trackPaused = !!(info && info.mode && info.paused);
-  syncTrackBtn();
+  syncCamGroup();
 }
 
-function onTrackButton() {
-  // Paused by a drag: press to follow again. On: press to stop. Off: press to track the selected body.
+/**
+ * A camera button ("body": Follow, "ahead": Driver's view). Off: turn its mode on (the other one goes off). On:
+ * turn it off (free look). On but paused by a drag: follow again.
+ */
+function pressCamera(mode) {
   const paused = [...cards.values()].filter((r) => r.view && r.trackPaused);
-  if (trackMode && paused.length) {
+  if (trackMode === mode && paused.length) {
     for (const rec of paused) {
       rec.trackPaused = false;
       if (trackMode === "body") rec.camTouched = false;
       applyTrack(rec, true);
     }
-    syncTrackBtn();
+    syncCamGroup();
     return;
   }
-  setTrackMode(trackMode ? null : "body");
+  setTrackMode(trackMode === mode ? null : mode);
 }
 
-/** The button's words and state: "🎯 Track", "🎯 Track Sun" (on), "… · paused", or "🚙 Look ahead". */
-function syncTrackBtn() {
+/**
+ * The camera group's words and states: "Follow Sun" / "Follow Earth" (the switch's body) and "Driver's view" (only
+ * with a rover trip on screen); aria-pressed "true" (on), "mixed" (on, paused by a drag, "· paused") or "false".
+ */
+function syncCamGroup() {
+  const follow = $("btn-follow"), driver = $("btn-driver");
+  if (!follow || !driver) return;
   const paused = !!trackMode && [...cards.values()].some((r) => r.view && r.trackPaused);
-  const ahead = trackMode === "ahead";
-  // The trip cards' "🚙 Look ahead" buttons show the same state.
-  for (const r of document.querySelectorAll(".ride-ahead")) r.setAttribute("aria-pressed", !ahead ? "false" : paused ? "mixed" : "true");
-  const b = $("btn-track");
-  if (!b) return;
   const name = aimBody === "sun" ? "Sun" : "Earth";
-  b.setAttribute("aria-pressed", !trackMode ? "false" : paused ? "mixed" : "true");
-  b.classList.toggle("paused", paused);
-  b.querySelector(".trk-ico").textContent = ahead ? "🚙" : "🎯";
-  b.querySelector(".trk-txt").textContent = ahead ? "Look ahead" : "Track";
-  b.querySelector(".trk-body").textContent = trackMode === "body" ? ` ${name}` : "";
-  b.querySelector(".trk-state").textContent = paused ? "paused" : "";
-  b.title = !trackMode
-    ? `Track: keep the ${name} framed in every view while the timelapse plays (the ☀ Sun | 🌍 Earth switch chooses the body)`
+  const state = (m) => (trackMode !== m ? "false" : paused ? "mixed" : "true");
+  follow.setAttribute("aria-pressed", state("body"));
+  follow.querySelector(".cam-body").textContent = name;
+  follow.querySelector(".cam-state").textContent = trackMode === "body" && paused ? "paused" : "";
+  follow.title = trackMode !== "body"
+    ? `Follow the ${name}: keep it framed in every view while the timelapse plays (the Sun | Earth switch chooses the body)`
     : paused
-      ? `Paused: you turned a view. Press to follow ${ahead ? "the direction of travel" : `the ${name}`} again.`
-      : ahead
-        ? "Look ahead: the rover's view faces the direction of travel. Press to stop."
-        : `Tracking the ${name}: every view follows it as the time runs. You can still zoom; a drag pauses tracking. Press to stop.`;
+      ? `Paused: you turned a view. Press to follow the ${name} again.`
+      : `Following the ${name}: every view keeps it framed as the time runs. You can still zoom; a drag pauses it. Press for free look.`;
+  driver.hidden = !items.some((it) => it.route);
+  driver.setAttribute("aria-pressed", state("ahead"));
+  driver.querySelector(".cam-state").textContent = trackMode === "ahead" && paused ? "paused" : "";
+  driver.title = trackMode !== "ahead"
+    ? "Driver's view: the rover's view faces the way it drives as the timelapse plays"
+    : paused
+      ? "Paused: you turned a view. Press to face the way the rover drives again."
+      : "Driver's view: the view faces the way the rover drives. A drag pauses it. Press for free look.";
 }
 
 /** Show the moment `ms` after the scenarios' start (e.g. "show me" an eclipse), paused. */
@@ -298,7 +309,7 @@ export function setSkyItems(newItems) {
   }
   for (const [key, rec] of cards) {
     if (keep.has(key)) continue;
-    if (rec === focusRec) exitFocus();
+    if (rec === fullRec) exitFull();
     unwatch(rec);
     if (rec.view) rec.view.dispose();
     rec.root.remove();
@@ -316,9 +327,9 @@ export function setSkyItems(newItems) {
   $("sky-speed").disabled = !hasMission;
   if (!hasMission) stop();
   if (hasMission && !speedTouched) $("sky-speed").value = String(autoSpeed(maxSpan));
-  // "Look ahead" needs a rover traverse on screen.
+  // The driver's view needs a rover traverse on screen.
   if (trackMode === "ahead" && !items.some((it) => it.route)) setTrackMode(null);
-  syncTrackBtn();
+  syncCamGroup();
   refresh();
 }
 
@@ -344,23 +355,18 @@ function buildCard(it, key) {
   root.innerHTML = `
     <div class="sky-card-head"><span class="swatch" aria-hidden="true"></span><span class="mcard-title"></span><span class="sky-card-time"></span>
       <span class="sky-card-acts">
-        <button type="button" class="sky-act sky-focus-btn" title="Focus: fill the window with this view (Esc to exit)"><span aria-hidden="true">⤢</span><span class="sky-act-txt"> Focus</span></button>
-        <button type="button" class="sky-act sky-fs-btn" title="Full screen (Esc to exit)" aria-label="Full screen"><span aria-hidden="true">⛶</span><span class="sky-act-txt"> Full screen</span></button>
-        <button type="button" class="sky-act sky-exit-btn" title="Back to the page (Esc)"><span aria-hidden="true">✕</span> Exit focus</button>
         <span class="sky-opts">
           <button type="button" class="sky-act sky-opts-btn" aria-haspopup="menu" aria-expanded="false" title="View options" aria-label="View options"><span aria-hidden="true">⋯</span></button>
           <span class="sky-opts-menu" role="menu" aria-label="View options" hidden>${menuItems}</span>
         </span>
+        <button type="button" class="sky-act sky-fs-btn" title="Full screen (Esc to exit)" aria-label="Full screen">${icon("fullscreen")}</button>
+        <button type="button" class="sky-act sky-exit-btn" title="Back to the page (Esc)">${icon("close")}<span>Exit full screen</span></button>
       </span></div>
     <div class="sky-view" role="group" aria-roledescription="sky view" aria-label="Sky view">${LOADING_HTML}</div>
     <div class="sky-card-foot"></div>`;
-  root.querySelector(".sky-focus-btn").setAttribute("aria-label", "Focus");
   const rec = { key, it, root, viewEl: root.querySelector(".sky-view"), view: null, creating: false, state: null, engaged: false };
-  root.querySelector(".sky-focus-btn").addEventListener("click", () => enterFocus(rec));
-  const fs = root.querySelector(".sky-fs-btn");
-  fs.hidden = !document.fullscreenEnabled;
-  fs.addEventListener("click", () => enterFocus(rec, true));
-  root.querySelector(".sky-exit-btn").addEventListener("click", () => exitFocus());
+  root.querySelector(".sky-fs-btn").addEventListener("click", () => enterFull(rec));
+  root.querySelector(".sky-exit-btn").addEventListener("click", () => exitFull());
   guardWheel(rec);
   bindPinchZoom(rec.viewEl, () => rec.view);
   // Phones: a vertical swipe over a view scrolls the page, a horizontal drag turns the view (CSS touch-action: pan-y).
@@ -374,18 +380,7 @@ function buildCard(it, key) {
   rec.viewEl.addEventListener("keydown", (e) => {
     if (/^Arrow|^[-+=_]$/.test(e.key)) rec.camTouched = true;
   });
-  // Rover trips: "🚙 Look ahead" turns on the "ahead" track mode (web/js/rover/sky_ride.js).
-  if (it.route) addRideControls(rec, { toggle: toggleLookAhead, isOn: () => trackMode === "ahead" });
   return rec;
-}
-
-/**
- * "🚙 Look ahead" of a trip's sky card: every trip view faces the direction of travel (track mode "ahead"); pressed
- * again, it stops, or, while a drag paused it, it follows again. The timelapse bar's Track button shows the mode.
- */
-function toggleLookAhead() {
-  const paused = [...cards.values()].some((r) => r.view && r.trackPaused);
-  setTrackMode(trackMode === "ahead" && !paused ? null : "ahead");
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -454,70 +449,66 @@ function initOptionMenus() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Focus mode: one view fills the window, with the time controls under it. Esc or "Exit focus" returns to the page.
-// "Full screen" also asks the browser for full screen (Fullscreen API); leaving full screen leaves focus mode too.
+// Full screen: one view fills the screen, with the timelapse bar and the camera group under it. The browser's full
+// screen (Fullscreen API) is asked for when it has one; without it (iPhone Safari) the view fills the window. Esc or
+// "Exit full screen" returns to the page; leaving the browser's full screen leaves this mode too.
 
-let focusRec = null;
-let focusFullscreen = false;
-/** Drawing-buffer budget (device pixels) of a focused view: about a 2560 × 1440 screen at full resolution. */
-const FOCUS_PIXELS = 4.2e6;
+let fullRec = null;
+let fullNative = false; // the browser's full screen was asked for by this mode
+/** Drawing-buffer budget (device pixels) of a full-screen view: about a 2560 × 1440 screen at full resolution. */
+const FULL_PIXELS = 4.2e6;
 
 /**
- * A focused view gets more pixels. Every view may use a taller frame (C8 extras), so a high Earth fits with the
+ * A full-screen view gets more pixels. Every view may use a taller frame (C8 extras), so a high Earth fits with the
  * horizon: the frame keeps the full width whenever the body rule fits both, and narrows (with blurred side bands)
- * only for an Earth too high for that, e.g. Apollo 11 in a wide focused window or Apollo 16 in a 16:9 grid view.
+ * only for an Earth too high for that, e.g. Apollo 11 in a wide window or Apollo 16 in a 16:9 grid view.
  */
-function setViewFocus(view, on) {
-  view.setPixelBudget?.(on ? FOCUS_PIXELS : null);
+function setViewFull(view, on) {
+  view.setPixelBudget?.(on ? FULL_PIXELS : null);
   view.setTallFrames?.(true);
 }
 
-function enterFocus(rec, fullscreen = false) {
-  if (focusRec && focusRec !== rec) exitFocus({ keepFullscreen: true });
+function enterFull(rec) {
+  if (fullRec && fullRec !== rec) exitFull({ keepNative: true });
   closeMenus();
-  focusRec = rec;
-  $("sky-panel").classList.add("focus");
-  rec.root.classList.add("is-focus");
-  document.body.classList.add("sky-focus");
-  if (rec.view) setViewFocus(rec.view, true);
-  if (fullscreen && document.fullscreenEnabled && !document.fullscreenElement) {
-    focusFullscreen = true;
-    document.documentElement.requestFullscreen({ navigationUI: "hide" }).catch(() => (focusFullscreen = false));
+  fullRec = rec;
+  $("sky-panel").classList.add("full");
+  rec.root.classList.add("is-full");
+  document.body.classList.add("sky-full");
+  if (rec.view) setViewFull(rec.view, true);
+  if (document.fullscreenEnabled && !document.fullscreenElement) {
+    fullNative = true;
+    document.documentElement.requestFullscreen({ navigationUI: "hide" }).catch(() => (fullNative = false));
   }
   rec.root.querySelector(".sky-exit-btn").focus({ preventScroll: true });
 }
 
-function exitFocus({ keepFullscreen = false } = {}) {
-  if (!focusRec) return;
-  const rec = focusRec;
-  focusRec = null;
-  $("sky-panel").classList.remove("focus");
-  rec.root.classList.remove("is-focus");
-  document.body.classList.remove("sky-focus");
-  if (rec.view) setViewFocus(rec.view, false);
-  if (!keepFullscreen && focusFullscreen && document.fullscreenElement) document.exitFullscreen().catch(() => {});
-  if (!keepFullscreen) focusFullscreen = false;
+function exitFull({ keepNative = false } = {}) {
+  if (!fullRec) return;
+  const rec = fullRec;
+  fullRec = null;
+  $("sky-panel").classList.remove("full");
+  rec.root.classList.remove("is-full");
+  document.body.classList.remove("sky-full");
+  if (rec.view) setViewFull(rec.view, false);
+  if (!keepNative && fullNative && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  if (!keepNative) fullNative = false;
   if (rec.root.isConnected) {
     rec.root.scrollIntoView({ block: "nearest" });
-    rec.root.querySelector(".sky-focus-btn").focus({ preventScroll: true });
+    rec.root.querySelector(".sky-fs-btn").focus({ preventScroll: true });
   }
 }
 
-/** Leave focus mode (e.g. Back to another story while a view fills the window). */
-export function leaveFocus() {
-  exitFocus();
-}
-
-function initFocusKeys() {
+function initFullKeys() {
   document.addEventListener("keydown", (e) => {
-    if (e.key !== "Escape" || !focusRec || document.querySelector("dialog[open]")) return;
+    if (e.key !== "Escape" || !fullRec || document.querySelector("dialog[open]")) return;
     e.preventDefault();
-    exitFocus();
+    exitFull();
   });
   document.addEventListener("fullscreenchange", () => {
-    if (!document.fullscreenElement && focusFullscreen) {
-      focusFullscreen = false;
-      exitFocus();
+    if (!document.fullscreenElement && fullNative) {
+      fullNative = false;
+      exitFull();
     }
   });
 }
@@ -617,12 +608,13 @@ async function createView(rec) {
     rec.mode = mode;
     // The terrain may have changed while the view was loading (live terrain of a custom point).
     if (rec.it.horizon !== it.horizon || rec.it.patch !== it.patch) swapTerrain(rec);
-    setViewFocus(view, rec === focusRec);
+    setViewFull(view, rec === fullRec);
     rec.viewEl.querySelector(".sky-loading")?.remove();
     rec.lastT = null;
     await updateCard(rec);
     lookOne(rec, aimBody);
-    // Track on: the new view follows from its first frame (a view rebuilt after scrolling away starts again unpaused).
+    // Follow or Driver's view on: the new view follows from its first frame (a view rebuilt after scrolling away starts
+    // again unpaused).
     rec.trackPaused = false;
     if (trackMode) applyTrack(rec, true);
     // A shared link's camera (az, el, field of view) for the first view.
@@ -669,7 +661,7 @@ async function updateCard(rec) {
   if (ride) rideCamera(rec, ride, { ahead: trackMode === "ahead" });
   if (rec.view) rec.view.update(st);
   if (ride) rideTerrain(rec, it, ride);
-  // Look ahead (rover traverses): a new direction of travel for every frame; the view eases toward it.
+  // Driver's view (rover traverses): a new direction of travel for every frame; the view eases toward it.
   if (trackMode === "ahead" && it.route && rec.view) applyTrack(rec, false, ride);
   const foot = rec.root.querySelector(".sky-card-foot");
   // Plain words with the numbers (web/js/sky/words.js): "hidden behind terrain" when the skyline hides a body that is
@@ -681,8 +673,8 @@ async function updateCard(rec) {
   const earthTxt = bodyLine("Earth", st.earth, ce, skyAt(st.earth), { neverRises: earthNeverRises(it.s.lat_deg, it.s.lon_deg) })
     + (st.earth.vis_frac > 0 ? ` · ${Math.round(st.earth.phase_frac * 100)}% lit` : "");
   const ecl = eclipseText(st.sun);
-  foot.innerHTML = `${ecl ? `<span class="foot-eclipse">🌑 ${esc(ecl)}</span>` : ""}<span>☀ ${esc(sunTxt)}</span><span>🌍 ${esc(earthTxt)}</span>${
-    ride ? `<span class="note">${esc(rideNote(it, ride))}</span>` : terrainNote(it)
+  foot.innerHTML = `${ecl ? `<span class="foot-eclipse">${icon("eclipse")}${esc(ecl)}</span>` : ""}<span>${icon("sun", "i-sun")}${esc(sunTxt)}</span><span>${icon("earth", "i-earth")}${esc(earthTxt)}</span>${
+    ride ? `<span class="note">${icon("rover")}${esc(rideNote(it, ride))}</span>` : terrainNote(it)
   }<span class="note sky-foot-note"></span>`;
   footNote(rec);
   // Text alternative for screen readers, and the keys the view takes (C8 view: arrows turn, + and - zoom).
@@ -725,7 +717,7 @@ async function refresh() {
   try {
     do {
       pending = false;
-      // Views scrolled out of sight (or hidden behind a focused view) are skipped; they catch up when they return.
+      // Views scrolled out of sight (or hidden behind a full-screen view) are skipped; they catch up when they return.
       await Promise.all([...cards.values()].filter((rec) => rec.inView !== false).map((rec) => updateCard(rec)));
     } while (pending);
   } finally {

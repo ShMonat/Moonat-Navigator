@@ -147,7 +147,7 @@ export const QUICK_STARTS = [
     key: "apollo-all",
     label: "Compare all Apollo landings",
     title: "Which Apollo crew had the best view of Earth and the most sunlight?",
-    caption: "Every crew landed in a low morning Sun (5–15° up) under a high Earth (44–77° up). Switch to 🌍 Earth to compare their views of home.",
+    caption: "Every crew landed in a low morning Sun (5–15° up) under a high Earth (44–77° up). Switch to Earth to compare their views of home.",
     resolve: (list) => APOLLO.map((n) => fromMatch(list, [`apollo${n}`, `apollo_${n}`, `a${n}`], new RegExp(`apollo\\s*${n}\\b`, "i"))),
   },
   {

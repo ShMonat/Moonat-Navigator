@@ -1,7 +1,71 @@
 // AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team.
-// Tiny inline SVG glyphs that make the metric cards self-explanatory. Colours come from CSS classes (theme-aware).
+// Inline SVG icons. UI_ICONS: the interface's small line icons (buttons, labels, notes), one stroke style in
+// currentColor, 1em square, aria-hidden, so they follow the text colour in both themes (no emoji pictographs, which
+// phones draw as colour emoji). Below them: the metric cards' glyphs, coloured by CSS classes (theme-aware).
 
 const f = (x) => (Math.round(x * 100) / 100).toString();
+
+/** SVG bodies (24 × 24 viewBox, stroke = currentColor, width 2, round caps) of the interface icons. */
+const PATHS = {
+  // A crosshair: keep a body framed.
+  follow: '<circle cx="12" cy="12" r="6.5"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/>',
+  // A rover seen from the side: body, mast with a camera head, three wheels.
+  rover: '<path d="M3.5 9.5h17v5h-17z"/><path d="M8 9.5V5.5h4"/><circle cx="6.5" cy="17.5" r="2"/><circle cx="12" cy="17.5" r="2"/><circle cx="17.5" cy="17.5" r="2"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/>',
+  // A globe: the limb, a meridian and the equator.
+  earth: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5c-4.4 4.6-4.4 12.4 0 17M12 3.5c4.4 4.6 4.4 12.4 0 17"/>',
+  // The Sun's disk with the Earth's disk over most of it.
+  eclipse: '<circle cx="10" cy="12" r="7"/><circle cx="14.5" cy="12" r="7" fill="currentColor" stroke="none" opacity="0.55"/>',
+  calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+  // A four-point sparkle: suggested dates.
+  suggest: '<path d="M12 3c.8 4.6 2.4 6.2 7 7-4.6.8-6.2 2.4-7 7-.8-4.6-2.4-6.2-7-7 4.6-.8 6.2-2.4 7-7z"/><path d="M19 15.5v4M17 17.5h4"/>',
+  warning: '<path d="M12 3.5 21.5 20h-19z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.2" r="0.9" fill="currentColor" stroke="none"/>',
+  // Shrinking corners: the full-screen control.
+  fullscreen: '<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/>',
+  close: '<path d="M6 6l12 12M18 6 6 18"/>',
+  // A wheel: rover distances.
+  wheel: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/><path d="M12 4v5.8M12 14.2V20M4 12h5.8M14.2 12H20"/>',
+  // A pin: a picked place.
+  pin: '<path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/>',
+  // A flag on a pole: a trip's end.
+  flag: '<path d="M6 21V4"/><path d="M6 4.5h11l-2.5 4 2.5 4H6"/>',
+  info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5"/><circle cx="12" cy="7.8" r="0.9" fill="currentColor" stroke="none"/>',
+  // The Earth's disk coming up over the skyline.
+  earthrise: '<path d="M2.5 18.5h19"/><path d="M6.5 18.5a5.5 5.5 0 0 1 11 0"/><path d="M12 3.5v6M9.5 6 12 3.5 14.5 6"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  play: '<path d="M8 5.5v13l10-6.5z" fill="currentColor"/>',
+  pause: '<path d="M8.5 5.5v13M15.5 5.5v13"/>',
+};
+
+/** Names of the interface icons. */
+export const ICON_NAMES = Object.freeze(Object.keys(PATHS));
+
+/**
+ * One interface icon as an SVG string: `name` from ICON_NAMES, 1em square, currentColor, aria-hidden. `cls` adds CSS
+ * classes. An unknown name gives "".
+ */
+export function icon(name, cls = "") {
+  const body = PATHS[name];
+  if (!body) return "";
+  return `<svg class="ico-svg${cls ? ` ${cls}` : ""}" viewBox="0 0 24 24" width="1em" height="1em" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
+}
+
+/** One interface icon as an element: `<span class="ico">` holding icon(name), for code that builds the DOM. */
+export function iconNode(name) {
+  const s = document.createElement("span");
+  s.className = "ico";
+  s.setAttribute("aria-hidden", "true");
+  s.innerHTML = icon(name);
+  return s;
+}
+
+/** Fill every empty `[data-icon]` element under `root` with its icon (static HTML names its icons this way). */
+export function fillIcons(root = document) {
+  for (const el of root.querySelectorAll("[data-icon]")) {
+    if (!el.firstElementChild) el.innerHTML = icon(el.dataset.icon);
+    el.setAttribute("aria-hidden", "true");
+  }
+}
 
 /** Elevation: a quarter-circle gauge with a dot at the elevation angle (negative angles dip below the ground line). */
 export function elevationIcon(elDeg) {

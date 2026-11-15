@@ -180,7 +180,7 @@ await createSkyView(container /* HTMLElement */, {
 - Terrain extras: `createSkyView(..., { terrainPatch: { meta, data: Float32Array } })` takes an in-memory C4 patch instead of
   `terrainPatchUrl`, and `view.setTerrain({ horizon, patch })` swaps the skyline and/or the patch in place (camera, sky and
   textures stay; an omitted key keeps its value; `horizon: null` = the patch's own skyline).
-- Extras beyond C8 used by the app's focus mode: `setPixelBudget(px | null)` (drawing-buffer size; pixel ratio ≤ 2) and
+- Extras beyond C8 used by the app's full screen: `setPixelBudget(px | null)` (drawing-buffer size; pixel ratio ≤ 2) and
   `setTallFrames(on)` (the app turns it on for every view): `lookAtBody` keeps the full width whenever the body rule fits the
   horizon and the body with its margins; only a body too high for that gets a centred, taller frame (down to 3:4), as wide
   as the body rule allows at 100° (`bodyFitAspect` in math.js). The side bands show the same view stretched, blurred and
@@ -216,11 +216,17 @@ await createSkyView(container /* HTMLElement */, {
   resumes it, one on the other body's arrow pauses it and turns there. A hidden body is aimed at its true azimuth; the
   dashed outline or the edge arrow shows it. `getTrack()` and option `onTrack(info)` (called on every change, a drag's
   pause included) give `{ mode: "body" | "direction" | null, body, paused }`. The 2D fallback has a simple version (no
-  easing); call with `?.`. In the app, the timelapse bar's "🎯 Track" button and a rover route's "Look ahead" share one
-  mode (`web/js/app/sky_panel.js`: `setTrackMode("body" | "ahead" | null)`, `getTrackMode()`,
-  `onTrackModeChange(cb)`, `setLookAheadSource(fn(item, tMs, ride) → { az_deg, el_deg } | null)`): the last one
-  chosen wins, the button shows which one is on ("🎯 Track Sun", "🚙 Look ahead", "· paused"), and pressing it while
-  paused resumes, while on stops.
+  easing); call with `?.`. In the app, one camera group in the timelapse bar holds two mutually exclusive toggles:
+  "Follow Sun" / "Follow Earth" (track mode `"body"`, the body of the Sun | Earth switch) and, only while a rover trip
+  is on screen, "Driver's view" (track mode `"ahead"`) (`web/js/app/sky_panel.js`: `setTrackMode("body" | "ahead" |
+  null)`, `getTrackMode()`, `onTrackModeChange(cb)`, `setLookAheadSource(fn(item, tMs, ride) → { az_deg, el_deg } |
+  null)`): the last one chosen wins; pressing the one that is on turns it off (free look); a drag pauses it
+  (`aria-pressed="mixed"`, "· paused") and pressing it then resumes.
+- **App layout (web-app, Shay 2026-11-15):** the sky fills the window like an app: one stage (`#sky-stage`) holds the
+  "what to look for" line, the views, the timelapse bar with the camera group, and the Sun | Earth switch; the data
+  starts under it. Each view's card has a "⋯" options menu and a small full-screen icon in its top-right corner (the
+  browser's full screen where it exists, else the view fills the window; "Exit full screen" or Esc returns). There is
+  no separate focus mode.
 - **Eclipses** (C6 `sun.eclipse_frac` > 0): render order Earth (opaque, renderOrder −1, distance 20 000) → stars →
   Sun quad (additive, distance 30 000, depth-tested, so the Earth hides the part of the disk and glow behind it) → an
   eclipse overlay at the Earth (additive, no depth test, renderOrder 6). The glare scales with the visible flux and is
@@ -375,14 +381,15 @@ tripKey(points, rover), tripProblems(points) -> [message]      // a 2-point trip
 - **Ride (sky view):** `sky_ride.js rideAt(item, t)` gives the rover's exact position on the path at the drive
   timeline, a skyline blended between the two nearest horizon samples (each turned into the local frame first), the
   heading and slope of travel; the view's 3D ground and drawn skyline are rebuilt at the position rounded to
-  max(20 m, a fine cell), at most every 160 ms while the time runs. "🚙 Look ahead" (a trip's sky card) is the sky
-  panel's "ahead" track mode (`setTrackMode`); `ui.js` gives the direction with `setLookAheadSource(sky_ride.js
-  lookAheadDirection)`: the path's heading, the slope × 0.7 + 1.5° up; the view eases toward it (C8 `setTrack({az_deg,
-  el_deg})`). The last mode chosen (Track body or Look ahead) wins, and the Track button shows it.
+  max(20 m, a fine cell), at most every 160 ms while the time runs. "Driver's view" (the timelapse bar's camera group,
+  shown while a trip is on screen) is the sky panel's "ahead" track mode (`setTrackMode`); `ui.js` gives the direction
+  with `setLookAheadSource(sky_ride.js lookAheadDirection)`: the path's heading, the slope × 0.7 + 1.5° up; the view
+  eases toward it (C8 `setTrack({az_deg, el_deg})`). Follow (body) and Driver's view are exclusive: the last one chosen
+  wins.
 - **Globe:** `globe_route.js` draws each trip's path (`showRoute`), its stops as lettered dots (`setMarker` with `text`:
   B, C …; the start and the end are the scenario's pins), the moving rover dot (`setMarker` with `ahead`), and fits the
   globe to a trip when it is planned or selected (`fitTo`), all through `web/js/app/globe_api.js` (C8b). A row waiting
-  for "📍 Choose on the globe" takes the next globe click or the next place chosen in "Search the Moon" (`pick.js`
+  for "Choose on the globe" (pin icon) takes the next globe click or the next place chosen in "Search the Moon" (`pick.js`
   consumeMapClick, called by map.js and places.js).
 - **Terrain:** one Moon Trek LOLA grid (C9 layers and projection) covering both points plus max(3 km, 30 %) of margin, in
   the stereographic plane at the midpoint; ≤ 1001² px (20 m south of 85°S, 30 m poleward of 75°, 118 m elsewhere;

@@ -19,6 +19,7 @@ import { pickHint } from "./events.js";
 import { suggestBody, suggestWindow } from "./suggest_adapter.js";
 import { routeCore, isTrip } from "../rover/app.js";
 import { tripTime } from "../rover/ui.js";
+import { fillIcons, icon } from "./icons.js";
 
 const $ = (id) => document.getElementById(id);
 const LOOKAHEAD_MS = 30 * DAY_MS;
@@ -176,7 +177,8 @@ function syncHint() {
   if (!hint) return;
   const text = box.querySelector(".hint-text");
   if (text && text.textContent === hint.text) return;
-  box.innerHTML = '<span class="hint-text"></span> <button type="button" class="link-btn hint-go">Show me</button>';
+  const ico = hint.kind === "earthrise" ? "earthrise" : "eclipse";
+  box.innerHTML = `${icon(ico, "hint-ico")}<span class="hint-text"></span> <button type="button" class="link-btn hint-go">Show me</button>`;
   box.querySelector(".hint-text").textContent = hint.text;
 }
 
@@ -379,16 +381,18 @@ function runQuickStart(key) {
 }
 
 /**
- * On a one-column page (phones, tablets) the sky is under the inputs: after a story is chosen, scroll down to it
- * (its caption) unless it is already on screen.
+ * On a one-column page (phones, tablets) the sky is under the inputs: after a story is chosen, scroll down so the
+ * stage (its caption, the views, the timelapse bar and the Sun | Earth switch) fills the screen, unless it already
+ * does. The stage's top stays put when the story's results arrive (the inputs above it are rebuilt at once), so the
+ * landing stays right.
  */
 function revealSky() {
-  const head = document.querySelector(".out-head");
-  if (!head || window.matchMedia("(min-width: 1100px)").matches) return;
-  const r = head.getBoundingClientRect();
-  if (r.top > 60 && r.top < window.innerHeight * 0.5) return;
+  const stage = $("sky-stage");
+  if (!stage || window.matchMedia("(min-width: 1100px)").matches) return;
+  const margin = parseFloat(getComputedStyle(stage).scrollMarginTop) || 0;
+  if (Math.abs(stage.getBoundingClientRect().top - margin) < 8) return;
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  head.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
+  stage.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
 }
 
 /** Set the charts' time axis and the Sun | Earth choice without a separate redraw (a recompute follows). */
@@ -500,6 +504,7 @@ function showPhysicsError() {
 // Boot
 
 async function boot() {
+  fillIcons();
   initTheme();
   initIntro();
   initAbout();

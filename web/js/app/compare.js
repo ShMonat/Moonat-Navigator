@@ -293,7 +293,7 @@ function nextEventText(it, vis, body) {
 function farSideInsight(it, elArr, visArr) {
   const st = stats(elArr);
   if (pctAbove(visArr) === 0 && st.max < -3) {
-    return `<div class="insight">🌑 Earth never rises here: this is the Moon's far side, always turned away from Earth. A lander here needs a relay satellite to talk home.</div>`;
+    return `<div class="insight">Earth never rises here: this is the Moon's far side, always turned away from Earth. A lander here needs a relay satellite to talk home.</div>`;
   }
   return "";
 }
@@ -539,7 +539,7 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
   };
   // Terrain horizon in the body's direction: per sample at the rover's position for traverses, else the site profile.
   const hzLine = (it, body) => it.series[`${body}_hz_el`] ?? it.series[`${body}_az`].map((az) => horizonElAt(it.horizon, az));
-  // Many eclipses (a stay of years): each gets a "🌑" mark whose tooltip names it, instead of a label that would overlap.
+  // Many eclipses (a stay of years): each gets a "◐" mark (a text glyph, not an emoji) whose tooltip names it, instead of a label that would overlap.
   const nEclipses = missions.reduce((n, it) => n + (it.series.eclipses?.length || 0), 0);
   const eclipseMarks = () => {
     const shapes = [], annotations = [];
@@ -552,7 +552,7 @@ function drawCharts(Plotly, items, { xaxis = "met" } = {}) {
         const text = e.max_frac >= 1 ? "Earth hides the Sun" : `Earth covers ${Math.round(e.max_frac * 100)}% of the Sun`;
         annotations.push({
           x: xOf(it, e.max_ms), y: 1, xref: "x", yref: "paper", yanchor: "bottom", showarrow: false,
-          ...(nEclipses > 3 ? { text: "🌑", hovertext: `${text} (${formatUtc(e.max_ms).split(",")[0]})`, font: { size: 10 } } : { text, font: { size: 11, color: th.muted } }),
+          ...(nEclipses > 3 ? { text: "◐", hovertext: `${text} (${formatUtc(e.max_ms).split(",")[0]})`, font: { size: 11, color: th.muted } } : { text, font: { size: 11, color: th.muted } }),
         });
       }
     }

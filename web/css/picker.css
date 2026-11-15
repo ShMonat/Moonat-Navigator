@@ -80,6 +80,7 @@
 .tp-sg { display: flex; flex-direction: column; min-width: 0; padding-left: 14px; border-left: 1px solid var(--border); }
 .tp-sg-head { padding: 2px 4px 6px; }
 .tp-sg-head strong { display: block; font-size: 13.5px; }
+.tp-sg-head strong .ico { margin-right: 6px; color: var(--accent); }
 .tp-sg-head small { display: block; font-size: 11.5px; color: var(--muted); }
 .tp-sg .suggest-status { margin: 4px 4px 6px; }
 .tp-sg .suggest-list { max-height: 320px; }

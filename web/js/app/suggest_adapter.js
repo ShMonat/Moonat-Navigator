@@ -3,14 +3,15 @@
 // a scenario's place, the window a chosen suggestion opens, and the icon and Sun | Earth choice of each kind.
 
 import { suggestDates as engineSuggest } from "../suggest/index.js";
+import { icon } from "./icons.js";
 
-/** Kinds in the order the list shows them (C11 KINDS), with their heading and icon. */
+/** Kinds in the order the list shows them (C11 KINDS), with their heading and icons (web/js/app/icons.js names). */
 export const SUGGEST_KINDS = [
-  { kind: "sun", icon: "☀", heading: "Most sunlight (solar power)" },
-  { kind: "earth", icon: "🌍", heading: "Best Earth contact" },
-  { kind: "both", icon: "☀🌍", heading: "Sunlight and Earth together" },
-  { kind: "eclipse", icon: "🌑", heading: "Eclipses of the Sun by the Earth" },
-  { kind: "earthrise", icon: "🌄", heading: "Earthrise over the skyline" },
+  { kind: "sun", icons: ["sun"], heading: "Most sunlight (solar power)" },
+  { kind: "earth", icons: ["earth"], heading: "Best Earth contact" },
+  { kind: "both", icons: ["sun", "earth"], heading: "Sunlight and Earth together" },
+  { kind: "eclipse", icons: ["eclipse"], heading: "Eclipses of the Sun by the Earth" },
+  { kind: "earthrise", icons: ["earthrise"], heading: "Earthrise over the skyline" },
 ];
 
 /** Suggestions per kind in the list: the best and the next best. */
@@ -47,9 +48,10 @@ export function suggestCaveat(s, terrainStatus) {
     : "Approximate horizon until NASA terrain arrives: these dates then update.";
 }
 
-/** Icon of a suggestion kind (✨ for a kind this page does not know). */
+/** Icon of a suggestion kind as SVG markup (icons.js; the "suggest" sparkle for a kind this page does not know). */
 export function suggestIcon(kind) {
-  return SUGGEST_KINDS.find((k) => k.kind === kind)?.icon ?? "✨";
+  const names = SUGGEST_KINDS.find((k) => k.kind === kind)?.icons ?? ["suggest"];
+  return names.map((n) => icon(n)).join("");
 }
 
 /** The page's Sun | Earth choice that fits a suggestion kind: "sun", "earth", or null (keep the current one). */

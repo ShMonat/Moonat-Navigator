@@ -17,8 +17,10 @@ import { PRESETS } from "./presets.js";
 import { newRouteFields, routeRequest, tripWaypoints } from "./app.js";
 import { registerRouteCard, startPick, cancelPick, pickState, onPickChange } from "./pick.js";
 import { showTripRoute, clearTripRoute, fitTrip, setRoverMarker, setTripStops, shownTrips } from "./globe_route.js";
+import { icon as svgIcon } from "../app/icons.js";
 
-// "🚙 Look ahead" (the sky panel's "ahead" track mode): a trip's view faces the path's heading at the rover.
+// "Driver's view" (the sky panel's "ahead" track mode, in the timelapse bar's camera group): a trip's view faces the
+// path's heading at the rover.
 setLookAheadSource(lookAheadDirection);
 
 /** Most points of a trip: the start, MAX_VIA stops and the end. */
@@ -261,7 +263,7 @@ export function buildTripPanel(s) {
       const coord = parseLatLon(query);
       if (coord) opts.push({ kind: "coord", p: coord, name: `Use ${fmtLat(coord.lat_deg)}, ${fmtLon(coord.lon_deg)}`, meta: from ? `${km(greatCircle(from, coord).dist_m)} from ${waypointLetter(i - 1)}` : "" });
       const tap = window.matchMedia?.("(pointer: coarse)")?.matches;
-      opts.push({ kind: "pick", name: "📍 Choose on the globe", meta: `the next ${tap ? "tap" : "click"} on the Moon sets it` });
+      opts.push({ kind: "pick", name: "Choose on the globe", meta: `the next ${tap ? "tap" : "click"} on the Moon sets it` });
       // Places in reach of the previous point, nearest first; a search ranks an exact name first, then places in reach,
       // nearest first. The previous point itself is not offered.
       const ql = query.toLowerCase();
@@ -286,7 +288,7 @@ export function buildTripPanel(s) {
         const li = el("li", {
           class: `picker-item trip-opt${o.kind === "pick" ? " is-pick" : ""}`, role: "option", id: `${listId}-${k}`,
           "aria-selected": k === sel ? "true" : "false", "aria-disabled": o.disabled ? "true" : null,
-        }, el("div", { class: "pi-name", text: o.name }), o.meta ? el("div", { class: "pi-meta", text: o.meta }) : null);
+        }, el("div", { class: "pi-name" }, o.kind === "pick" ? el("span", { class: "ico pi-ico", "aria-hidden": "true", html: svgIcon("pin") }) : null, o.name), o.meta ? el("div", { class: "pi-meta", text: o.meta }) : null);
         li.addEventListener("mousedown", (e) => {
           e.preventDefault();
           choose(k);
@@ -349,7 +351,7 @@ export function buildTripPanel(s) {
       ? el("button", { type: "button", class: "icon-btn trip-up", title: `Move ${L} up`, "aria-label": `Move ${L} up`, text: "↑", onclick: () => moveUp(i) })
       : null;
     const rm = el("button", {
-      type: "button", class: "icon-btn trip-rm", title: p ? `Remove ${L}` : "Remove this row", "aria-label": p ? `Remove point ${L}` : "Remove this empty row", text: "✕",
+      type: "button", class: "icon-btn trip-rm", title: p ? `Remove ${L}` : "Remove this row", "aria-label": p ? `Remove point ${L}` : "Remove this empty row", html: svgIcon("close"),
       onclick: () => removeRow(i),
     });
     // The first row's ✕ with nothing else to remove: nothing to do.
@@ -633,11 +635,11 @@ export function buildTripPanel(s) {
     const legTxt = n > 2 && !arrived ? ` on ${waypointLetter(j)} → ${waypointLetter(j + 1)}` : "";
     liveEl.replaceChildren();
     if (arrived) {
-      liveEl.append(el("span", { class: "tl-ico", "aria-hidden": "true", text: "✓" }),
+      liveEl.append(el("span", { class: "tl-ico", "aria-hidden": "true", html: svgIcon("check") }),
         el("b", { text: `Arrived at ${waypointLetter(n - 1)}` }), ` · ${km(L)} in ${formatDuration(track.arrival_ms)}, ${formatUtc(t0 + track.arrival_ms)}`);
     } else {
       const eta = t0 + track.arrival_ms;
-      liveEl.append(el("span", { class: "tl-ico", "aria-hidden": "true", text: parked ? "⏸" : "▶" }),
+      liveEl.append(el("span", { class: "tl-ico", "aria-hidden": "true", html: svgIcon(parked ? "pause" : "play") }),
         el("b", { text: `${km(d)} driven` }), `${legTxt} · ${km(L - d)} to go · `,
         el("span", { class: "tl-eta", text: `arrives ${formatUtc(eta)} (in ${formatDuration(eta - (t0 + dt))})` }),
         parked ? " · resting" : "");

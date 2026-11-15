@@ -7,6 +7,7 @@
 
 import { parseUtc, toUtcText, formatUtc, formatDuration, describeYears, coverageEnd, DAY_MS } from "./state.js";
 import { SUGGEST_KINDS, suggestIcon } from "./suggest_adapter.js";
+import { icon, iconNode } from "./icons.js";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
@@ -17,6 +18,13 @@ const SHEET_QUERY = "(max-width: 600px)";
 const SUGGEST_SPAN_MS = 2 * 365.25 * DAY_MS;
 
 let open = null; // the open picker (one at a time)
+
+/** The SVG icon(s) of a suggestion kind (suggest_adapter.js suggestIcon) in a span of class cls. */
+function kindIcon(kind, cls) {
+  const s = el("span", { class: cls, "aria-hidden": "true" });
+  s.innerHTML = suggestIcon(kind);
+  return s;
+}
 
 function el(tag, attrs = {}, ...children) {
   const e = document.createElement(tag);
@@ -181,10 +189,11 @@ function openPicker(input, button, opts, focusGrid) {
   const titleId = `tp-t-${Math.random().toString(36).slice(2, 8)}`;
   const root = el("div", { class: `tp-pop${sheet ? " tp-sheet" : ""}`, role: "dialog", "aria-labelledby": titleId });
   const valueText = el("span", { class: "tp-value" });
-  const close = el("button", { type: "button", class: "icon-btn tp-close", "aria-label": "Close", text: "✕" });
+  const close = el("button", { type: "button", class: "icon-btn tp-close", "aria-label": "Close" });
+  close.innerHTML = icon("close");
   const head = el("div", { class: "tp-head" }, el("div", { class: "tp-title" }, el("strong", { id: titleId, text: opts.title }), valueText), close);
   if (sheet) {
-    const typeBtn = el("button", { type: "button", class: "link-btn tp-type", text: "⌨ Type instead" });
+    const typeBtn = el("button", { type: "button", class: "link-btn tp-type", text: "Type instead" });
     typeBtn.addEventListener("click", () => {
       api.close(false);
       input._typeInstead?.();
@@ -279,7 +288,7 @@ function openPicker(input, button, opts, focusGrid) {
       const b = el("button", {
         type: "button", class: "tp-day", "data-ms": String(ms), tabindex: ms === st.cursor ? "0" : "-1", "aria-label": label,
         "aria-pressed": ms === selDay ? "true" : "false", "aria-disabled": off ? "true" : null,
-        "aria-current": ms === today ? "date" : null, title: sg ? sg.map((g) => `${suggestIcon(g.kind)} ${g.title}`).join("\n") : (off ? `Not available: ${off}` : null),
+        "aria-current": ms === today ? "date" : null, title: sg ? sg.map((g) => g.title).join("\n") : (off ? `Not available: ${off}` : null),
       }, el("span", { text: String(d) }));
       if (Number.isFinite(rsDay) && Number.isFinite(selDay)) {
         if (ms === rsDay) b.classList.add("tp-range-start");
@@ -527,7 +536,7 @@ function openPicker(input, button, opts, focusGrid) {
     if (!placeName) {
       st.sg = null;
       sgPane.replaceChildren(
-        el("div", { class: "tp-sg-head" }, el("strong", { text: "✨ Suggested for this place" })),
+        el("div", { class: "tp-sg-head" }, el("strong", {}, iconNode("suggest"), "Suggested for this place")),
         el("p", { class: "suggest-status", text: "Pick a place first: then the best dates for sunlight, Earth contact and eclipses show here." }),
       );
       return;
@@ -540,7 +549,7 @@ function openPicker(input, button, opts, focusGrid) {
     const status = el("p", { class: "suggest-status", role: "status" }, el("span", { class: "spinner", "aria-hidden": "true" }), el("span", { text: "Searching…" }));
     const list = el("div", { class: "suggest-list" });
     const caveat = opts.suggest.note?.() || null;
-    const head = el("div", { class: "tp-sg-head" }, el("strong", { text: `✨ Suggested for ${placeName}` }), sub);
+    const head = el("div", { class: "tp-sg-head" }, el("strong", {}, iconNode("suggest"), `Suggested for ${placeName}`), sub);
     sgPane.replaceChildren(...[head, caveat ? el("p", { class: "suggest-status suggest-note", text: caveat }) : null, status, list].filter(Boolean));
     try {
       const progress = status.lastChild;
@@ -560,7 +569,7 @@ function openPicker(input, button, opts, focusGrid) {
       for (const k of SUGGEST_KINDS) {
         const group = found.filter((g) => g.kind === k.kind);
         if (!group.length) continue;
-        nodes.push(el("p", { class: "suggest-kind", text: `${k.icon} ${k.heading}` }));
+        nodes.push(el("p", { class: "suggest-kind" }, kindIcon(k.kind, "ico"), k.heading));
         for (const g of group) nodes.push(suggestItem(g));
       }
       for (const g of found.filter((x) => !SUGGEST_KINDS.some((k) => k.kind === x.kind))) nodes.push(suggestItem(g));
@@ -586,9 +595,9 @@ function openPicker(input, button, opts, focusGrid) {
     // The title says what; the line under it when (two windows can share a title); the detail is in the tooltip.
     const text = el("span", { class: "si-text" }, el("b", { text: g.title || "Suggested dates" }),
       g.note && g.detail ? el("small", { class: "si-detail", text: g.detail }) : when ? el("small", { text: when }) : null);
-    const icon = el("span", { class: "si-icon", "aria-hidden": "true", text: suggestIcon(g.kind) });
-    if (g.note || !Number.isFinite(t0)) return el("div", { class: "suggest-item note" }, icon, text);
-    const item = el("button", { type: "button", class: "suggest-item", title: tip }, icon, text);
+    const ico = kindIcon(g.kind, "si-icon");
+    if (g.note || !Number.isFinite(t0)) return el("div", { class: "suggest-item note" }, ico, text);
+    const item = el("button", { type: "button", class: "suggest-item", title: tip }, ico, text);
     if (tip) item.setAttribute("aria-description", tip);
     item.addEventListener("click", () => {
       api.close(false);

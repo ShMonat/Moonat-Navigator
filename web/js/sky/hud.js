@@ -82,6 +82,8 @@ export function createHud(container, { onLookAt = null, onToggleConstellations, 
   bar.hidden = !buttons;
   root.appendChild(bar);
   // Each button has a glyph and a word; narrow views (app CSS) show only the glyph. The accessible name is the word.
+  // Line icons for the toggle buttons (the app's icon style, web/js/app/icons.js: currentColor, 1em; no emoji).
+  const svg = (body) => `<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.14em">${body}</svg>`;
   const setLabel = (b, text) => { b.querySelector('.t').textContent = text; b.setAttribute('aria-label', text); };
   const addButton = (text, title, pressed, onClick, icon = '') => {
     const b = document.createElement('button');
@@ -101,7 +103,7 @@ export function createHud(container, { onLookAt = null, onToggleConstellations, 
     setLabel(b, `Exposure: ${mode}`);
     barBox = { w: -1 };
     onExposureMode(mode);
-  }, '☼');
+  }, svg('<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/>'));
   const closeUpBtn = addButton('Close-up', 'Show or hide the magnified inset of the Earth (and of the Sun while terrain partly hides it)', closeUpOn, (b) => {
     const on = b.getAttribute('aria-pressed') !== 'true';
     b.setAttribute('aria-pressed', String(on));
@@ -124,7 +126,7 @@ export function createHud(container, { onLookAt = null, onToggleConstellations, 
       const on = b.getAttribute('aria-pressed') !== 'true';
       b.setAttribute('aria-pressed', String(on));
       onToggleConstellations(on);
-    }, '✦');
+    }, svg('<path d="M12 3l2.2 6.8L21 12l-6.8 2.2L12 21l-2.2-6.8L3 12l6.8-2.2z"/>'));
   }
   const skyline = (b) => (skylineAt ? skylineAt(b.az_deg) : null);
   // During an eclipse (C6 sun.eclipse_frac > 0): "Earth eclipses the Sun · 63% covered".

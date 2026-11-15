@@ -341,8 +341,8 @@ export async function createSkyView(container, {
     earthDeep = !!(e && hiddenReason(e) && e.el_deg + e.ang_radius_deg < EARTH_DEEP_BELOW_DEG);
     const badgeHtml = !earthDeep ? ''
       : earthNeverRises(site?.lat_deg, site?.lon_deg)
-        ? `<b>🌍 Earth is below your feet</b> (height ${degText(e.el_deg)})<br>It never rises here: this is the Moon's far side, which always faces away from Earth.`
-        : `<b>🌍 Earth is ${Math.round(-e.el_deg)}° below the horizon</b> (height ${degText(e.el_deg)})`;
+        ? `<b>Earth is below your feet</b> (height ${degText(e.el_deg)})<br>It never rises here: this is the Moon's far side, which always faces away from Earth.`
+        : `<b>Earth is ${Math.round(-e.el_deg)}° below the horizon</b> (height ${degText(e.el_deg)})`;
     // Where the Sun and the Earth are when the frame does not show them (math.js bodyMarker): a dashed outline for a hidden body
     // in the frame (drawn here, under the insets), an arrow on the edge for one out of the frame (HUD).
     const bodies = state ? bodyMarkers() : [];

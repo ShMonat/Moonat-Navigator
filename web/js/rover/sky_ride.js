@@ -7,9 +7,9 @@
 // - 3D ground and drawn skyline: rebuilt where the rover is (the position rounded to a few grid cells), at most every
 //   REBUILD_MS while the time runs, and once more where it stops. The ground is a ±8 km patch of the route grids
 //   (route.js routePatch).
-// - Camera: keeps looking at the same physical direction as the local frame turns, or with "🚙 Look ahead" (the
-//   "ahead" track mode of sky_panel.js, fed by lookAheadDirection) faces the way the rover drives: the path's heading,
-//   slightly up or down with the slope.
+// - Camera: keeps looking at the same physical direction as the local frame turns, or with "Driver's view" (the
+//   timelapse bar's camera group: the "ahead" track mode of sky_panel.js, fed by lookAheadDirection) faces the way
+//   the rover drives: the path's heading, slightly up or down with the slope.
 
 import { routePatch, bracket } from "./route.js";
 import { legAtDistance } from "./trip.js";
@@ -140,7 +140,7 @@ export function rideGround(it, ride) {
 }
 
 /**
- * The direction a trip's view faces with "🚙 Look ahead" (sky_panel.js setLookAheadSource, track mode "ahead"):
+ * The direction a trip's view faces in the driver's view (sky_panel.js setLookAheadSource, track mode "ahead"):
  * { az_deg: the path's heading at the rover, el_deg: slightly up or down with the slope (deg, local horizon frame of
  * ride.site) }, or null at a standstill without a heading. The view eases toward it (C8 setTrack).
  */
@@ -151,7 +151,7 @@ export function lookAheadDirection(it, tMs, ride) {
 
 /**
  * Before a view shows a new moment of the ride: keep the camera on the same physical direction while the local frame
- * turns (near the pole it turns quickly with position). With "Look ahead" on (ahead) the track mode aims it instead.
+ * turns (near the pole it turns quickly with position). In the driver's view (ahead) the track mode aims it instead.
  */
 export function rideCamera(rec, ride, { ahead = false } = {}) {
   const view = rec.view;
@@ -193,24 +193,6 @@ export function rideTerrain(rec, it, ride) {
   else rec.rideTimer = setTimeout(build, wait);
 }
 
-/**
- * The "🚙 Look ahead" button of a trip's sky card: toggle() turns the "ahead" track mode on or off (sky_panel.js; a
- * drag in the view pauses it, as any tracking), isOn() gives its state; sky_panel keeps aria-pressed in step.
- */
-export function addRideControls(rec, { toggle, isOn }) {
-  const acts = rec.root.querySelector(".sky-card-acts");
-  if (!acts || acts.querySelector(".ride-ahead")) return;
-  const b = document.createElement("button");
-  b.type = "button";
-  b.className = "sky-act ride-ahead";
-  b.setAttribute("aria-pressed", String(!!isOn?.()));
-  b.setAttribute("aria-label", "Look ahead: face the way the rover drives");
-  b.title = "Look ahead: the views face the way the rover drives as the timelapse plays (drag a view to look around; press again to follow)";
-  b.innerHTML = '<span aria-hidden="true">🚙</span><span class="sky-act-txt"> Look ahead</span>';
-  b.addEventListener("click", () => toggle?.());
-  acts.prepend(b);
-}
-
 /** Footer text of a trip's sky card. */
 export function rideNote(it, ride) {
   const L = it.route.track.length_m / 1000;
@@ -218,5 +200,5 @@ export function rideNote(it, ride) {
   const what = { start: "at the start", driving: "driving", parked: "resting", arrived: "arrived" }[ride.phase];
   const legs = it.route.result.leg_info;
   const leg = legs && ride.phase !== "arrived" ? ` (${String.fromCharCode(65 + ride.leg)} → ${String.fromCharCode(66 + ride.leg)})` : "";
-  return `🛞 Rover ${d.toFixed(d < 10 ? 2 : 1)} of ${L.toFixed(1)} km · ${what}${leg} · terrain: LOLA ${Math.round(it.route.result.meta.fine_cell_m)} m route grid`;
+  return `Rover ${d.toFixed(d < 10 ? 2 : 1)} of ${L.toFixed(1)} km · ${what}${leg} · terrain: LOLA ${Math.round(it.route.result.meta.fine_cell_m)} m route grid`;
 }

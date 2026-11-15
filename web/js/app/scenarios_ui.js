@@ -20,6 +20,7 @@ import { suggestDates, suggestKey, suggestCaveat } from "./suggest_adapter.js";
 import { terrainStatusText, terrainState, onTerrainChange } from "./terrain_live.js";
 import { attachTimePicker, closeTimePicker, refreshSuggestions } from "./time_picker.js";
 import { buildTripToggle, buildTripPanel } from "../rover/ui.js";
+import { icon as svgIcon } from "./icons.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -205,7 +206,8 @@ function buildCard(s, index) {
   label.addEventListener("input", () => updateScenario(s.id, { label: label.value }, "label"));
   const dup = el("button", { class: "icon-btn", title: "Duplicate", "aria-label": "Duplicate scenario", text: "⧉" });
   dup.addEventListener("click", () => duplicateScenario(s.id));
-  const rm = el("button", { class: "icon-btn", title: "Remove", "aria-label": "Remove scenario", text: "✕" });
+  const rm = el("button", { class: "icon-btn", title: "Remove", "aria-label": "Remove scenario" });
+  rm.innerHTML = svgIcon("close");
   rm.addEventListener("click", () => (store.scenarios.length > 1 ? removeScenario(s.id) : clearAll()));
   // The "Trip" toggle next to the place's name: a rover trip from this place (web/js/rover/ui.js).
   card.append(el("div", { class: "scen-head" }, el("span", { class: "swatch", "aria-hidden": "true" }), label, buildTripToggle(s), dup, rm));
@@ -313,7 +315,8 @@ function timeField(text, key, value, clearable) {
   // The field and its buttons: ✕ (End) and the calendar (📅, time_picker.js, added by attachPickers).
   let clear = null;
   if (clearable) {
-    clear = el("button", { type: "button", class: "clear", title: "Remove the end time (single instant)", "aria-label": "Clear end time", text: "✕" });
+    clear = el("button", { type: "button", class: "clear", title: "Remove the end time (single instant)", "aria-label": "Clear end time" });
+    clear.innerHTML = svgIcon("close");
     clear.hidden = !value;
   }
   const inner = el("div", { class: `with-cal${clearable ? " with-clear" : ""}` }, input, clear);

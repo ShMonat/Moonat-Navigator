@@ -173,7 +173,7 @@
 
   <div class="intro" id="intro" role="note" aria-label="Introduction">
     <p><strong>Pick a place on the Moon and a time</strong> to see its real sky, from NASA and JPL data<span class="intro-more">, or start with a story</span>.</p>
-    <button type="button" class="icon-btn intro-close" id="intro-close" aria-label="Hide this introduction" title="Hide this introduction">✕</button>
+    <button type="button" class="icon-btn intro-close" id="intro-close" aria-label="Hide this introduction" title="Hide this introduction"><svg class="ico-svg" viewBox="0 0 24 24" width="1em" height="1em" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
   </div>
 
   <!-- One flow, in the order a visitor needs it: the place (globe), the time (scenario cards), or a story; then the sky
@@ -215,19 +215,22 @@
     </div>
 
     <div class="output" id="output">
+      <div class="empty" id="out-empty" hidden>
+        <svg viewBox="0 0 120 60" class="empty-art" aria-hidden="true"><path d="M0 52 Q30 38 52 46 T120 40 V60 H0z" class="ground"/><circle cx="88" cy="18" r="9" class="earth"/><circle cx="28" cy="14" r="5" class="sun"/></svg>
+        <h2>Pick a place on the Moon and a time</h2>
+        <p>Search the Moon or click the globe, or type coordinates. A story is the fastest way in:</p>
+        <div class="chips empty-chips" data-qs-list></div>
+      </div>
+
+      <!-- The stage: the sky fills the window like an app (app.css .sky-stage): the "what to look for" line, the views,
+           the timelapse bar with the camera group, then the Sun | Earth switch. The data starts right under it. -->
+      <div class="sky-stage" id="sky-stage">
       <div class="out-head" aria-live="polite">
         <!-- The "what to look for" line of the loaded story (main.js). The text below is the first visit's (Apollo 11,
              as QUICK_STARTS[0].caption), there at first paint so the line does not push the sky down later. -->
         <p class="qs-caption" id="qs-caption"><span class="qs-cap-label">What to look for:</span>
           <span class="qs-cap-text">Earth hangs high in the west, 59° up and 67 % lit; the Sun is low in the east. Drag the sky to look around, or press play.</span></p>
         <p class="busy" id="busy" hidden><span class="spinner" aria-hidden="true"></span>Computing…</p>
-      </div>
-
-      <div class="empty" id="out-empty" hidden>
-        <svg viewBox="0 0 120 60" class="empty-art" aria-hidden="true"><path d="M0 52 Q30 38 52 46 T120 40 V60 H0z" class="ground"/><circle cx="88" cy="18" r="9" class="earth"/><circle cx="28" cy="14" r="5" class="sun"/></svg>
-        <h2>Pick a place on the Moon and a time</h2>
-        <p>Search the Moon or click the globe, or type coordinates. A story is the fastest way in:</p>
-        <div class="chips empty-chips" data-qs-list></div>
       </div>
 
       <section class="sky-panel" id="sky-panel" aria-label="Sky view" tabindex="-1">
@@ -253,18 +256,23 @@
               <option value="31557600000" title="365.25 days per second">1 year / s</option>
             </select>
           </label>
-          <button type="button" class="track-btn" id="btn-track" aria-pressed="false"
-            title="Track: keep the selected body framed in every view while the timelapse plays"><span class="trk-ico" aria-hidden="true">🎯</span><span class="trk-txt">Track</span><span class="trk-body"></span><span class="trk-state"></span></button>
+          <!-- The camera: follow the body of the Sun | Earth switch, or (a rover trip on screen) the driver's view.
+               One at a time; pressing the one that is on gives free look (sky_panel.js syncCamGroup). -->
+          <div class="cam-group" id="cam-group" role="group" aria-label="Camera">
+            <button type="button" class="cam-btn" id="btn-follow" aria-pressed="false"><span class="ico" data-icon="follow"></span><span class="cam-txt">Follow <span class="cam-body">Sun</span></span><span class="cam-state"></span></button>
+            <button type="button" class="cam-btn" id="btn-driver" aria-pressed="false" hidden><span class="ico" data-icon="rover"></span><span class="cam-txt">Driver's view</span><span class="cam-state"></span></button>
+          </div>
         </div>
         <p class="event-hint" id="event-hint" hidden></p>
       </section>
 
       <div class="body-bar" id="body-bar" hidden>
         <div class="body-switch seg seg-lg" role="group" aria-label="Look at the Sun or the Earth, and show its data" id="body-toggle">
-          <button type="button" data-body="sun" aria-pressed="true"><span aria-hidden="true">☀</span> Sun</button>
-          <button type="button" data-body="earth" aria-pressed="false"><span aria-hidden="true">🌍</span> Earth</button>
+          <button type="button" data-body="sun" aria-pressed="true"><span class="ico" data-icon="sun"></span>Sun</button>
+          <button type="button" data-body="earth" aria-pressed="false"><span class="ico" data-icon="earth"></span>Earth</button>
         </div>
         <p class="body-sub" id="body-sub">Sunlight: power and heat</p>
+      </div>
       </div>
 
       <div id="compare-body" hidden>
@@ -304,7 +312,7 @@
   </footer>
 
   <dialog id="validated" class="about valid-panel" aria-labelledby="valid-title">
-    <form method="dialog" class="about-close"><button class="icon-btn" aria-label="Close">✕</button></form>
+    <form method="dialog" class="about-close"><button class="icon-btn" aria-label="Close"><svg class="ico-svg" viewBox="0 0 24 24" width="1em" height="1em" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></form>
     <h2 id="valid-title">Checked against NASA and JPL</h2>
     <p class="lead">Every number Moonat shows comes from code that we tested against independent references.</p>
     <ul class="valid-list">
@@ -330,7 +338,7 @@
   </dialog>
 
   <dialog id="about" class="about" aria-labelledby="about-title">
-    <form method="dialog" class="about-close"><button class="icon-btn" aria-label="Close">✕</button></form>
+    <form method="dialog" class="about-close"><button class="icon-btn" aria-label="Close"><svg class="ico-svg" viewBox="0 0 24 24" width="1em" height="1em" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></form>
     <h2 id="about-title">How Moonat works</h2>
     <p class="lead">Pick one or more places on the Moon and a time (or a whole mission). Moonat puts the Sun and Earth exactly where they are in that
       sky and checks whether the local hills hide them.</p>

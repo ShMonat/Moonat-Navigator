@@ -61,7 +61,7 @@ export function pickHint(items, offsetMs = 0) {
       if (now >= a && now <= b) continue; // the sky is in this eclipse now
       return {
         kind: "eclipse", item: it, body: "sun", offsetMs: e.max_ms - it.t0,
-        text: `🌑 The Earth eclipses the Sun${from(it)} on ${dayText(e.max_ms)} (${coverText(e)})`,
+        text: `The Earth eclipses the Sun${from(it)} on ${dayText(e.max_ms)} (${coverText(e)})`,
       };
     }
   }
@@ -75,7 +75,7 @@ export function pickHint(items, offsetMs = 0) {
       kind: "eclipse-window", item: it, body: "sun", atMs: e.max_ms,
       t_start_utc: new Date(Math.round(start / MIN) * MIN).toISOString().replace(".000Z", "Z"),
       t_end_utc: new Date(Math.round(end / MIN) * MIN).toISOString().replace(".000Z", "Z"),
-      text: `🌑 The Earth eclipses the Sun${from(it)} on ${dayText(e.max_ms)} (${coverText(e)})`,
+      text: `The Earth eclipses the Sun${from(it)} on ${dayText(e.max_ms)} (${coverText(e)})`,
     };
   }
   for (const it of items) {
@@ -86,7 +86,7 @@ export function pickHint(items, offsetMs = 0) {
     if (Math.min(offsetMs, it.span || 0) >= at) continue; // already risen on screen
     return {
       kind: "earthrise", item: it, body: "earth", offsetMs: Math.min(it.span, at + EARTHRISE_LEAD_MS),
-      text: `🌍 The Earth rises over the skyline${from(it)} on ${formatUtc(rise)}`,
+      text: `The Earth rises over the skyline${from(it)} on ${formatUtc(rise)}`,
     };
   }
   return null;

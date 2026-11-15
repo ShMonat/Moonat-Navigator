@@ -8,6 +8,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { suggestWindow, suggestBody, suggestIcon, SUGGEST_KINDS, EVENT_PAD_MS } from "../js/app/suggest_adapter.js";
 import { suggestDates } from "../js/suggest/index.js";
+import { icon } from "../js/app/icons.js";
 import { fileFetch } from "./physics_helpers.mjs";
 
 const read = (rel) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
@@ -31,8 +32,11 @@ test("each kind turns the switch to its body and has an icon", () => {
   assert.equal(suggestBody("earth"), "earth");
   assert.equal(suggestBody("earthrise"), "earth");
   assert.equal(suggestBody("both"), null);
-  assert.equal(suggestIcon("eclipse"), "🌑");
-  assert.equal(suggestIcon("mystery"), "✨");
+  // Icons are SVG line icons (web/js/app/icons.js), never emoji: one per kind, two for "both", the sparkle otherwise.
+  assert.equal(suggestIcon("eclipse"), icon("eclipse"));
+  assert.equal(suggestIcon("both"), icon("sun") + icon("earth"));
+  assert.equal(suggestIcon("mystery"), icon("suggest"));
+  for (const k of SUGGEST_KINDS) assert.match(suggestIcon(k.kind), /^<svg /, k.kind);
 });
 
 test("Blue Ghost, March 2025: the list holds the total eclipse of 14 March, and it opens at its maximum", async () => {

@@ -1,7 +1,7 @@
 /* AI-generated with Claude Code (Anthropic), directed and reviewed by the Moonat team. */
 /* Rover trips (web/js/rover/ui.js): the Trip toggle next to the place, the trip points (A, B, C …), the travel modes,
-   the route summary and the live position, the route map and profiles, the globe pick banner, and the sky card's
-   "Look ahead" button. The path, the stops and the rover dot on the globe are the globe's own (globe.css). */
+   the route summary and the live position, the route map and profiles and the globe pick banner (the sky's
+   Driver's view is in the timelapse bar's camera group, app.css). The path, the stops and the rover dot on the globe are the globe's own (globe.css). */
 
 /* The Trip toggle in a card's head, next to the place's name. */
 .trip-toggle {
@@ -42,6 +42,7 @@
 .trip-row .trip-rev { grid-column: 4; font-size: 15px; }
 .trip-row.is-start .trip-start { grid-column: 2 / 4; }
 .trip-list .trip-opt.is-pick .pi-name { color: var(--accent); }
+.trip-list .pi-ico { margin-right: 6px; }
 .trip-list .trip-opt[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
 .trip-add { padding-left: 28px; }
 .trip-add-btn {
@@ -98,7 +99,8 @@
   background: var(--accent-soft); font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums;
 }
 .trip-live b { color: var(--text); }
-.trip-live .tl-ico { color: var(--accent); margin-right: 2px; }
+.trip-live .tl-ico { color: var(--accent); margin-right: 4px; }
+.trip-live .tl-ico .ico-svg { vertical-align: -0.16em; }
 .trip-details { margin-top: 8px; }
 .trip-details-body { margin-top: 6px; }
 
@@ -136,9 +138,6 @@
 .rover-picking .map { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 12px; }
 
 
-/* The rover ride in a sky view: "Look ahead" in the card head. */
-.sky-act.ride-ahead[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-.sky-act.ride-ahead[aria-pressed="mixed"] { border: 1px dashed var(--accent); color: var(--accent); }
 
 .xaxis-note { margin: 0; font-size: 12px; color: var(--muted); }
 
